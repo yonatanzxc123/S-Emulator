@@ -1,0 +1,18 @@
+// engine/src/system/api/EmulatorEngine.java
+package system.api;
+
+import system.api.view.ProgramView;
+
+import java.nio.file.Path;
+import java.util.List;
+
+public interface EmulatorEngine {
+    record LoadOutcome(boolean ok, List<String> errors) {}
+
+    LoadOutcome loadProgram(Path xmlPath);
+    int getVersion();
+
+    ProgramView getProgramView();
+    RunResult run(int degree, List<Long> inputs);
+    List<HistoryEntry> getRunHistory();
+}

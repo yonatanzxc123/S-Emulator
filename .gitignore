@@ -1,0 +1,22 @@
+# Build outputs (javac)
+out/
+engine/out/
+client/out/
+
+# temp files created by the bat script
+engine/sources.txt
+client/sources.txt
+
+# IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code (if you ever open it there)
+.vscode/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
