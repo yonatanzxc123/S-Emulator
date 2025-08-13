@@ -9,7 +9,7 @@ import javax.xml.XMLConstants;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
-import jaxb.*; // <-- my generated package (engine/src/jaxb/*.java)
+import jaxb.*; // <-- my generated package (engine/src/jaxb/*.java) that I got from Aviad
 
 import system.core.model.*;             // Program, Var
 import system.core.model.basic.*;       // Inc, Dec, IfGoto, Nop

@@ -48,7 +48,7 @@ public final class Main {
                         System.out.println("No program loaded yet. Use option 1 first.");
                         break;
                     }
-                    // Print header info
+                    // Print header info (maybe remove later for now its nice)
                     System.out.println("Program: " + v.name());
                     if (!v.inputsUsed().isEmpty())
                         System.out.println("Inputs: " + String.join(", ", v.inputsUsed()));
@@ -111,12 +111,12 @@ public final class Main {
 
                         if (degree >= 0 && degree <= max) break;
 
-                        // its invalid, ask again
+                        // its invalid, it will ask the user again cuz he did dum dum
                         System.out.println("Invalid degree. The maximum possible is " + max + ".");
                         System.out.print("Use max (" + max + ")? [Y/n]: ");
                         String ans = in.nextLine().trim().toLowerCase();
                         if (ans.isEmpty() || ans.startsWith("y")) { degree = max; break; }
-                        // else loop and ask again
+                        // else loop and ask again :(
                     }
 
                     System.out.print("Inputs (comma separated, e.g. 1,2,3): ");

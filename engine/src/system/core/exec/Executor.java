@@ -41,7 +41,7 @@ public final class Executor {
             }
         });
 
-        // === synthetics (direct effects per appendix) ===
+        // === synthetics (direct effects per appendix as needed) ===
         register(ZeroVariable.class, (ZeroVariable i, MachineState s, JumpResolver j) -> {
             s.set(i.v(), 0); s.addCycles(i.cycles()); s.advance();
         });

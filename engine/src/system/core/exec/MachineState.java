@@ -24,7 +24,7 @@ public final class MachineState {
                 st.x.put(i + 1, v); // x1.. = inputs
             }
         }
-        // y and z* default to 0
+        // y and z* default to 0 as per instruction
         return st;
     }
 

@@ -5,7 +5,7 @@ import java.util.*;
 
 public record RunResult(long y, long cycles, ProgramView executedProgram, Map<String,Long> variables) {
 
-    /** Spec order: y, then x1..xn, then z1..zm  as Aviad wanted */
+    /** Spec order: y, then x1..xn, then z1..zm  as Aviad wanted or god ? */
     public Map<String,Long> variablesOrdered() {
         LinkedHashMap<String,Long> out = new LinkedHashMap<>();
         out.put("y", y);
