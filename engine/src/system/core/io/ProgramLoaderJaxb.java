@@ -2,6 +2,12 @@ package system.core.io;
 
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Unmarshaller;
+import jakarta.xml.bind.ValidationEvent;
+import jakarta.xml.bind.ValidationEventHandler;
+import jakarta.xml.bind.ValidationEventLocator;
+import javax.xml.XMLConstants;
+import javax.xml.validation.Schema;
+import javax.xml.validation.SchemaFactory;
 
 import jaxb.*; // <-- my generated package (engine/src/jaxb/*.java)
 
@@ -15,6 +21,7 @@ import java.util.*;
 
 public final class ProgramLoaderJaxb implements ProgramLoader {
 
+
     @Override
     public LoadOutcome load(Path xmlPath) {
         var errs = new ArrayList<String>();
@@ -25,7 +32,38 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
 
             JAXBContext ctx = JAXBContext.newInstance(ObjectFactory.class);
             Unmarshaller u = ctx.createUnmarshaller();
+
+            // try to attach XSD (next to the XML or at project root) and collect validation messages
+            Schema schema = tryLoadSchema(xmlPath);
+            List<String> schemaErrs = new ArrayList<>();
+            if (schema != null) {
+                u.setSchema(schema);
+                u.setEventHandler(new ValidationEventHandler() {
+                    @Override
+                    public boolean handleEvent(ValidationEvent event) {
+                        ValidationEventLocator loc = event.getLocator();
+                        String pos = (loc != null)
+                                ? (" line " + loc.getLineNumber() + ", col " + loc.getColumnNumber())
+                                : "";
+                        String sev = switch (event.getSeverity()) {
+                            case ValidationEvent.WARNING -> "Warning";
+                            case ValidationEvent.ERROR -> "Error";
+                            case ValidationEvent.FATAL_ERROR -> "Fatal";
+                            default -> "Unknown";
+                        };
+                        schemaErrs.add(sev + pos + ": " + event.getMessage());
+                        // keep parsing to gather all issues; it will fail after unmarshal!
+                        return true;
+                    }
+                });
+            }
+
+            // unmarshal (with or without schema we do not care cuz we checked)
             SProgram root = (SProgram) u.unmarshal(xmlPath.toFile());
+
+            // if XSD validation reported anything, stop here and return those messages
+            if (!schemaErrs.isEmpty()) return LoadOutcome.error(schemaErrs);
+
 
             if (root == null || root.getSInstructions() == null || root.getSInstructions().getSInstruction() == null) {
                 return LoadOutcome.error(List.of("Empty or invalid <S-Program>."));
@@ -184,4 +222,24 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
         errs.add("Unknown variable token at #" + line + ": " + s);
         return Var.z(1);
     }
+
+    private static Schema tryLoadSchema(Path xmlPath) {
+        try {
+            SchemaFactory sf = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+            // 1) look for XSD next to the XML so we can know its valid
+            if (xmlPath != null && xmlPath.getParent() != null) {
+                Path near = xmlPath.getParent().resolve("S-Emulator-v1.xsd");
+                if (java.nio.file.Files.isRegularFile(near)) return sf.newSchema(near.toFile());
+            }
+            // 2) fallback: project root so we can run tests without XML
+            Path root = Path.of("S-Emulator-v1.xsd");
+            if (java.nio.file.Files.isRegularFile(root)) return sf.newSchema(root.toFile());
+        } catch (Exception ignore) { /* schema is optional */ }
+        return null;
+    }
+
+
+
+
+
 }

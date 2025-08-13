@@ -1,28 +1,27 @@
 package system.core.model.synthetic;
 
 import system.core.model.SyntheticInstruction;
-import system.core.model.Var;   // if the class uses Var check later
+import system.core.model.Var;
 
+import java.util.List;
 
-public final class JumpEqualConstant implements SyntheticInstruction {
-    private final String label;
-    private final String target;
+public final class JumpEqualConstant extends SyntheticInstruction {
+    private final Var v;
     private final long k;
-    private final system.core.model.Var v;
+    private final String target;
 
-    public JumpEqualConstant(String label, system.core.model.Var v, long k, String target) {
-        this.label = label;
+    public JumpEqualConstant(String label, Var v, long k, String target) {
+        super(label);
         this.v = v;
         this.k = k;
-        this.target = target;
+        this.target = (target == null ? "" : target);
     }
 
-    @Override public String label() { return label; }
-    @Override public int cycles() { return 2; }                 // appendix
-    @Override public String asText() { return "IF " + v.asText() + " = " + k + " GOTO " + target; }
+    public Var v()        { return v; }
+    public long k()       { return k; }
+    public String target(){ return target; }
 
-    public system.core.model.Var v() { return v; }
-    public long k() { return k; }
-    public String target() { return target;  }  // for the assembler
-
+    @Override public int cycles() { return 2; }  // per spec
+    @Override public String asText() { return "IF " + v + " = " + k + " GOTO " + target; }
+    @Override public List<Var> variablesUsed() { return List.of(v); }
 }

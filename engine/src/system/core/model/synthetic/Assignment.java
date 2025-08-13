@@ -3,20 +3,21 @@ package system.core.model.synthetic;
 import system.core.model.SyntheticInstruction;
 import system.core.model.Var;
 
-public final class Assignment implements SyntheticInstruction {
-    private final String label;
-    private final Var dst;
-    private final Var src;
+public final class Assignment extends SyntheticInstruction {
+    private final Var v;     // destination
+    private final Var src;   // source
 
-    public Assignment(String label, Var dst, Var src) {
-        this.label = label;
-        this.dst = dst;
+    public Assignment(String label, Var v, Var src) {
+        super(label);
+        this.v = v;
         this.src = src;
     }
 
-    @Override public String label() { return label; }
-    @Override public int cycles() { return 4; }                 // appendix
-    @Override public String asText() { return dst.asText() + " <- " + src.asText(); }
-    public Var dst() { return dst; }
+    public Var v()   { return v; }
     public Var src() { return src; }
+
+    @Override public int cycles() { return 4; }
+    @Override public String asText() { return v + " <- " + src; }
+    @Override public java.util.List<Var> variablesUsed() { return java.util.List.of(v, src); }
+
 }

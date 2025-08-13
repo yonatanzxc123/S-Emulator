@@ -3,24 +3,25 @@ package system.core.model.synthetic;
 import system.core.model.SyntheticInstruction;
 import system.core.model.Var;
 
-public final class JumpEqualVariable implements SyntheticInstruction {
-    private final String label;
+import java.util.List;
+
+public final class JumpEqualVariable extends SyntheticInstruction {
     private final Var a;
     private final Var b;
     private final String target;
 
     public JumpEqualVariable(String label, Var a, Var b, String target) {
-        this.label = label;
+        super(label);
         this.a = a;
         this.b = b;
-        this.target = target;
+        this.target = (target == null ? "" : target);
     }
-
-    @Override public String label() { return label; }
-    @Override public int cycles() { return 2; }                 // appendix
-    @Override public String asText() { return "IF " + a.asText() + " = " + b.asText() + " GOTO " + target; }
 
     public Var a() { return a; }
     public Var b() { return b; }
-    public String target() { return target;  }  // for the assembler
+    public String target() { return target; }
+
+    @Override public int cycles() { return 2; }  // per spec
+    @Override public String asText() { return "IF " + a + " = " + b + " GOTO " + target; }
+    @Override public List<Var> variablesUsed() { return List.of(a, b); }
 }

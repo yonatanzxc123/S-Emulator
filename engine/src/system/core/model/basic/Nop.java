@@ -3,13 +3,21 @@ package system.core.model.basic;
 import system.core.model.BasicInstruction;
 import system.core.model.Var;
 
-public final class Nop implements BasicInstruction {
-    private final String label; private final Var v; private final int cycles;
+import java.util.List;
 
-    public Nop(String label, Var v, int cycles){ this.label=label; this.v=v; this.cycles=cycles; }
-    public String label(){ return label; }
-    public int cycles(){ return cycles; }
-    public String asText(){ return v.asText() + " <- " + v.asText(); }
-    public Var v(){ return v;}
+public final class Nop extends BasicInstruction {
+    private final Var v;
 
+    public Nop(String label, Var v, int cycles) {
+        super(label, cycles);                  // cycles is 0 for NO-OP
+        this.v = v;
+    }
+
+    public Var v() { return v; }
+
+    @Override
+    public String asText() { return v + " <- " + v; }
+
+    @Override
+    public List<Var> variablesUsed() { return List.of(v); }
 }

@@ -22,6 +22,9 @@ public final class Main {
             System.out.println("""
                 1) Load XML
                 2) Show Program
+                3) Expand & Show Program
+                4) Run  Program
+                5) Show History
                 6) Exit
                 """);
             System.out.print("Choose: ");
@@ -63,11 +66,58 @@ public final class Main {
                         System.out.println(line + (c.originChain().isEmpty() ? "" : "  <<<  " + c.originChain()));
                     }
                 }
+                case "3" -> {
+                    var v = engine.getProgramView();
+                    if (v == null) { System.out.println("No program loaded yet."); break; }
+
+                    int max = engine.getMaxDegree();
+                    System.out.println("Max expandable degree: " + max);
+                    System.out.print("Expand to degree (0.." + max + "): ");
+                    String s = in.nextLine().trim();
+                    int degree;
+                    try { degree = Integer.parseInt(s); } catch (NumberFormatException e) { degree = 0; }
+                    if (degree > max) {
+                        System.out.println("Requested degree exceeds max. Using " + max + " instead.");
+                        degree = max;
+                    } else if (degree < 0) {
+                        degree = 0;
+                    }
+
+                    ProgramView pv = engine.getExpandedProgramView(degree);
+                    System.out.println("Program (expanded to degree " + degree + "): " + pv.name());
+                    if (!pv.inputsUsed().isEmpty())
+                        System.out.println("Inputs: " + String.join(", ", pv.inputsUsed()));
+                    if (!pv.labelsInOrder().isEmpty())
+                        System.out.println("Labels: " + String.join(", ", pv.labelsInOrder()));
+                    for (var c : pv.commands()) {
+                        String line = String.format(
+                                "#%d (%s) [%-5s] %s (%d)",
+                                c.number(), c.basic() ? "B" : "S",
+                                c.labelOrEmpty() == null ? "" : c.labelOrEmpty(),
+                                c.text(), c.cycles()
+                        );
+                        System.out.println(line + (c.originChain().isEmpty() ? "" : "  <<<  " + c.originChain()));
+                    }
+                }
                 case "4" -> {
-                    System.out.print("Degree (0 for now): ");
-                    String d = in.nextLine().trim();
-                    int degree = 0;
-                    try { degree = Integer.parseInt(d); } catch (NumberFormatException ignored) {}
+                    int max = engine.getMaxDegree();
+                    System.out.println("Max expandable degree: " + max);
+
+                    int degree = -1;
+                    while (true) {
+                        System.out.print("Choose degree [0.." + max + "]: ");
+                        String d = in.nextLine().trim();
+                        try { degree = Integer.parseInt(d); } catch (NumberFormatException e) { degree = -1; }
+
+                        if (degree >= 0 && degree <= max) break;
+
+                        // its invalid, ask again
+                        System.out.println("Invalid degree. The maximum possible is " + max + ".");
+                        System.out.print("Use max (" + max + ")? [Y/n]: ");
+                        String ans = in.nextLine().trim().toLowerCase();
+                        if (ans.isEmpty() || ans.startsWith("y")) { degree = max; break; }
+                        // else loop and ask again
+                    }
 
                     System.out.print("Inputs (comma separated, e.g. 1,2,3): ");
                     String line = in.nextLine().trim();
@@ -85,7 +135,6 @@ public final class Main {
                         break;
                     }
 
-                    // show program actually executed
                     System.out.println("Executed program:");
                     for (var c : rr.executedProgram().commands()) {
                         String ln = String.format("#%d (%s) [%-5s] %s (%d)",
@@ -94,10 +143,7 @@ public final class Main {
                                 c.text(), c.cycles());
                         System.out.println(ln);
                     }
-
-                    // show results
-                    System.out.println("y = " + rr.y());
-                    rr.variables().forEach((k,v) -> System.out.println(k + " = " + v));
+                    rr.variablesOrdered().forEach((k,v) -> System.out.println(k + " = " + v));
                     System.out.println("cycles = " + rr.cycles());
                 }
                 case "5" -> {

@@ -3,16 +3,25 @@ package system.core.model.basic;
 import system.core.model.BasicInstruction;
 import system.core.model.Var;
 
-public final class Dec implements BasicInstruction {
-    private final String label;
-    private final Var v;
-    private final int cycles;
+import java.util.List;
 
-    public Dec(String label, Var v, int cycles) { this.label = label; this.v = v; this.cycles = cycles; }
+public final class Dec extends BasicInstruction {
+    private final Var v;
+
+    public Dec(String label, Var v, int cycles) {
+        super(label, cycles);
+        this.v = v;
+    }
 
     public Var v() { return v; }
 
-    @Override public String label()  { return label; }
-    @Override public int cycles()    { return cycles; }
-    @Override public String asText() { return v.asText() + " <- " + v.asText() + " - 1"; }
+    @Override
+    public String asText() {
+        return v + " <- " + v + " - 1";
+    }
+
+    @Override
+    public List<Var> variablesUsed() {
+        return List.of(v);
+    }
 }

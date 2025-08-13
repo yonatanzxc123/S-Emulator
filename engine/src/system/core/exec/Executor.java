@@ -51,10 +51,14 @@ public final class Executor {
             if (to == -1) s.halt(); else s.jumpTo(to);
         });
         register(Assignment.class, (Assignment i, MachineState s, JumpResolver j) -> {
-            s.set(i.dst(), s.get(i.src())); s.addCycles(i.cycles()); s.advance();
+            s.set(i.v(), s.get(i.src()));
+            s.addCycles(i.cycles());
+            s.advance();
         });
         register(ConstantAssignment.class, (ConstantAssignment i, MachineState s, JumpResolver j) -> {
-            s.set(i.dst(), i.k()); s.addCycles(i.cycles()); s.advance();
+            s.set(i.v(), i.k());
+            s.addCycles(i.cycles());
+            s.advance();
         });
         register(JumpZero.class, (JumpZero i, MachineState s, JumpResolver j) -> {
             s.addCycles(i.cycles());

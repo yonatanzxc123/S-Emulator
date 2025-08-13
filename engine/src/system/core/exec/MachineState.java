@@ -29,7 +29,7 @@ public final class MachineState {
     }
 
     public long get(Var v) {
-        return switch (v.kind()) {
+        return switch (v.symbol()) {
             case 'x' -> x.getOrDefault(v.index(), 0L);
             case 'z' -> z.getOrDefault(v.index(), 0L);
             case 'y' -> y;
@@ -39,7 +39,7 @@ public final class MachineState {
 
     public void set(Var v, long value) {
         long val = Math.max(0L, value);
-        switch (v.kind()) {
+        switch (v.symbol()) {
             case 'x' -> x.put(v.index(), val);
             case 'z' -> z.put(v.index(), val);
             case 'y' -> y = val;

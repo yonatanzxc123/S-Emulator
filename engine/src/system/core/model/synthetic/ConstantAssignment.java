@@ -3,20 +3,20 @@ package system.core.model.synthetic;
 import system.core.model.SyntheticInstruction;
 import system.core.model.Var;
 
-public final class ConstantAssignment implements SyntheticInstruction {
-    private final String label;
-    private final Var dst;
+public final class ConstantAssignment extends SyntheticInstruction {
+    private final Var v;
     private final long k;
 
-    public ConstantAssignment(String label, Var dst, long k) {
-        this.label = label;
-        this.dst = dst;
+    public ConstantAssignment(String label, Var v, long k) {
+        super(label);
+        this.v = v;
         this.k = k;
     }
 
-    @Override public String label() { return label; }
-    @Override public int cycles() { return 2; }                 // appendix
-    @Override public String asText() { return dst.asText() + " <- " + k; }
-    public Var dst() { return dst; }
+    public Var v() { return v; }
     public long k() { return k; }
+
+    @Override public int cycles() { return 2; }
+    @Override public String asText() { return v + " <- " + k; }
+    @Override public java.util.List<Var> variablesUsed() { return java.util.List.of(v); }
 }

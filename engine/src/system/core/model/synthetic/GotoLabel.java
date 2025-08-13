@@ -4,11 +4,11 @@ import system.core.model.SyntheticInstruction;
 import system.core.model.Var;   // if the class uses Var, check later
 
 
-public final class GotoLabel implements SyntheticInstruction {
-    private final String label; private final String target;
-    public GotoLabel(String label, String target){ this.label=label; this.target=target; }
-    public String label(){ return label; }
-    public int cycles(){ return 1; }
-    public String asText(){ return "GOTO " + target; }
-    public String target(){ return target;  }  // for the assembler
+public final class GotoLabel extends SyntheticInstruction {
+    private final String target;
+    public GotoLabel(String label, String target) { super(label); this.target = target; }
+    public String target() { return target; }
+    @Override public int cycles() { return 1; }
+    @Override public String asText() { return "GOTO " + target; }
+    @Override public java.util.List<Var> variablesUsed() { return java.util.List.of(); }
 }

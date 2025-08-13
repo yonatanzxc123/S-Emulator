@@ -10,9 +10,11 @@ public interface EmulatorEngine {
     record LoadOutcome(boolean ok, List<String> errors) {}
 
     LoadOutcome loadProgram(Path xmlPath);
-    int getVersion();
+    int getVersion(); // for Sanity check for me
 
     ProgramView getProgramView();
     RunResult run(int degree, List<Long> inputs);
     List<HistoryEntry> getRunHistory();
+    ProgramView getExpandedProgramView(int degree);
+    int getMaxDegree();
 }
