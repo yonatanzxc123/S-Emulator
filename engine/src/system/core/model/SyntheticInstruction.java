@@ -1,5 +1,7 @@
 package system.core.model;
 
+import system.core.expand.helpers.FreshNames;
+
 public abstract non-sealed class SyntheticInstruction implements Instruction {
     protected final String label;
 
@@ -9,6 +11,8 @@ public abstract non-sealed class SyntheticInstruction implements Instruction {
 
     @Override public String label()   { return label; }
     @Override public boolean isBasic(){ return false; }
-    // cycles(), asText() are provided by each concrete synthetic instruction
-    // variablesUsed() defaults to Instruction#variablesUsed unless overridden
+
+    // expandTo() is overridden by each concrete synthetic instruction so no need here
+    // cycles(), asText() are provided by each concrete synthetic instruction so no need here
+    // variablesUsed() defaults to Instruction#variablesUsed unless overridden so also no need here
 }

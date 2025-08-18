@@ -9,18 +9,18 @@ import javax.xml.XMLConstants;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
-import jaxb.*; // <-- my generated package (engine/src/jaxb/*.java) that I got from Aviad
+import jaxb.*; // generated JAXB classes
 
-import system.core.model.*;             // Program, Var
+import system.core.model.*;             // Program, Var, Instruction
 import system.core.model.basic.*;       // Inc, Dec, IfGoto, Nop
-import system.core.model.synthetic.*;   // ZeroVariable, ...
+import system.core.model.synthetic.*;   // ZeroVariable, GotoLabel, ...
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.Locale;
 
 public final class ProgramLoaderJaxb implements ProgramLoader {
-
 
     @Override
     public LoadOutcome load(Path xmlPath) {
@@ -33,7 +33,7 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
             JAXBContext ctx = JAXBContext.newInstance(ObjectFactory.class);
             Unmarshaller u = ctx.createUnmarshaller();
 
-            // try to attach XSD (next to the XML or at project root) and collect validation messages
+            // Optional XSD validation (collect all events, fail after unmarshal)
             Schema schema = tryLoadSchema(xmlPath);
             List<String> schemaErrs = new ArrayList<>();
             if (schema != null) {
@@ -52,120 +52,54 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
                             default -> "Unknown";
                         };
                         schemaErrs.add(sev + pos + ": " + event.getMessage());
-                        // keep parsing to gather all issues; it will fail after unmarshal!
-                        return true;
+                        return true; // keep collecting
                     }
                 });
             }
 
-            // unmarshal (with or without schema we do not care cuz we checked)
             SProgram root = (SProgram) u.unmarshal(xmlPath.toFile());
-
-            // if XSD validation reported anything, stop here and return those messages
             if (!schemaErrs.isEmpty()) return LoadOutcome.error(schemaErrs);
-
 
             if (root == null || root.getSInstructions() == null || root.getSInstructions().getSInstruction() == null) {
                 return LoadOutcome.error(List.of("Empty or invalid <S-Program>."));
             }
 
-            Program p = new Program(root.getName() == null ? "Unnamed" : root.getName());
+            Program program = new Program(root.getName() == null ? "Unnamed" : root.getName());
 
             int line = 0;
             for (SInstruction si : root.getSInstructions().getSInstruction()) {
                 line++;
                 String kind  = safe(si.getType());          // "basic" | "synthetic"
-                String name  = safe(si.getName()).toUpperCase(Locale.ROOT);
-                String label = safe(si.getSLabel());        // may be "", "L1", or "EXIT"
-                String var   = safe(si.getSVariable());     // "x1","z3","y" (some synthetics may ignore)
+                String name  = safe(si.getName());
+                String label = safe(si.getSLabel());
+                String var   = safe(si.getSVariable());
 
-                Map<String,String> a = argsMap(si.getSInstructionArguments());
+                Map<String,String> args = argsMap(si.getSInstructionArguments());
 
-                switch (name) {
-                    // ===== BASIC =====
-                    case "INCREASE" -> {
-                        expect(kind, "basic", line, errs);
-                        p.instructions.add(new Inc(label, parseVar(var, errs, line), 1));
-                    }
-                    case "DECREASE" -> {
-                        expect(kind, "basic", line, errs);
-                        p.instructions.add(new Dec(label, parseVar(var, errs, line), 1));
-                    }
-                    case "JUMP_NOT_ZERO" -> {
-                        expect(kind, "basic", line, errs);
-                        String target = need(a.get("JNZLabel"), "JNZLabel", line, errs);
-                        p.instructions.add(new IfGoto(label, parseVar(var, errs, line), target, 2));
-                    }
-                    case "NEUTRAL" -> {
-                        expect(kind, "basic", line, errs);
-                        p.instructions.add(new Nop(label, parseVar(var, errs, line), 0));
-                    }
-
-                    // ===== SYNTHETIC =====
-                    case "ZERO_VARIABLE" -> {
-                        expect(kind, "synthetic", line, errs);
-                        p.instructions.add(new ZeroVariable(label, parseVar(var, errs, line)));
-                    }
-                    case "GOTO_LABEL" -> {
-                        expect(kind, "synthetic", line, errs);
-                        String target = need(a.get("gotoLabel"), "gotoLabel", line, errs);
-                        p.instructions.add(new GotoLabel(label, target));
-                    }
-                    case "ASSIGNMENT" -> {
-                        expect(kind, "synthetic", line, errs);
-                        String src = need(a.get("assignedVariable"), "assignedVariable", line, errs);
-                        p.instructions.add(new Assignment(label, parseVar(var, errs, line), parseVar(src, errs, line)));
-                    }
-                    case "CONSTANT_ASSIGNMENT" -> {
-                        expect(kind, "synthetic", line, errs);
-                        String kStr = need(a.get("constantValue"), "constantValue", line, errs);
-                        long k = parseNonNegLong(kStr, "constantValue", line, errs);
-                        p.instructions.add(new ConstantAssignment(label, parseVar(var, errs, line), k));
-                    }
-                    case "JUMP_ZERO" -> {
-                        expect(kind, "synthetic", line, errs);
-                        String target = need(a.get("JZLabel"), "JZLabel", line, errs);
-                        p.instructions.add(new JumpZero(label, parseVar(var, errs, line), target));
-                    }
-                    case "JUMP_EQUAL_CONSTANT" -> {
-                        expect(kind, "synthetic", line, errs);
-                        String target = need(a.get("JEConstantLabel"), "JEConstantLabel", line, errs);
-                        String kStr = need(a.get("constantValue"), "constantValue", line, errs);
-                        long k = parseNonNegLong(kStr, "constantValue", line, errs);
-                        p.instructions.add(new JumpEqualConstant(label, parseVar(var, errs, line), k, target));
-                    }
-                    case "JUMP_EQUAL_VARIABLE" -> {
-                        expect(kind, "synthetic", line, errs);
-                        String target = need(a.get("JEVariableLabel"), "JEVariableLabel", line, errs);
-                        String other  = need(a.get("variableName"), "variableName", line, errs);
-                        p.instructions.add(new JumpEqualVariable(label, parseVar(var, errs, line), parseVar(other, errs, line), target));
-                    }
-
-                    default -> errs.add("Unknown instruction name at #" + line + ": '" + name + "'");
+                // Build via registry (no switch!)
+                Instruction ins = Parsers.build(kind, name, label, var, args, line, errs);
+                if (ins != null) {
+                    program.add(ins);
                 }
             }
 
-            // Validate label references (EXIT is allowed)
+            // Generic label validation using Instruction#labelTargets()
             Set<String> defined = new HashSet<>();
-            for (var ins : p.instructions) {
+            for (var ins : program.instructions()) {
                 String lab = ins.label();
                 if (!lab.isEmpty() && !"EXIT".equals(lab)) defined.add(lab);
             }
-            for (int i = 0; i < p.instructions.size(); i++) {
-                var ins = p.instructions.get(i);
-                String missing = switch (ins) {
-                    case IfGoto ig -> checkTarget(ig.target(), defined);
-                    case GotoLabel gl -> checkTarget(gl.target(), defined);
-                    case JumpZero jz -> checkTarget(jz.target(), defined);
-                    case JumpEqualConstant jec -> checkTarget(jec.target(), defined);
-                    case JumpEqualVariable jev -> checkTarget(jev.target(), defined);
-                    default -> null;
-                };
-                if (missing != null) errs.add("Unknown label referenced at #" + (i+1) + ": '" + missing + "'");
+            for (int i = 0; i < program.instructions().size(); i++) {
+                var ins = program.instructions().get(i);
+                for (String t : ins.labelTargets()) {
+                    if (!"EXIT".equals(t) && !defined.contains(t)) {
+                        errs.add("Unknown label referenced at #" + (i + 1) + ": '" + t + "'");
+                    }
+                }
             }
 
             if (!errs.isEmpty()) return LoadOutcome.error(errs);
-            return LoadOutcome.ok(p);
+            return LoadOutcome.ok(program);
 
         } catch (Exception e) {
             errs.add("Parse error: " + e.getMessage());
@@ -173,17 +107,18 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
         }
     }
 
-    // ---- helpers ----
+    // ---------- helpers (kept local to this file) ----------
+
     private static String safe(String s){ return s==null? "" : s.trim(); }
-    private static void expect(String actual, String expected, int line, List<String> errs) {
-        if (!expected.equalsIgnoreCase(actual)) {
-            errs.add("Instruction #" + line + " expected type='" + expected + "' but got '" + actual + "'");
-        }
-    }
+
     private static String need(String v, String name, int line, List<String> errs) {
-        if (v == null || v.trim().isEmpty()) { errs.add("Missing @" + name + " at instruction #" + line); return ""; }
+        if (v == null || v.trim().isEmpty()) {
+            errs.add("Missing @" + name + " at instruction #" + line);
+            return "";
+        }
         return v.trim();
     }
+
     private static long parseNonNegLong(String v, String name, int line, List<String> errs) {
         try {
             long k = Long.parseLong(v);
@@ -194,10 +129,7 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
             return 0L;
         }
     }
-    private static String checkTarget(String target, Set<String> defined) {
-        if (target == null || target.isEmpty() || "EXIT".equals(target)) return null;
-        return defined.contains(target) ? null : target;
-    }
+
     private static Map<String,String> argsMap(SInstructionArguments args) {
         Map<String,String> m = new HashMap<>();
         if (args != null && args.getSInstructionArgument() != null) {
@@ -207,6 +139,7 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
         }
         return m;
     }
+
     private static Var parseVar(String text, List<String> errs, int line) {
         if (text == null || text.isBlank()) { errs.add("Missing <S-Variable> at instruction #" + line); return Var.z(1); }
         String s = text.trim();
@@ -226,20 +159,103 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
     private static Schema tryLoadSchema(Path xmlPath) {
         try {
             SchemaFactory sf = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
-            // 1) look for XSD next to the XML so we can know its valid
             if (xmlPath != null && xmlPath.getParent() != null) {
                 Path near = xmlPath.getParent().resolve("S-Emulator-v1.xsd");
-                if (java.nio.file.Files.isRegularFile(near)) return sf.newSchema(near.toFile());
+                if (Files.isRegularFile(near)) return sf.newSchema(near.toFile());
             }
-            // 2) fallback: project root so we can run tests without XML
             Path root = Path.of("S-Emulator-v1.xsd");
-            if (java.nio.file.Files.isRegularFile(root)) return sf.newSchema(root.toFile());
-        } catch (Exception ignore) { /* schema is optional */ }
+            if (Files.isRegularFile(root)) return sf.newSchema(root.toFile());
+        } catch (Exception ignore) {}
         return null;
     }
 
+    // ---------- tiny name->factory registry (lives inside this file) ----------
 
+    private static final class Parsers {
+        @FunctionalInterface
+        interface Builder {
+            Instruction build(String label, String varToken, Map<String,String> args, int line, List<String> errs);
+        }
+        private static final class Entry {
+            final String expectedType;  // "basic" | "synthetic"
+            final Builder builder;
+            Entry(String expectedType, Builder builder) {
+                this.expectedType = expectedType; this.builder = builder;
+            }
+        }
+        private static final Map<String, Entry> REG = new HashMap<>();
 
+        static Instruction build(String kind, String name, String label, String varToken,
+                                 Map<String,String> args, int line, List<String> errs) {
+            Entry e = REG.get(name == null ? "" : name.toUpperCase(Locale.ROOT));
+            if (e == null) {
+                errs.add("Unknown instruction name at #" + line + ": '" + name + "'");
+                return null;
+            }
+            if (!e.expectedType.equalsIgnoreCase(kind)) {
+                errs.add("Instruction #" + line + " expected type='" + e.expectedType + "' but got '" + kind + "'");
+                // still attempt build to surface more issues
+            }
+            return e.builder.build(label, varToken, args, line, errs);
+        }
 
+        private static void reg(String keywordUpper, String expectedType, Builder b) {
+            REG.put(keywordUpper, new Entry(expectedType, b));
+        }
 
+        static {
+            // ===== BASIC =====
+            reg("INCREASE", "basic", (label, var, a, line, errs) ->
+                    new Inc(label, parseVar(var, errs, line), 1));
+
+            reg("DECREASE", "basic", (label, var, a, line, errs) ->
+                    new Dec(label, parseVar(var, errs, line), 1));
+
+            reg("JUMP_NOT_ZERO", "basic", (label, var, a, line, errs) -> {
+                String target = need(a.get("JNZLabel"), "JNZLabel", line, errs);
+                return new IfGoto(label, parseVar(var, errs, line), target, 2);
+            });
+
+            reg("NEUTRAL", "basic", (label, var, a, line, errs) ->
+                    new Nop(label, parseVar(var, errs, line), 0));
+
+            // ===== SYNTHETIC =====
+            reg("ZERO_VARIABLE", "synthetic", (label, var, a, line, errs) ->
+                    new ZeroVariable(label, parseVar(var, errs, line)));
+
+            reg("GOTO_LABEL", "synthetic", (label, var, a, line, errs) -> {
+                String target = need(a.get("gotoLabel"), "gotoLabel", line, errs);
+                return new GotoLabel(label, target);
+            });
+
+            reg("ASSIGNMENT", "synthetic", (label, var, a, line, errs) -> {
+                String src = need(a.get("assignedVariable"), "assignedVariable", line, errs);
+                return new Assignment(label, parseVar(var, errs, line), parseVar(src, errs, line));
+            });
+
+            reg("CONSTANT_ASSIGNMENT", "synthetic", (label, var, a, line, errs) -> {
+                String kStr = need(a.get("constantValue"), "constantValue", line, errs);
+                long k = parseNonNegLong(kStr, "constantValue", line, errs);
+                return new ConstantAssignment(label, parseVar(var, errs, line), k);
+            });
+
+            reg("JUMP_ZERO", "synthetic", (label, var, a, line, errs) -> {
+                String target = need(a.get("JZLabel"), "JZLabel", line, errs);
+                return new JumpZero(label, parseVar(var, errs, line), target);
+            });
+
+            reg("JUMP_EQUAL_CONSTANT", "synthetic", (label, var, a, line, errs) -> {
+                String target = need(a.get("JEConstantLabel"), "JEConstantLabel", line, errs);
+                String kStr = need(a.get("constantValue"), "constantValue", line, errs);
+                long k = parseNonNegLong(kStr, "constantValue", line, errs);
+                return new JumpEqualConstant(label, parseVar(var, errs, line), k, target);
+            });
+
+            reg("JUMP_EQUAL_VARIABLE", "synthetic", (label, var, a, line, errs) -> {
+                String target = need(a.get("JEVariableLabel"), "JEVariableLabel", line, errs);
+                String other  = need(a.get("variableName"), "variableName", line, errs);
+                return new JumpEqualVariable(label, parseVar(var, errs, line), parseVar(other, errs, line), target);
+            });
+        }
+    }
 }

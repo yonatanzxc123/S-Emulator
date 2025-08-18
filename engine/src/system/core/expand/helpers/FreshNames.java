@@ -18,8 +18,8 @@ public final class FreshNames {
     public FreshNames(Program base) {
         int maxZ = 0;
 
-        if (base != null && base.instructions != null) {
-            for (Instruction ins : base.instructions) {
+        if (base != null) {
+            for (Instruction ins : base.instructions()) {
                 // collect existing labels
                 String lab = ins.label();
                 if (lab != null && !lab.isEmpty()) {

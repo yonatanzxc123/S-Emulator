@@ -129,22 +129,22 @@ public final class Main {
                         }
                     }
 
-                    RunResult rr = engine.run(degree, inputs);
-                    if (rr == null) {
+                    RunResult runResult = engine.run(degree, inputs);
+                    if (runResult == null) {
                         System.out.println("No program loaded yet. Use option 1 first.");
                         break;
                     }
 
                     System.out.println("Executed program:");
-                    for (var c : rr.executedProgram().commands()) {
+                    for (var command : runResult.executedProgram().commands()) {
                         String ln = String.format("#%d (%s) [%-5s] %s (%d)",
-                                c.number(), c.basic() ? "B" : "S",
-                                c.labelOrEmpty() == null ? "" : c.labelOrEmpty(),
-                                c.text(), c.cycles());
+                                command.number(), command.basic() ? "B" : "S",
+                                command.labelOrEmpty() == null ? "" : command.labelOrEmpty(),
+                                command.text(), command.cycles());
                         System.out.println(ln);
                     }
-                    rr.variablesOrdered().forEach((k,v) -> System.out.println(k + " = " + v));
-                    System.out.println("cycles = " + rr.cycles());
+                    runResult.variablesOrdered().forEach((k,v) -> System.out.println(k + " = " + v));
+                    System.out.println("cycles = " + runResult.cycles());
                 }
                 case "5" -> {
                     var hist = engine.getRunHistory();

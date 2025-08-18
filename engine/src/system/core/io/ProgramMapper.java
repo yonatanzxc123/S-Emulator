@@ -17,7 +17,7 @@ public final class ProgramMapper {
         LinkedHashSet<String> inputs = new LinkedHashSet<>();
 
         int idx = 1;
-        for (Instruction ins : p.instructions) {
+        for (Instruction ins : p.instructions()) {
             if (!ins.label().isEmpty() && !"EXIT".equals(ins.label())) labels.add(ins.label());
             // naive way to extract x-inputs present in text
             String t = ins.asText();
@@ -27,10 +27,10 @@ public final class ProgramMapper {
             lines.add(new CommandView(idx++, ins.isBasic(), ins.label(), ins.asText(), ins.cycles(), ""));
         }
         // move EXIT to the end if appears anywhere (just for display policy)
-        if (p.instructions.stream().anyMatch(i -> "EXIT".equals(i.label()))) {
+        if (p.instructions().stream().anyMatch(i -> "EXIT".equals(i.label()))) {
             labels.add("EXIT");
         }
 
-        return new ProgramView(p.name, new ArrayList<>(inputs), new ArrayList<>(labels), lines);
+        return new ProgramView(p.name(), new ArrayList<>(inputs), new ArrayList<>(labels), lines);
     }
 }

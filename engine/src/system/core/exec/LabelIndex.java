@@ -13,8 +13,8 @@ public final class LabelIndex implements JumpResolver {
 
     public static LabelIndex build(Program p) {
         LabelIndex idx = new LabelIndex();
-        for (int i = 0; i < p.instructions.size(); i++) {
-            Instruction ins = p.instructions.get(i);
+        for (int i = 0; i < p.instructions().size(); i++) {
+            Instruction ins = p.instructions().get(i);
             String lab = ins.label();
             if (lab == null || lab.isEmpty() || "EXIT".equals(lab)) continue;
             // first occurrence wins

@@ -98,8 +98,8 @@ public final class Executor {
         MachineState st = MachineState.init(inputs);
         JumpResolver jr = LabelIndex.build(p);
 
-        while (!st.halted && st.pc < p.instructions.size()) {
-            Instruction ins = p.instructions.get(st.pc);
+        while (!st.halted && st.pc < p.instructions().size()) {
+            Instruction ins = p.instructions().get(st.pc);
             step(ins, st, jr);
         }
         return st;

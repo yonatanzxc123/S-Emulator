@@ -4,9 +4,12 @@ import system.api.EmulatorEngine;
 import system.api.HistoryEntry;
 import system.api.RunResult;
 import system.api.view.ProgramView;
-import system.core.expand.helpers.ExpansionService;
+import system.core.exec.Executor;
+import system.core.expand.Expander;
+import system.core.expand.ExpanderImpl;
 import system.core.io.ProgramLoaderJaxb;
 import system.core.io.ProgramMapper;
+import system.core.model.Instruction;
 import system.core.model.Program;
 
 import java.nio.file.Path;
@@ -19,7 +22,7 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
     private int version = 0;
     private Program current = null;
     private final List<HistoryEntry> history = new ArrayList<>();
-    private final ExpansionService expander = new ExpansionService();
+    private final Expander expander = new ExpanderImpl();
 
     @Override
     public LoadOutcome loadProgram(Path xmlPath) {
@@ -93,6 +96,21 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
     public int getMaxDegree() {
         if (current == null) return 0;
         final int CAP = 1000; // safety cap
-        return expander.computeMaxDegree(current, CAP);
+        int d = 0;
+        Program cur = current;
+        while (d < CAP && containsSynthetic(cur)) {
+            cur = expander.expandToDegree(cur, 1);
+            d++;
+        }
+        return d;
     }
+
+    // ---- helper ----
+    private static boolean containsSynthetic(Program p) {
+        for (Instruction ins : p.instructions()) {
+            if (!ins.isBasic()) return true;
+        }
+        return false;
+    }
+
 }
