@@ -1,10 +1,14 @@
 package system.core.model.synthetic;
 
+import system.core.model.Instruction;
 import system.core.model.SyntheticInstruction;
 import system.core.model.Var;
 import system.core.model.Program;
 import system.core.model.basic.*;
 import system.core.expand.helpers.FreshNames;
+import system.core.io.LoaderUtil;
+import java.util.Map;
+import java.util.List;
 
 public final class ZeroVariable extends SyntheticInstruction {
     private final Var v;
@@ -22,6 +26,12 @@ public final class ZeroVariable extends SyntheticInstruction {
         out.add(new Dec(LOOP, v, 1));              // LOOP: v <- v-1
         out.add(new IfGoto("", v, LOOP, 2));       // while v!=0
     }
+
+    public static Instruction fromXml(String label, String varToken, Map<String,String> args, List<String> errs) {
+        var v = LoaderUtil.parseVar(varToken, errs, -1);
+        return (v == null) ? null : new ZeroVariable(label, v);
+    }
+
 
 
 

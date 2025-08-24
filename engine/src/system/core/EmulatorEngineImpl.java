@@ -45,15 +45,6 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
     }
 
     @Override
-    public ProgramView getExpandedProgramView(int degree) {
-        if (current == null) return null;
-        int max = getMaxDegree();
-        int use = Math.max(0, Math.min(degree, max));
-        Program expanded = (use == 0) ? current : expander.expandToDegree(current, use);
-        return ProgramMapper.toView(expanded);
-    }
-
-    @Override
     public RunResult run(int degree, List<Long> inputs) {
         if (current == null) return null;
 
@@ -95,7 +86,7 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
     @Override
     public int getMaxDegree() {
         if (current == null) return 0;
-        final int CAP = 1000; // safety cap
+        final int CAP = 1000; // its a  safety cap
         int d = 0;
         Program cur = current;
         while (d < CAP && containsSynthetic(cur)) {
@@ -105,6 +96,20 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
         return d;
     }
 
+    @Override
+    public ProgramView getExpandedProgramView(int degree) {
+        if (current == null) return null;
+        int max = getMaxDegree();
+        int use = Math.max(0, Math.min(degree, max));
+        if (use == 0) return ProgramMapper.toView(current);
+
+        var exp = new system.core.expand.ExpanderImpl();
+        var res = exp.expandToDegreeWithOrigins(current, use);
+        return ProgramMapper.toView(res.program(), res.origins());
+    }
+
+
+
     // ---- helper ----
     private static boolean containsSynthetic(Program p) {
         for (Instruction ins : p.instructions()) {
@@ -112,5 +117,8 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
         }
         return false;
     }
+
+
+
 
 }

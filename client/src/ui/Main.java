@@ -48,24 +48,26 @@ public final class Main {
                         System.out.println("No program loaded yet. Use option 1 first.");
                         break;
                     }
-                    // Print header info (maybe remove later for now its nice)
                     System.out.println("Program: " + v.name());
                     if (!v.inputsUsed().isEmpty())
                         System.out.println("Inputs: " + String.join(", ", v.inputsUsed()));
                     if (!v.labelsInOrder().isEmpty())
                         System.out.println("Labels: " + String.join(", ", v.labelsInOrder()));
 
-                    // Print instructions in format
                     for (CommandView c : v.commands()) {
                         String line = String.format(
                                 "#%d (%s) [%-5s] %s (%d)",
-                                c.number(), c.basic() ? "B" : "S",
+                                c.number(),
+                                c.basic() ? "B" : "S",
                                 c.labelOrEmpty() == null ? "" : c.labelOrEmpty(),
-                                c.text(), c.cycles()
+                                c.text(),
+                                c.cycles()
                         );
-                        System.out.println(line + (c.originChain().isEmpty() ? "" : "  <<<  " + c.originChain()));
+                        System.out.println(line);
                     }
+
                 }
+
                 case "3" -> {
                     var v = engine.getProgramView();
                     if (v == null) { System.out.println("No program loaded yet."); break; }
@@ -89,6 +91,7 @@ public final class Main {
                         System.out.println("Inputs: " + String.join(", ", pv.inputsUsed()));
                     if (!pv.labelsInOrder().isEmpty())
                         System.out.println("Labels: " + String.join(", ", pv.labelsInOrder()));
+
                     for (var c : pv.commands()) {
                         String line = String.format(
                                 "#%d (%s) [%-5s] %s (%d)",
@@ -96,9 +99,14 @@ public final class Main {
                                 c.labelOrEmpty() == null ? "" : c.labelOrEmpty(),
                                 c.text(), c.cycles()
                         );
-                        System.out.println(line + (c.originChain().isEmpty() ? "" : "  <<<  " + c.originChain()));
+                        if (c.originChain() != null && !c.originChain().isBlank()) {
+                            line = line + "  >>>  " + c.originChain();
+                        }
+                        System.out.println(line);
                     }
+
                 }
+
                 case "4" -> {
                     int max = engine.getMaxDegree();
                     System.out.println("Max expandable degree: " + max);

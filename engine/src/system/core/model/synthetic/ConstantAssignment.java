@@ -1,11 +1,14 @@
 package system.core.model.synthetic;
 
+
 import system.core.expand.helpers.FreshNames;
 import system.core.model.Program;
+import system.core.model.Instruction;
 import system.core.model.SyntheticInstruction;
 import system.core.model.Var;
 import system.core.model.basic.Inc;
-
+import system.core.io.LoaderUtil;
+import java.util.Map;
 import java.util.List;
 
 public final class ConstantAssignment extends SyntheticInstruction {
@@ -32,4 +35,13 @@ public final class ConstantAssignment extends SyntheticInstruction {
             out.add(new Inc("", v, 1));
         }
     }
+
+    public static Instruction fromXml(String label, String varToken, Map<String,String> args, List<String> errs) {
+        var v = LoaderUtil.parseVar(varToken, errs, -1);
+        String kStr = LoaderUtil.need(args.get("constantValue"), "constantValue", -1, errs);
+        if (v == null || kStr == null) return null;
+        long k = LoaderUtil.parseNonNegLong(kStr, "constantValue", -1, errs);
+        return new ConstantAssignment(label, v, k);
+    }
+
 }

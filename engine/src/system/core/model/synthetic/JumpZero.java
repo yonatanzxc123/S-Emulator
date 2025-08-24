@@ -1,11 +1,13 @@
 package system.core.model.synthetic;
 
+import system.core.model.Instruction;
 import system.core.model.SyntheticInstruction;
 import system.core.model.Var;
 import system.core.model.Program;
 import system.core.model.basic.*;
 import system.core.expand.helpers.FreshNames;
-
+import system.core.io.LoaderUtil;
+import java.util.Map;
 import java.util.List;
 
 
@@ -34,5 +36,14 @@ public final class JumpZero extends SyntheticInstruction {
         out.add(new IfGoto("", tmp, target, 2));    // goto target
         out.add(new Nop(SKIP, v, 0));               // SKIP:
     }
+
+    public static Instruction fromXml(String label, String varToken, Map<String,String> args, List<String> errs) {
+        var v = LoaderUtil.parseVar(varToken, errs, -1);
+        String target = LoaderUtil.need(args.get("JZLabel"), "JZLabel", -1, errs);
+        return (v == null || target == null) ? null : new JumpZero(label, v, target);
+    }
+
+
+
 
 }

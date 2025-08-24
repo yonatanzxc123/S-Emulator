@@ -2,11 +2,13 @@ package system.core.model.synthetic;
 
 import system.core.expand.helpers.FreshNames;
 import system.core.model.Program;
+import system.core.model.Instruction;
 import system.core.model.SyntheticInstruction;
 import system.core.model.Var;
 import system.core.model.basic.IfGoto;
 import system.core.model.basic.Inc;
-
+import system.core.io.LoaderUtil;
+import java.util.Map;
 import java.util.List;
 
 public final class GotoLabel extends SyntheticInstruction {
@@ -25,6 +27,11 @@ public final class GotoLabel extends SyntheticInstruction {
         Var tmp = fresh.tempZ();
         out.add(new Inc(label(), tmp, 1));          // tmp <- 1
         out.add(new IfGoto("", tmp, target, 2));    // if tmp!=0 goto target
+    }
+
+    public static Instruction fromXml(String label, String varToken, Map<String,String> args, List<String> errs) {
+        String target = LoaderUtil.need(args.get("gotoLabel"), "gotoLabel", -1, errs);
+        return (target == null) ? null : new GotoLabel(label, target);
     }
 
 

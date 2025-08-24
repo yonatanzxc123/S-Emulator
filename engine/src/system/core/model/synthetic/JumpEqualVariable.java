@@ -1,11 +1,13 @@
 package system.core.model.synthetic;
 
+import system.core.model.Instruction;
 import system.core.model.SyntheticInstruction;
 import system.core.model.Var;
 import system.core.model.Program;
 import system.core.model.basic.*;
 import system.core.expand.helpers.FreshNames;
-
+import system.core.io.LoaderUtil;
+import java.util.Map;
 import java.util.List;
 
 public final class JumpEqualVariable extends SyntheticInstruction {
@@ -95,5 +97,18 @@ public final class JumpEqualVariable extends SyntheticInstruction {
         // Sinks:
         out.add(new Nop(NOTEQ, wa, 0)); // not equal lands here
     }
+
+
+    public static Instruction fromXml(String label, String varToken, Map<String,String> args, List<String> errs) {
+        var a = LoaderUtil.parseVar(varToken, errs, -1);
+        String bTok = LoaderUtil.need(args.get("variableName"), "variableName", -1, errs);
+        String target = LoaderUtil.need(args.get("JEVariableLabel"), "JEVariableLabel", -1, errs);
+        if (a == null || bTok == null || target == null) return null;
+        var b = LoaderUtil.parseVar(bTok, errs, -1);
+        return (b == null) ? null : new JumpEqualVariable(label, a, b, target);
+    }
+
+
+
 
 }

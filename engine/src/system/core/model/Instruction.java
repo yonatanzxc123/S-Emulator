@@ -24,4 +24,7 @@ public sealed interface Instruction
     default void expandTo(Program out, FreshNames fresh) {
         out.add(this);
     }
+
+
+
 }

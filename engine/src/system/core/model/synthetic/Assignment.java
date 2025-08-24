@@ -1,11 +1,15 @@
 package system.core.model.synthetic;
 
+import system.core.model.Instruction;
 import system.core.model.SyntheticInstruction;
 import system.core.model.Var;
 import system.core.model.Program;
 import system.core.model.basic.*;
 import system.core.expand.helpers.FreshNames;
+import system.core.io.LoaderUtil;
 import java.util.List;
+import java.util.Map;
+
 
 public final class Assignment extends SyntheticInstruction {
     private final Var v;     // destination
@@ -49,6 +53,16 @@ public final class Assignment extends SyntheticInstruction {
         out.add(new Inc("", v, 1));
         out.add(new IfGoto("", tmp, RESTORE, 2));
     }
+
+
+    public static Instruction fromXml(String label, String varToken, Map<String,String> args, List<String> errs) {
+        var dst = LoaderUtil.parseVar(varToken, errs, -1);
+        String srcTok = LoaderUtil.need(args.get("assignedVariable"), "assignedVariable", -1, errs);
+        if (dst == null || srcTok == null) return null;
+        var src = LoaderUtil.parseVar(srcTok, errs, -1);
+        return (src == null) ? null : new Assignment(label, dst, src);
+    }
+
 
 
 }

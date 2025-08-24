@@ -2,10 +2,12 @@ package system.core.model.synthetic;
 
 import system.core.expand.helpers.FreshNames;
 import system.core.model.Program;
+import system.core.model.Instruction;
 import system.core.model.SyntheticInstruction;
 import system.core.model.Var;
 import system.core.model.basic.*;
-
+import system.core.io.LoaderUtil;
+import java.util.Map;
 import java.util.List;
 
 public final class JumpEqualConstant extends SyntheticInstruction {
@@ -87,5 +89,18 @@ public final class JumpEqualConstant extends SyntheticInstruction {
         out.add(new Nop(SKIP, w, 0));
         out.add(new Nop(AFTER, w, 0));             // not-equal path lands here
     }
+
+
+    public static Instruction fromXml(String label, String varToken, Map<String,String> args, List<String> errs) {
+        var v = LoaderUtil.parseVar(varToken, errs, -1);
+        String kStr = LoaderUtil.need(args.get("constantValue"), "constantValue", -1, errs);
+        String target = LoaderUtil.need(args.get("JEConstantLabel"), "JEConstantLabel", -1, errs);
+        if (v == null || kStr == null || target == null) return null;
+        long k = LoaderUtil.parseNonNegLong(kStr, "constantValue", -1, errs);
+        return new JumpEqualConstant(label, v, k, target);
+    }
+
+
+
 
 }

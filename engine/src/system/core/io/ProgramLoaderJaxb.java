@@ -5,20 +5,20 @@ import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.ValidationEvent;
 import jakarta.xml.bind.ValidationEventHandler;
 import jakarta.xml.bind.ValidationEventLocator;
+
 import javax.xml.XMLConstants;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
 import jaxb.*; // generated JAXB classes
 
-import system.core.model.*;             // Program, Var, Instruction
-import system.core.model.basic.*;       // Inc, Dec, IfGoto, Nop
-import system.core.model.synthetic.*;   // ZeroVariable, GotoLabel, ...
+import system.core.model.Instruction;
+import system.core.model.Program;
 
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.Locale;
 
 public final class ProgramLoaderJaxb implements ProgramLoader {
 
@@ -70,20 +70,16 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
             for (SInstruction si : root.getSInstructions().getSInstruction()) {
                 line++;
                 String kind  = safe(si.getType());          // "basic" | "synthetic"
-                String name  = safe(si.getName());
-                String label = safe(si.getSLabel());
-                String var   = safe(si.getSVariable());
-
+                String name  = safe(si.getName());          // e.g., JUMP_ZERO
+                String label = safe(si.getSLabel());        // may be "", "L1", or "EXIT"
+                String var   = safe(si.getSVariable());     // for ops that use it
                 Map<String,String> args = argsMap(si.getSInstructionArguments());
 
-                // Build via registry (no switch!)
-                Instruction ins = Parsers.build(kind, name, label, var, args, line, errs);
-                if (ins != null) {
-                    program.add(ins);
-                }
+                Instruction ins = buildByConvention(kind, name, label, var, args, line, errs);
+                if (ins != null) program.add(ins);
             }
 
-            // Generic label validation using Instruction#labelTargets()
+            // Label check via Instruction#labelTargets()
             Set<String> defined = new HashSet<>();
             for (var ins : program.instructions()) {
                 String lab = ins.label();
@@ -107,28 +103,79 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
         }
     }
 
-    // ---------- helpers (kept local to this file) ----------
+    // ---------- reflection + convention ----------
+
+    private static final Map<String,String> BASIC_ALIASES = Map.of(
+            // your XML opcode  -> class name
+            "INCREASE",        "Inc",
+            "DECREASE",        "Dec",
+            "JUMP_NOT_ZERO",   "IfGoto",
+            "NEUTRAL",         "Nop"
+    );
+
+    private static Instruction buildByConvention(
+            String kind, String name, String label, String varToken,
+            Map<String,String> args, int line, List<String> errs
+    ) {
+        if (name == null || name.isBlank()) {
+            errs.add("Missing instruction name at #" + line);
+            return null;
+        }
+        String pkg = switch (kind.toLowerCase(Locale.ROOT)) {
+            case "basic"     -> "system.core.model.basic";
+            case "synthetic" -> "system.core.model.synthetic";
+            default          -> {
+                errs.add("Unknown type '" + kind + "' at #" + line + " (expected 'basic' or 'synthetic').");
+                yield null;
+            }
+        };
+        if (pkg == null) return null;
+
+        String className;
+        if ("basic".equalsIgnoreCase(kind) && BASIC_ALIASES.containsKey(name.toUpperCase(Locale.ROOT))) {
+            className = BASIC_ALIASES.get(name.toUpperCase(Locale.ROOT));
+        } else {
+            className = toCamel(name); // e.g., JUMP_EQUAL_CONSTANT -> JumpEqualConstant
+        }
+
+        String fqcn = pkg + "." + className;
+        try {
+            Class<?> cls = Class.forName(fqcn);
+            if (!Instruction.class.isAssignableFrom(cls)) {
+                errs.add("Class " + fqcn + " does not implement Instruction (at #" + line + ").");
+                return null;
+            }
+            Method m = cls.getDeclaredMethod("fromXml", String.class, String.class, Map.class, List.class);
+            Object result = m.invoke(null, label, varToken, args, errs);
+            return (Instruction) result;
+        } catch (ClassNotFoundException e) {
+            errs.add("Unknown instruction at #" + line + ": '" + name + "' (not found as " + fqcn + ")");
+            return null;
+        } catch (NoSuchMethodException e) {
+            errs.add("Instruction class " + fqcn + " is missing static fromXml(String,String,Map,List).");
+            return null;
+        } catch (Exception e) {
+            errs.add("Failed to build " + fqcn + " at #" + line + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    private static String toCamel(String opcodeUpper) {
+        String s = opcodeUpper.trim().toLowerCase(Locale.ROOT);
+        StringBuilder sb = new StringBuilder();
+        boolean up = true;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '_' || c == '-' || c == ' ') { up = true; continue; }
+            sb.append(up ? Character.toUpperCase(c) : c);
+            up = false;
+        }
+        return sb.toString();
+    }
+
+    // ---------- tiny helpers ----------
 
     private static String safe(String s){ return s==null? "" : s.trim(); }
-
-    private static String need(String v, String name, int line, List<String> errs) {
-        if (v == null || v.trim().isEmpty()) {
-            errs.add("Missing @" + name + " at instruction #" + line);
-            return "";
-        }
-        return v.trim();
-    }
-
-    private static long parseNonNegLong(String v, String name, int line, List<String> errs) {
-        try {
-            long k = Long.parseLong(v);
-            if (k < 0) { errs.add("@" + name + " must be >= 0 at instruction #" + line); return 0L; }
-            return k;
-        } catch (Exception ex) {
-            errs.add("Bad number for @" + name + " at instruction #" + line + ": '" + v + "'");
-            return 0L;
-        }
-    }
 
     private static Map<String,String> argsMap(SInstructionArguments args) {
         Map<String,String> m = new HashMap<>();
@@ -138,22 +185,6 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
             }
         }
         return m;
-    }
-
-    private static Var parseVar(String text, List<String> errs, int line) {
-        if (text == null || text.isBlank()) { errs.add("Missing <S-Variable> at instruction #" + line); return Var.z(1); }
-        String s = text.trim();
-        if (s.equals("y")) return Var.y();
-        if (s.startsWith("x")) {
-            try { return Var.x(Integer.parseInt(s.substring(1))); }
-            catch (NumberFormatException e){ errs.add("Bad x index at #" + line + ": " + s); return Var.x(1); }
-        }
-        if (s.startsWith("z")) {
-            try { return Var.z(Integer.parseInt(s.substring(1))); }
-            catch (NumberFormatException e){ errs.add("Bad z index at #" + line + ": " + s); return Var.z(1); }
-        }
-        errs.add("Unknown variable token at #" + line + ": " + s);
-        return Var.z(1);
     }
 
     private static Schema tryLoadSchema(Path xmlPath) {
@@ -167,95 +198,5 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
             if (Files.isRegularFile(root)) return sf.newSchema(root.toFile());
         } catch (Exception ignore) {}
         return null;
-    }
-
-    // ---------- tiny name->factory registry (lives inside this file) ----------
-
-    private static final class Parsers {
-        @FunctionalInterface
-        interface Builder {
-            Instruction build(String label, String varToken, Map<String,String> args, int line, List<String> errs);
-        }
-        private static final class Entry {
-            final String expectedType;  // "basic" | "synthetic"
-            final Builder builder;
-            Entry(String expectedType, Builder builder) {
-                this.expectedType = expectedType; this.builder = builder;
-            }
-        }
-        private static final Map<String, Entry> REG = new HashMap<>();
-
-        static Instruction build(String kind, String name, String label, String varToken,
-                                 Map<String,String> args, int line, List<String> errs) {
-            Entry e = REG.get(name == null ? "" : name.toUpperCase(Locale.ROOT));
-            if (e == null) {
-                errs.add("Unknown instruction name at #" + line + ": '" + name + "'");
-                return null;
-            }
-            if (!e.expectedType.equalsIgnoreCase(kind)) {
-                errs.add("Instruction #" + line + " expected type='" + e.expectedType + "' but got '" + kind + "'");
-                // still attempt build to surface more issues
-            }
-            return e.builder.build(label, varToken, args, line, errs);
-        }
-
-        private static void reg(String keywordUpper, String expectedType, Builder b) {
-            REG.put(keywordUpper, new Entry(expectedType, b));
-        }
-
-        static {
-            // ===== BASIC =====
-            reg("INCREASE", "basic", (label, var, a, line, errs) ->
-                    new Inc(label, parseVar(var, errs, line), 1));
-
-            reg("DECREASE", "basic", (label, var, a, line, errs) ->
-                    new Dec(label, parseVar(var, errs, line), 1));
-
-            reg("JUMP_NOT_ZERO", "basic", (label, var, a, line, errs) -> {
-                String target = need(a.get("JNZLabel"), "JNZLabel", line, errs);
-                return new IfGoto(label, parseVar(var, errs, line), target, 2);
-            });
-
-            reg("NEUTRAL", "basic", (label, var, a, line, errs) ->
-                    new Nop(label, parseVar(var, errs, line), 0));
-
-            // ===== SYNTHETIC =====
-            reg("ZERO_VARIABLE", "synthetic", (label, var, a, line, errs) ->
-                    new ZeroVariable(label, parseVar(var, errs, line)));
-
-            reg("GOTO_LABEL", "synthetic", (label, var, a, line, errs) -> {
-                String target = need(a.get("gotoLabel"), "gotoLabel", line, errs);
-                return new GotoLabel(label, target);
-            });
-
-            reg("ASSIGNMENT", "synthetic", (label, var, a, line, errs) -> {
-                String src = need(a.get("assignedVariable"), "assignedVariable", line, errs);
-                return new Assignment(label, parseVar(var, errs, line), parseVar(src, errs, line));
-            });
-
-            reg("CONSTANT_ASSIGNMENT", "synthetic", (label, var, a, line, errs) -> {
-                String kStr = need(a.get("constantValue"), "constantValue", line, errs);
-                long k = parseNonNegLong(kStr, "constantValue", line, errs);
-                return new ConstantAssignment(label, parseVar(var, errs, line), k);
-            });
-
-            reg("JUMP_ZERO", "synthetic", (label, var, a, line, errs) -> {
-                String target = need(a.get("JZLabel"), "JZLabel", line, errs);
-                return new JumpZero(label, parseVar(var, errs, line), target);
-            });
-
-            reg("JUMP_EQUAL_CONSTANT", "synthetic", (label, var, a, line, errs) -> {
-                String target = need(a.get("JEConstantLabel"), "JEConstantLabel", line, errs);
-                String kStr = need(a.get("constantValue"), "constantValue", line, errs);
-                long k = parseNonNegLong(kStr, "constantValue", line, errs);
-                return new JumpEqualConstant(label, parseVar(var, errs, line), k, target);
-            });
-
-            reg("JUMP_EQUAL_VARIABLE", "synthetic", (label, var, a, line, errs) -> {
-                String target = need(a.get("JEVariableLabel"), "JEVariableLabel", line, errs);
-                String other  = need(a.get("variableName"), "variableName", line, errs);
-                return new JumpEqualVariable(label, parseVar(var, errs, line), parseVar(other, errs, line), target);
-            });
-        }
     }
 }

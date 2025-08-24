@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 public final class FreshNames {
-    private static final String AUTO_LABEL_PREFIX = "L$";
+    private static final String AUTO_LABEL_PREFIX = "L";
 
     private int nextLabelId = 1;
     private int nextZ;
