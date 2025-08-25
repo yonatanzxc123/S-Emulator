@@ -75,7 +75,7 @@ public final class ExpanderImpl implements Expander {
                 ins.expandTo(out, fresh);
                 int after = out.instructions().size();
                 String combined = (parentChain == null || parentChain.isBlank()) ? link
-                        : parentChain + "  <<<   " + link;
+                        : parentChain + "  >>>  " + link;
                 for (int j = before; j < after; j++) outOrigins.add(combined);
             }
         }

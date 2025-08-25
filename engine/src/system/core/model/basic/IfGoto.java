@@ -26,6 +26,14 @@ public final class IfGoto extends BasicInstruction {
     public String asText() { return "IF " + v + " != 0 GOTO " + target; }
 
     @Override
+    public List<String> labelTargets() {
+        // EXIT is allowed and blank means “no target”
+        if (target == null || target.isBlank() || "EXIT".equals(target)) return List.of();
+        return List.of(target);
+    }
+
+
+    @Override
     public List<Var> variablesUsed() { return List.of(v); }
 
     public static Instruction fromXml(String label, String varToken, Map<String,String> args, List<String> errs) {

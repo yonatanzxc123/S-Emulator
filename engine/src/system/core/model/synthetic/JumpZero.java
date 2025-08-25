@@ -29,13 +29,11 @@ public final class JumpZero extends SyntheticInstruction {
 
     @Override
     public void expandTo(Program out, FreshNames fresh) {
-        String SKIP = fresh.nextLabel();
-        Var tmp = fresh.tempZ();
-        out.add(new IfGoto(label(), v, SKIP, 2));   // if v!=0 goto SKIP
-        out.add(new Inc("", tmp, 1));               // tmp <- 1
-        out.add(new IfGoto("", tmp, target, 2));    // goto target
-        out.add(new Nop(SKIP, v, 0));               // SKIP:
+        // One round only: keep it synthetic so max degree can be > 1
+        out.add(new JumpEqualConstant(label(), v, 0L, target));
     }
+
+
 
     public static Instruction fromXml(String label, String varToken, Map<String,String> args, List<String> errs) {
         var v = LoaderUtil.parseVar(varToken, errs, -1);
