@@ -116,20 +116,28 @@ public final class Main {
                         System.out.print("Choose degree [0.." + max + "]: ");
                         String d = in.nextLine().trim();
                         try { degree = Integer.parseInt(d); } catch (NumberFormatException e) { degree = -1; }
-
                         if (degree >= 0 && degree <= max) break;
 
-                        // its invalid, it will ask the user again cuz he did dum dum
                         System.out.println("Invalid degree. The maximum possible is " + max + ".");
                         System.out.print("Use max (" + max + ")? [Y/n]: ");
                         String ans = in.nextLine().trim().toLowerCase();
                         if (ans.isEmpty() || ans.startsWith("y")) { degree = max; break; }
-                        // else loop and ask again :(
                     }
 
+                    // Show program header BEFORE collecting inputs
+                    ProgramView preview = engine.getExpandedProgramView(degree);
+                    if (preview == null) { System.out.println("No program loaded yet. Use option 1 first."); break; }
+
+                    System.out.println("Program (will run at degree " + degree + "): " + preview.name());
+                    if (!preview.inputsUsed().isEmpty())
+                        System.out.println("Inputs: " + String.join(", ", preview.inputsUsed()));
+                    if (!preview.labelsInOrder().isEmpty())
+                        System.out.println("Labels: " + String.join(", ", preview.labelsInOrder()));
+
+                    // Now collect inputs from the user
                     System.out.print("Inputs (comma separated, e.g. 1,2,3): ");
                     String line = in.nextLine().trim();
-                    java.util.List<Long> inputs = new java.util.ArrayList<>();
+                    List<Long> inputs = new ArrayList<>();
                     if (!line.isEmpty()) {
                         for (String s : line.split(",")) {
                             try { inputs.add(Long.parseLong(s.trim())); }
@@ -143,14 +151,20 @@ public final class Main {
                         break;
                     }
 
+                    // Print executed program (same format as Expand), including origins
                     System.out.println("Executed program:");
-                    for (var command : runResult.executedProgram().commands()) {
-                        String ln = String.format("#%d (%s) [%-5s] %s (%d)",
-                                command.number(), command.basic() ? "B" : "S",
-                                command.labelOrEmpty() == null ? "" : command.labelOrEmpty(),
-                                command.text(), command.cycles());
-                        System.out.println(ln);
+                    ProgramView pv = runResult.executedProgram();
+                    for (var c : pv.commands()) {
+                        String ln = String.format(
+                                "#%d (%s) [%-5s] %s (%d)",
+                                c.number(), c.basic() ? "B" : "S",
+                                c.labelOrEmpty() == null ? "" : c.labelOrEmpty(),
+                                c.text(), c.cycles()
+                        );
+                        System.out.println(ln + (c.originChain().isEmpty() ? "" : "  >>>  " + c.originChain()));
                     }
+
+                    // Variables & cycles
                     runResult.variablesOrdered().forEach((k,v) -> System.out.println(k + " = " + v));
                     System.out.println("cycles = " + runResult.cycles());
                 }

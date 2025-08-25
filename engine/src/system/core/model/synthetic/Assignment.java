@@ -30,28 +30,33 @@ public final class Assignment extends SyntheticInstruction {
 
     @Override
     public void expandTo(Program out, FreshNames fresh) {
-        // tmp <- 0 ; dst <- 0
-        Var tmp = fresh.tempZ();
-        new ZeroVariable(label(), tmp).expandTo(out, fresh);
-        new ZeroVariable("", v).expandTo(out, fresh);
+        String L1 = fresh.nextLabel();
+        String L2 = fresh.nextLabel();
+        String L3 = fresh.nextLabel();
+        Var z1 = fresh.tempZ();
 
-        String CONSUME = fresh.nextLabel();
-        String RESTORE = fresh.nextLabel();
+        // V <- 0   (keep as synthetic zeroing on pass 1)
+        out.add(new ZeroVariable(label(), v));
 
-        // if src!=0 goto CONSUME, else skip to RESTORE gate
-        out.add(new IfGoto("", src, CONSUME, 2));
-        out.add(new IfGoto("", tmp, RESTORE, 2)); // if tmp!=0 goto RESTORE
+        // IF V' != 0 GOTO L1
+        out.add(new IfGoto("", src, L1, 2));
 
-        // CONSUME: src-- ; tmp++
-        out.add(new Dec(CONSUME, src, 1));
-        out.add(new Inc("", tmp, 1));
-        out.add(new IfGoto("", src, CONSUME, 2)); // loop
+        // GOTO L3
+        out.add(new GotoLabel("", L3));
 
-        // RESTORE: while tmp!=0 { tmp-- ; src++ ; dst++ }
-        out.add(new Dec(RESTORE, tmp, 1));
-        out.add(new Inc("", src, 1));
-        out.add(new Inc("", v, 1));
-        out.add(new IfGoto("", tmp, RESTORE, 2));
+        // L1:
+        out.add(new Dec(L1, src, 1));         // V' <- V' - 1
+        out.add(new Inc("", z1, 1));          // z1 <- z1 + 1
+        out.add(new IfGoto("", src, L1, 2));  // IF V' != 0 GOTO L1
+
+        // L2:
+        out.add(new Dec(L2, z1, 1));          // z1 <- z1 - 1
+        out.add(new Inc("", v, 1));           // V <- V + 1
+        out.add(new Inc("", src, 1));         // V' <- V' + 1
+        out.add(new IfGoto("", z1, L2, 2));   // IF z1 != 0 GOTO L2
+
+        // L3:
+        out.add(new Nop(L3, v, 0));           // V <- V   (NOP)
     }
 
 

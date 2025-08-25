@@ -29,8 +29,10 @@ public final class JumpZero extends SyntheticInstruction {
 
     @Override
     public void expandTo(Program out, FreshNames fresh) {
-        // One round only: keep it synthetic so max degree can be > 1
-        out.add(new JumpEqualConstant(label(), v, 0L, target));
+        String L1 = fresh.nextLabel();                  // L1 in the slide
+        out.add(new IfGoto(label(), v, L1, 2));         // IF v != 0 GOTO SKIP
+        out.add(new GotoLabel("", target));               // GOTO L
+        out.add(new Nop(L1, v, 0));                     // L1: y <- y  (a no-op)
     }
 
 

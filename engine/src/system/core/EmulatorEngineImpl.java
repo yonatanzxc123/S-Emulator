@@ -50,7 +50,21 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
 
         int max = getMaxDegree();
         int use = Math.max(0, Math.min(degree, max));
-        Program toRun = (use == 0) ? current : expander.expandToDegree(current, use);
+
+        Program toRun;
+        ProgramView executedView;
+
+        if (use == 0) {
+            // no expansion – original program, no origins
+            toRun = current;
+            executedView = ProgramMapper.toView(current);
+        } else {
+            // expand and keep origins for printing
+            var exp = new system.core.expand.ExpanderImpl();
+            var res = exp.expandToDegreeWithOrigins(current, use);
+            toRun = res.program();
+            executedView = ProgramMapper.toView(res.program(), res.origins());
+        }
 
         var exec = new system.core.exec.Executor();
         var st = exec.run(toRun, inputs);
@@ -73,7 +87,7 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
         return new RunResult(
                 st.y(),
                 st.cycles(),
-                ProgramMapper.toView(toRun),
+                executedView,   // <- now includes origins when degree>0
                 vars
         );
     }
