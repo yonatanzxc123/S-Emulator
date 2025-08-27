@@ -43,25 +43,21 @@ public final class JumpEqualConstant extends SyntheticInstruction {
     public void expandTo(Program out, FreshNames fresh) {
         // Working copy so a higher degree can expand ASSIGNMENT further
         Var z1 = fresh.tempZ();
-        out.add(new Assignment(label(), z1, v));
+        String NOTEQ = fresh.nextLabel();
 
-        // NOT: sink when z1 != k
-        String NOT = fresh.nextLabel();
+        out.add(new Assignment(label(), z1, v));
 
         // Do this k times:
         // Implement "IF z1 = 0 GOTO NOT" using our primitive "IF z1 != 0 GOTO CONT"
         // and put the CONT label directly on the DEC (no extra NOP line).
         for (long i = 0; i < k; i++) {
-            String CONT = fresh.nextLabel();
-            out.add(new IfGoto("", z1, CONT, 2));  // z1 != 0 -> CONT
-            out.add(new GotoLabel("", NOT));       // z1 == 0 -> NOT
-            out.add(new Dec(CONT, z1, 1));         // CONT: z1 <- z1 - 1
+            out.add(new JumpZero("",z1,NOTEQ));
+            out.add(new Dec("", z1, 1));         // CONT: z1 <- z1 - 1
         }
+        out.add(new IfGoto("", z1, NOTEQ,2));
+        out.add(new GotoLabel("", target));      // z1 == k, so jump to target
+        out.add(new Nop(NOTEQ, v, 0));              // L1:
 
-        // After k decrements: equal iff z1 == 0
-        out.add(new IfGoto("", z1, NOT, 2));       // z1 != 0 -> NOT (z1 > k)
-        out.add(new GotoLabel("", target));        // equal -> target
-        out.add(new Nop(NOT, z1, 0));              // NOT: y <- y  (sink)
     }
 
     public static Instruction fromXml(String label, String varToken, Map<String,String> args, List<String> errs) {

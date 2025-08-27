@@ -4,11 +4,15 @@ import system.core.model.Var;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.BitSet;
 
 public final class MachineState {
-    int pc = 0;                 // 0-based index
-    boolean halted = false;
-    long cycles = 0;
+    private int pc = 0;                 // 0-based index
+    private boolean halted = false;
+    private long cycles = 0;
+    private final BitSet chargedSynthetic = new BitSet();
+
+
 
     private final Map<Integer, Long> x = new HashMap<>(); // x1.. -> value
     private final Map<Integer, Long> z = new HashMap<>(); // z1.. -> value
@@ -57,10 +61,16 @@ public final class MachineState {
         if (nv < 0) set(v, 0);
     }
 
+
+
+    public boolean  isHalted() { return halted; }
+    public int getPc() { return pc; }
+
     public void advance() { pc++; }
     public void jumpTo(int index) { pc = index; }
     public void halt() { halted = true; }
     public void addCycles(int c) { cycles += c; }
+
 
     // expose snapshots for building RunResult later
     public long y() { return y; }

@@ -1,6 +1,8 @@
 package system.core.model;
 
 import java.util.Collections;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -32,4 +34,7 @@ public final class Program {
     public void add(Instruction ins) {
         instructions.add(Objects.requireNonNull(ins));
     }
+
+
+
 }

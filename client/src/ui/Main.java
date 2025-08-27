@@ -70,7 +70,7 @@ public final class Main {
 
                 case "3" -> {
                     var v = engine.getProgramView();
-                    if (v == null) { System.out.println("No program loaded yet."); break; }
+                    if (v == null) { System.out.println("No program loaded yet. Use option 1 first."); break; }
 
                     int max = engine.getMaxDegree();
                     System.out.println("Max expandable degree: " + max);
@@ -108,10 +108,12 @@ public final class Main {
                 }
 
                 case "4" -> {
+                    int degree = -1;
+                    ProgramView preview = engine.getExpandedProgramView(degree);
+                    if (preview == null) { System.out.println("No program loaded yet. Use option 1 first."); break; }
                     int max = engine.getMaxDegree();
                     System.out.println("Max expandable degree: " + max);
 
-                    int degree = -1;
                     while (true) {
                         System.out.print("Choose degree [0.." + max + "]: ");
                         String d = in.nextLine().trim();
@@ -125,9 +127,6 @@ public final class Main {
                     }
 
                     // Show program header BEFORE collecting inputs
-                    ProgramView preview = engine.getExpandedProgramView(degree);
-                    if (preview == null) { System.out.println("No program loaded yet. Use option 1 first."); break; }
-
                     System.out.println("Program (will run at degree " + degree + "): " + preview.name());
                     if (!preview.inputsUsed().isEmpty())
                         System.out.println("Inputs: " + String.join(", ", preview.inputsUsed()));
