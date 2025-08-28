@@ -29,9 +29,9 @@ public final class Main {
                 3) Expand & Show Program
                 4) Run  Program
                 5) Show History
-                6) Save State
-                7) Load State
-                8) Exit
+                6) Exit
+                7) Save State
+                8) Load State
                 """);
             System.out.print("Choose: ");
             String choice = in.nextLine().trim();
@@ -187,7 +187,10 @@ public final class Main {
                         }
                     }
                 }
-                case "6" -> { //
+                case "6" -> { System.out.println("Bye."); return; }
+
+
+                case "7" -> { //
                     Path p = askPath(in, "Enter full path (without extension) to SAVE: ");
                     var res = engine.saveState(p);
                     if (res.ok()) {
@@ -198,7 +201,7 @@ public final class Main {
                     }
                 }
 
-                case "7" -> {
+                case "8" -> {
                     Path p = askPath(in, "Enter full path (without extension) to LOAD: ");
                     var res = engine.loadState(p);
                     if (res.ok()) {
@@ -213,7 +216,7 @@ public final class Main {
                         res.errors().forEach(System.out::println);
                     }
                 }
-                case "8" -> { System.out.println("Bye."); return; }
+
                 default -> System.out.println("Invalid option.");
             }
         }
