@@ -10,6 +10,8 @@ public interface EmulatorEngine {
     record LoadOutcome(boolean ok, List<String> errors) {}
 
     LoadOutcome loadProgram(Path xmlPath);
+    LoadOutcome loadState(Path basePath);
+    LoadOutcome saveState(Path basePath);
     int getVersion(); // for Sanity check for me
 
     ProgramView getProgramView();

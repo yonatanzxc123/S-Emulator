@@ -7,9 +7,13 @@ import system.api.view.CommandView;
 import system.core.EmulatorEngineImpl;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+
+
+
 
 
 public final class Main {
@@ -25,7 +29,9 @@ public final class Main {
                 3) Expand & Show Program
                 4) Run  Program
                 5) Show History
-                6) Exit
+                6) Save State
+                7) Load State
+                8) Exit
                 """);
             System.out.print("Choose: ");
             String choice = in.nextLine().trim();
@@ -181,9 +187,47 @@ public final class Main {
                         }
                     }
                 }
-                case "6" -> { System.out.println("Bye."); return; }
+                case "6" -> { //
+                    Path p = askPath(in, "Enter full path (without extension) to SAVE: ");
+                    var res = engine.saveState(p);
+                    if (res.ok()) {
+                        System.out.println("State saved (file will have .state extension).");
+                    } else {
+                        System.out.println("Save failed:");
+                        res.errors().forEach(System.out::println);
+                    }
+                }
+
+                case "7" -> {
+                    Path p = askPath(in, "Enter full path (without extension) to LOAD: ");
+                    var res = engine.loadState(p);
+                    if (res.ok()) {
+                        System.out.println("State loaded successfully.");
+                        // Optional: quick summary
+                        System.out.println("Version: " + engine.getVersion());
+                        var pv = engine.getProgramView();
+                        System.out.println(pv == null ? "No program in state." : "Program: " + pv.name());
+                        System.out.println("History entries: " + engine.getRunHistory().size());
+                    } else {
+                        System.out.println("Load failed:");
+                        res.errors().forEach(System.out::println);
+                    }
+                }
+                case "8" -> { System.out.println("Bye."); return; }
                 default -> System.out.println("Invalid option.");
             }
         }
     }
+    //Helper for Save/Load state (options 6,7)
+    private static Path askPath(Scanner sc, String prompt) {
+        System.out.print(prompt);
+        String input = sc.nextLine().trim();
+        while (input.isEmpty()) {
+            System.out.print("Path can't be empty. Try again: ");
+            input = sc.nextLine().trim();
+        }
+        return Paths.get(input);
+    }
+
+
 }

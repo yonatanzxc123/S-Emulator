@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.BitSet;
 
+
 public final class MachineState {
     private int pc = 0;                 // 0-based index
     private boolean halted = false;

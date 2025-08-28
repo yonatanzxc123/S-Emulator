@@ -5,8 +5,10 @@ import java.util.List;
 import java.io.Serializable;
 
 
+
 public sealed interface Instruction
-        permits BasicInstruction, SyntheticInstruction {
+        extends Serializable
+        permits BasicInstruction, SyntheticInstruction  {
 
     String label();
     int cycles();

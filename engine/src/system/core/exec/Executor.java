@@ -167,7 +167,7 @@ public final class Executor {
     private void charge(MachineState s, Instruction i, String note) {
         s.addCycles(i.cycles());
         // Toggle for Debug prints
-        boolean TRACE = true;
+        boolean TRACE = false;
         if (!TRACE) return;
 
         // Try to show label and text if available; fall back gracefully

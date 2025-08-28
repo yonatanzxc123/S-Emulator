@@ -1,6 +1,8 @@
 package system.core.model;
+import java.io.Serializable;
 
-public final class Var {
+
+public final class Var implements Serializable  {
     public enum Type { X, Z, Y }   // the variable family we use Enum here cuz its small
 
     private final Type type;       // X, Z, or Y

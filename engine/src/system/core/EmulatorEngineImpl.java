@@ -12,6 +12,10 @@ import system.core.io.ProgramMapper;
 import system.core.model.Instruction;
 import system.core.model.Program;
 
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -120,6 +124,46 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
         var exp = new system.core.expand.ExpanderImpl();
         var res = exp.expandToDegreeWithOrigins(current, use);
         return ProgramMapper.toView(res.program(), res.origins());
+    }
+
+
+
+
+    // --- Load/Save state---
+    @Override
+    public LoadOutcome saveState(Path basePath) {
+        try {
+            Path file = addExt(basePath, ".state");
+            var snap = new EngineSnapshot(version, current, List.copyOf(history));
+            try (var out = new ObjectOutputStream(Files.newOutputStream(file))) {
+                out.writeObject(snap);
+            }
+            return new LoadOutcome(true, List.of());
+        } catch (Exception e) {
+            return new LoadOutcome(false, List.of("Save failed: " + e.getMessage()));
+        }
+    }
+
+    @Override
+    public LoadOutcome loadState(Path basePath) {
+        try {
+            Path file = addExt(basePath, ".state");
+            try (var in = new ObjectInputStream(Files.newInputStream(file))) {
+                var snap = (EngineSnapshot) in.readObject();
+                this.version = snap.version();
+                this.current = snap.current();
+                this.history.clear();
+                this.history.addAll(snap.history());
+            }
+            return new LoadOutcome(true, List.of());
+        } catch (Exception e) {
+            return new LoadOutcome(false, List.of("Load failed: " + e.getMessage()));
+        }
+    }
+
+    private static Path addExt(Path p, String ext) {
+        String s = p.toString();
+        return s.endsWith(ext) ? p : Paths.get(s + ext);
     }
 
 
