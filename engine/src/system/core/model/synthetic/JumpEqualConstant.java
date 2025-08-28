@@ -43,7 +43,7 @@ public final class JumpEqualConstant extends SyntheticInstruction {
     public void expandTo(Program out, FreshNames fresh) {
         // Working copy so a higher degree can expand ASSIGNMENT further
         Var z1 = fresh.tempZ();
-        String NOTEQ = fresh.nextLabel();
+        String L1 = fresh.nextLabel();
 
         out.add(new Assignment(label(), z1, v));
 
@@ -51,12 +51,12 @@ public final class JumpEqualConstant extends SyntheticInstruction {
         // Implement "IF z1 = 0 GOTO NOT" using our primitive "IF z1 != 0 GOTO CONT"
         // and put the CONT label directly on the DEC (no extra NOP line).
         for (long i = 0; i < k; i++) {
-            out.add(new JumpZero("",z1,NOTEQ));
-            out.add(new Dec("", z1, 1));         // CONT: z1 <- z1 - 1
+            out.add(new JumpZero(null,z1,L1));
+            out.add(new Dec(null, z1, 1));         // CONT: z1 <- z1 - 1
         }
-        out.add(new IfGoto("", z1, NOTEQ,2));
-        out.add(new GotoLabel("", target));      // z1 == k, so jump to target
-        out.add(new Nop(NOTEQ, v, 0));              // L1:
+        out.add(new IfGoto(null, z1, L1,2));
+        out.add(new GotoLabel(null, target));      // z1 == k, so jump to target
+        out.add(new Nop(L1, v, 0));              // L1:
 
     }
 

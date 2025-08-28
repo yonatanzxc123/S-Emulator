@@ -44,6 +44,7 @@ public final class Executor {
         register(IfGoto.class, (IfGoto i, MachineState s, JumpResolver j) -> {
             boolean taken = (s.get(i.v()) != 0);
             charge(s, i, taken ? "TAKEN" : "NOT TAKEN");
+
             if (taken) {
                 int to = j.resolve(i.target());
                 if (to == JumpResolver.NOT_FOUND || to == JumpResolver.EXIT) s.halt();
@@ -88,6 +89,7 @@ public final class Executor {
         register(JumpZero.class, (JumpZero i, MachineState s, JumpResolver j) -> {
            boolean taken = (s.get(i.v()) == 0);
             charge(s, i, taken ? "TAKEN" : "NOT TAKEN");
+
             if (taken) {
                 int to = j.resolve(i.target());
                 if (to == JumpResolver.NOT_FOUND || to == JumpResolver.EXIT) s.halt();
@@ -100,6 +102,7 @@ public final class Executor {
         register(JumpEqualConstant.class, (JumpEqualConstant i, MachineState s, JumpResolver j) -> {
             boolean taken = (s.get(i.v()) == i.k());
             charge(s, i, taken ? "TAKEN" : "NOT TAKEN");
+
             if (taken) {
                 int to = j.resolve(i.target());
                 if (to == JumpResolver.NOT_FOUND || to == JumpResolver.EXIT) s.halt();
@@ -114,6 +117,7 @@ public final class Executor {
         register(JumpEqualVariable.class, (JumpEqualVariable i, MachineState s, JumpResolver j) -> {
             boolean taken = (s.get(i.a()) == s.get(i.b()));
             charge(s, i, taken ? "TAKEN" : "NOT TAKEN");
+
             if (taken) {
                 int to = j.resolve(i.target());
                 if (to == JumpResolver.NOT_FOUND || to == JumpResolver.EXIT) s.halt();

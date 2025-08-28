@@ -43,9 +43,9 @@ public final class JumpEqualVariable extends SyntheticInstruction {
         Var z2 = fresh.tempZ();
 
         // Labels
-        String L2 = fresh.nextLabel();   // loop head
+        String L1 =  fresh.nextLabel(); // loop head
         String L3 = fresh.nextLabel();   // reached z1==0; now check z2
-        String NOTEQ = fresh.nextLabel();   // not-equal sink
+        String L2 = fresh.nextLabel();   // not-equal sink
 
         // z1 <- a ; z2 <- b  (synthetic ASSIGNMENT so degree>1 is meaningful)
         out.add(new Assignment(label(), z1, a));
@@ -54,14 +54,14 @@ public final class JumpEqualVariable extends SyntheticInstruction {
         // L2:
         // IF z1 = 0 GOTO L3   (emit explicit join line)
         out.add(new JumpZero(L2, z1, L3));
-        out.add(new JumpZero("", z2, NOTEQ));
+        out.add(new JumpZero("", z2, L1));
         out.add(new Dec("",z1,1));
         out.add(new Dec("",z2,1));
         out.add(new GotoLabel("", L2));
 
 
         out.add(new JumpZero(L3, z2, target));
-        out.add(new Nop(NOTEQ,z1,0));
+        out.add(new Nop(L1,z1,0));
 
 
     }

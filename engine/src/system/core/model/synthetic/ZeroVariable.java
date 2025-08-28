@@ -21,7 +21,7 @@ public final class ZeroVariable extends SyntheticInstruction {
 
     @Override
     public void expandTo(Program out, FreshNames fresh) {
-        String LOOP = fresh.nextLabel();
+        String LOOP = labelTargets().isEmpty() ? label() :fresh.nextLabel();
         out.add(new Dec(LOOP, v, 1));              // LOOP: v <- v-1
         out.add(new IfGoto("", v, LOOP, 2));       // while v!=0
     }

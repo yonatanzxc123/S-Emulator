@@ -36,9 +36,9 @@ public final class Assignment extends SyntheticInstruction {
         Var z1 = fresh.tempZ();
 
         // V <- 0   (keep as synthetic zeroing on pass 1)
-        out.add(new ZeroVariable("", v));
+        out.add(new ZeroVariable(label(), v));
         // IF V' != 0 GOTO L1
-        out.add(new IfGoto(label(), src, L1, 2));
+        out.add(new IfGoto(null, src, L1, 2));
 
         // GOTO L3 *****************************************
         out.add(new GotoLabel(null, L3));

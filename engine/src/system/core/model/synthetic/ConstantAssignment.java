@@ -30,7 +30,7 @@ public final class ConstantAssignment extends SyntheticInstruction {
 
     @Override
     public void expandTo(Program out, FreshNames fresh) {
-        new ZeroVariable(label(), v).expandTo(out, fresh);
+        out.add(new ZeroVariable(label(), v));
         for (long i = 0; i < k; i++) {
             out.add(new Inc("", v, 1));
         }
