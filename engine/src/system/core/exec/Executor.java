@@ -163,7 +163,7 @@ public final class Executor {
 
 
 
-    // For Debugging / Tracing -> make TRACE false to disable
+    // For Debugging / Tracing -> make TRACE false to disable\ true to enable
     private void charge(MachineState s, Instruction i, String note) {
         s.addCycles(i.cycles());
         // Toggle for Debug prints

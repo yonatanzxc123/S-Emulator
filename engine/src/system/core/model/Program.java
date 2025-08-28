@@ -6,8 +6,9 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.io.Serializable;
 
-public final class Program {
+public final class Program implements Serializable {
     private final String name;
     private final List<Instruction> instructions;
 

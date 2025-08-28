@@ -2,6 +2,7 @@ package system.core.model;
 
 import system.core.expand.helpers.FreshNames;
 import java.util.List;
+import java.io.Serializable;
 
 
 public sealed interface Instruction

@@ -21,9 +21,9 @@ public final class ZeroVariable extends SyntheticInstruction {
 
     @Override
     public void expandTo(Program out, FreshNames fresh) {
-        String LOOP = labelTargets().isEmpty() ? label() :fresh.nextLabel();
+         String LOOP = (label() != null && !label().isBlank()) ? label() : fresh.nextLabel();
         out.add(new Dec(LOOP, v, 1));              // LOOP: v <- v-1
-        out.add(new IfGoto("", v, LOOP, 2));       // while v!=0
+        out.add(new IfGoto(null, v, LOOP, 2));       // while v!=0
     }
 
     public static Instruction fromXml(String label, String varToken, Map<String,String> args, List<String> errs) {
