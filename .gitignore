@@ -2,10 +2,20 @@
 out/
 engine/out/
 client/out/
+build/
+dist/
+target/
 
 # temp files created by the bat script
 engine/sources.txt
 client/sources.txt
+
+
+# Archives & State files
+*.zip
+*.state
+*.log
+
 
 # IntelliJ
 .idea/
