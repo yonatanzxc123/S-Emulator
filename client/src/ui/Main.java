@@ -23,7 +23,8 @@ public final class Main {
 
         System.out.println("S-Emulator");
         while (true) {
-            System.out.println("""
+            // need to swap Exit and Load\Save Idan
+            System.out.println(""" 
                 1) Load XML
                 2) Show Program
                 3) Expand & Show Program
