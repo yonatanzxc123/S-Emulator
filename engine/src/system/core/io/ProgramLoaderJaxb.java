@@ -29,7 +29,6 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
             if (xmlPath == null || !Files.isRegularFile(xmlPath)) {
                 return LoadOutcome.error(List.of("File not found: " + xmlPath));
             }
-
             JAXBContext ctx = JAXBContext.newInstance(ObjectFactory.class);
             Unmarshaller u = ctx.createUnmarshaller();
 
