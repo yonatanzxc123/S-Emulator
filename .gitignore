@@ -5,6 +5,7 @@ client/out/
 build/
 dist/
 target/
+*.class
 
 # temp files created by the bat script
 engine/sources.txt
