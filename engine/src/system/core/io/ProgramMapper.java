@@ -26,7 +26,7 @@ public final class ProgramMapper {
         for (Instruction ins : p.instructions()) {
             if (!ins.label().isEmpty() && !"EXIT".equals(ins.label())) labels.add(ins.label());
 
-            // (quick & dirty input detection; you can later upgrade to use variablesUsed())
+            // (quick & dirty input detection; I can later upgrade to use variablesUsed()) if I want
             String t = ins.asText();
             for (int i = 1; i <= 20; i++) {
                 if (t.contains("x" + i)) inputs.add("x" + i);

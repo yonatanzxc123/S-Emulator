@@ -1,3 +1,4 @@
+
 package jaxb;
 
 import java.util.ArrayList;
@@ -19,7 +20,7 @@ import jakarta.xml.bind.annotation.XmlType;
  *   <complexContent>
  *     <restriction base="{http://www.w3.org/2001/XMLSchema}anyType">
  *       <sequence>
- *         <element ref="{}S-Instruction-Argument" maxOccurs="unbounded"/>
+ *         <element ref="{}S-Function" maxOccurs="unbounded"/>
  *       </sequence>
  *     </restriction>
  *   </complexContent>
@@ -30,44 +31,44 @@ import jakarta.xml.bind.annotation.XmlType;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "", propOrder = {
-    "sInstructionArgument"
+    "sFunction"
 })
-@XmlRootElement(name = "S-Instruction-Arguments")
-public class SInstructionArguments {
+@XmlRootElement(name = "S-Functions")
+public class SFunctions {
 
-    @XmlElement(name = "S-Instruction-Argument", required = true)
-    protected List<SInstructionArgument> sInstructionArgument;
+    @XmlElement(name = "S-Function", required = true)
+    protected List<SFunction> sFunction;
 
     /**
-     * Gets the value of the sInstructionArgument property.
+     * Gets the value of the sFunction property.
      * 
      * <p>This accessor method returns a reference to the live list,
      * not a snapshot. Therefore any modification you make to the
      * returned list will be present inside the JAXB object.
-     * This is why there is not a <CODE>set</CODE> method for the sInstructionArgument property.</p>
+     * This is why there is not a <CODE>set</CODE> method for the sFunction property.</p>
      * 
      * <p>
      * For example, to add a new item, do as follows:
      * </p>
      * <pre>
-     * getSInstructionArgument().add(newItem);
+     * getSFunction().add(newItem);
      * </pre>
      * 
      * 
      * <p>
      * Objects of the following type(s) are allowed in the list
-     * {@link SInstructionArgument }
+     * {@link SFunction }
      * </p>
      * 
      * 
      * @return
-     *     The value of the sInstructionArgument property.
+     *     The value of the sFunction property.
      */
-    public List<SInstructionArgument> getSInstructionArgument() {
-        if (sInstructionArgument == null) {
-            sInstructionArgument = new ArrayList<>();
+    public List<SFunction> getSFunction() {
+        if (sFunction == null) {
+            sFunction = new ArrayList<>();
         }
-        return this.sInstructionArgument;
+        return this.sFunction;
     }
 
 }

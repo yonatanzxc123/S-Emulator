@@ -1,8 +1,10 @@
+
 package jaxb;
 
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlType;
 
@@ -16,7 +18,10 @@ import jakarta.xml.bind.annotation.XmlType;
  * <complexType>
  *   <complexContent>
  *     <restriction base="{http://www.w3.org/2001/XMLSchema}anyType">
- *       <attribute name="value" use="required" type="{http://www.w3.org/2001/XMLSchema}string" />
+ *       <sequence>
+ *         <element ref="{}S-Instructions"/>
+ *       </sequence>
+ *       <attribute name="user-string" use="required" type="{http://www.w3.org/2001/XMLSchema}string" />
  *       <attribute name="name" use="required" type="{http://www.w3.org/2001/XMLSchema}string" />
  *     </restriction>
  *   </complexContent>
@@ -26,37 +31,65 @@ import jakarta.xml.bind.annotation.XmlType;
  * 
  */
 @XmlAccessorType(XmlAccessType.FIELD)
-@XmlType(name = "")
-@XmlRootElement(name = "S-Instruction-Argument")
-public class SInstructionArgument {
+@XmlType(name = "", propOrder = {
+    "sInstructions"
+})
+@XmlRootElement(name = "S-Function")
+public class SFunction {
 
-    @XmlAttribute(name = "value", required = true)
-    protected String value;
+    @XmlElement(name = "S-Instructions", required = true)
+    protected SInstructions sInstructions;
+    @XmlAttribute(name = "user-string", required = true)
+    protected String userString;
     @XmlAttribute(name = "name", required = true)
     protected String name;
 
     /**
-     * Gets the value of the value property.
+     * Gets the value of the sInstructions property.
+     * 
+     * @return
+     *     possible object is
+     *     {@link SInstructions }
+     *     
+     */
+    public SInstructions getSInstructions() {
+        return sInstructions;
+    }
+
+    /**
+     * Sets the value of the sInstructions property.
+     * 
+     * @param value
+     *     allowed object is
+     *     {@link SInstructions }
+     *     
+     */
+    public void setSInstructions(SInstructions value) {
+        this.sInstructions = value;
+    }
+
+    /**
+     * Gets the value of the userString property.
      * 
      * @return
      *     possible object is
      *     {@link String }
      *     
      */
-    public String getValue() {
-        return value;
+    public String getUserString() {
+        return userString;
     }
 
     /**
-     * Sets the value of the value property.
+     * Sets the value of the userString property.
      * 
      * @param value
      *     allowed object is
      *     {@link String }
      *     
      */
-    public void setValue(String value) {
-        this.value = value;
+    public void setUserString(String value) {
+        this.userString = value;
     }
 
     /**
