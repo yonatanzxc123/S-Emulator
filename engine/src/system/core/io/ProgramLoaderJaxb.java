@@ -1,14 +1,12 @@
 package system.core.io;
 
-import jakarta.xml.bind.JAXBContext;
-import jakarta.xml.bind.Unmarshaller;
-import jakarta.xml.bind.ValidationEvent;
+import jakarta.xml.bind.*;
 import jakarta.xml.bind.ValidationEventHandler;
 import jakarta.xml.bind.ValidationEventLocator;
-
 import javax.xml.XMLConstants;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
+
 
 import jaxb.*; // generated JAXB classes
 
@@ -29,18 +27,15 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
             if (xmlPath == null || !Files.isRegularFile(xmlPath)) {
                 return LoadOutcome.error(List.of("File not found: " + xmlPath));
             }
-
             JAXBContext ctx = JAXBContext.newInstance(ObjectFactory.class);
             Unmarshaller u = ctx.createUnmarshaller();
 
-            // Optional XSD validation (collect all events, fail after unmarshal)
             Schema schema = tryLoadSchema(xmlPath);
             List<String> schemaErrs = new ArrayList<>();
             if (schema != null) {
                 u.setSchema(schema);
                 u.setEventHandler(new ValidationEventHandler() {
-                    @Override
-                    public boolean handleEvent(ValidationEvent event) {
+                    @Override public boolean handleEvent(ValidationEvent event) {
                         ValidationEventLocator loc = event.getLocator();
                         String pos = (loc != null)
                                 ? (" line " + loc.getLineNumber() + ", col " + loc.getColumnNumber())
@@ -64,38 +59,43 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
                 return LoadOutcome.error(List.of("Empty or invalid <S-Program>."));
             }
 
-            Program program = new Program(root.getName() == null ? "Unnamed" : root.getName());
+            // Build main program
+            Program program = mapProgramFrom(
+                    root.getSInstructions(),
+                    (root.getName() == null ? "Unnamed" : root.getName()),
+                    errs
+            );
 
-            int line = 0;
-            for (SInstruction si : root.getSInstructions().getSInstruction()) {
-                line++;
-                String kind  = safe(si.getType());          // "basic" | "synthetic"
-                String name  = safe(si.getName());          // e.g., JUMP_ZERO
-                String label = safe(si.getSLabel());        // may be "", "L1", or "EXIT"
-                String var   = safe(si.getSVariable());     // for ops that use it
-                Map<String,String> args = argsMap(si.getSInstructionArguments());
-
-                Instruction ins = buildByConvention(kind, name, label, var, args, line, errs);
-                if (ins != null) program.add(ins);
-            }
-
-            // Label check via Instruction#labelTargets()
-            Set<String> defined = new HashSet<>();
-            for (var ins : program.instructions()) {
-                String lab = ins.label();
-                if (!lab.isEmpty() && !"EXIT".equals(lab)) defined.add(lab);
-            }
-            for (int i = 0; i < program.instructions().size(); i++) {
-                var ins = program.instructions().get(i);
-                for (String t : ins.labelTargets()) {
-                    if (!"EXIT".equals(t) && !defined.contains(t)) {
-                        errs.add("Unknown label referenced at #" + (i + 1) + ": '" + t + "'");
+            // Build functions map (v2 featuresss)
+            Map<String, Program> functions = new LinkedHashMap<>();
+            if (root.getSFunctions() != null && root.getSFunctions().getSFunction() != null) {
+                for (SFunction f : root.getSFunctions().getSFunction()) {
+                    String formalName = safe(f.getName());
+                    String userString = safe(f.getUserString());
+                    if (formalName.isBlank()) {
+                        errs.add("Function with empty 'name' attribute.");
+                        continue;
                     }
+                    if (functions.containsKey(formalName)) {
+                        errs.add("Duplicate function name: " + formalName);
+                        continue;
+                    }
+                    if (f.getSInstructions() == null || f.getSInstructions().getSInstruction() == null) {
+                        errs.add("Function '" + formalName + "' has no <S-Instructions>.");
+                        continue;
+                    }
+                    Program body = mapProgramFrom(f.getSInstructions(),
+                            userString.isBlank() ? formalName : userString,
+                            errs);
+                    functions.put(formalName, body);
                 }
             }
 
+            // Validate labels in the main program (existing logic)
+            labelSanity(program, errs);
+
             if (!errs.isEmpty()) return LoadOutcome.error(errs);
-            return LoadOutcome.ok(program);
+            return LoadOutcome.ok(program, functions);
 
         } catch (Exception e) {
             errs.add("Parse error: " + e.getMessage());
@@ -103,14 +103,45 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
         }
     }
 
-    // ---------- reflection + convention ----------
+    private static Program mapProgramFrom(SInstructions block, String name, List<String> errs) {
+        Program p = new Program(name);
+        int line = 0;
+        for (SInstruction si : block.getSInstruction()) {
+            line++;
+            String kind  = safe(si.getType());
+            String nameOp  = safe(si.getName());
+            String label = safe(si.getSLabel());
+            String var   = safe(si.getSVariable());
+            Map<String,String> args = argsMap(si.getSInstructionArguments());
 
+            Instruction ins = buildByConvention(kind, nameOp, label, var, args, line, errs);
+            if (ins != null) p.add(ins);
+        }
+        return p;
+    }
+
+    private static void labelSanity(Program program, List<String> errs) {
+        Set<String> defined = new HashSet<>();
+        for (var ins : program.instructions()) {
+            String lab = ins.label();
+            if (!lab.isEmpty() && !"EXIT".equals(lab)) defined.add(lab);
+        }
+        for (int i = 0; i < program.instructions().size(); i++) {
+            var ins = program.instructions().get(i);
+            for (String t : ins.labelTargets()) {
+                if (!"EXIT".equals(t) && !defined.contains(t)) {
+                    errs.add("Unknown label referenced at #" + (i + 1) + ": '" + t + "'");
+                }
+            }
+        }
+    }
+
+    // ---------- reflection + convention things ----------
     private static final Map<String,String> BASIC_ALIASES = Map.of(
-            // your XML opcode  -> class name
-            "INCREASE",        "Inc",
-            "DECREASE",        "Dec",
-            "JUMP_NOT_ZERO",   "IfGoto",
-            "NEUTRAL",         "Nop"
+            "INCREASE",      "Inc",
+            "DECREASE",      "Dec",
+            "JUMP_NOT_ZERO", "IfGoto",
+            "NEUTRAL",       "Nop"
     );
 
     private static Instruction buildByConvention(
@@ -135,7 +166,7 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
         if ("basic".equalsIgnoreCase(kind) && BASIC_ALIASES.containsKey(name.toUpperCase(Locale.ROOT))) {
             className = BASIC_ALIASES.get(name.toUpperCase(Locale.ROOT));
         } else {
-            className = toCamel(name); // e.g., JUMP_EQUAL_CONSTANT -> JumpEqualConstant
+            className = toCamel(name);
         }
 
         String fqcn = pkg + "." + className;
@@ -173,8 +204,6 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
         return sb.toString();
     }
 
-    // ---------- tiny helpers ----------
-
     private static String safe(String s){ return s==null? "" : s.trim(); }
 
     private static Map<String,String> argsMap(SInstructionArguments args) {
@@ -187,15 +216,22 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
         return m;
     }
 
+    // Prefer v2 schema, then fallback to v1 if shit goes to hell
     private static Schema tryLoadSchema(Path xmlPath) {
         try {
             SchemaFactory sf = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+            // look next to the XML file first
             if (xmlPath != null && xmlPath.getParent() != null) {
-                Path near = xmlPath.getParent().resolve("S-Emulator-v1.xsd");
-                if (Files.isRegularFile(near)) return sf.newSchema(near.toFile());
+                Path near2 = xmlPath.getParent().resolve("S-Emulator-v2.xsd");
+                if (Files.isRegularFile(near2)) return sf.newSchema(near2.toFile());
+                Path near1 = xmlPath.getParent().resolve("S-Emulator-v1.xsd");
+                if (Files.isRegularFile(near1)) return sf.newSchema(near1.toFile());
             }
-            Path root = Path.of("S-Emulator-v1.xsd");
-            if (Files.isRegularFile(root)) return sf.newSchema(root.toFile());
+            // project root fallbacks
+            Path root2 = Path.of("S-Emulator-v2.xsd");
+            if (Files.isRegularFile(root2)) return sf.newSchema(root2.toFile());
+            Path root1 = Path.of("S-Emulator-v1.xsd");
+            if (Files.isRegularFile(root1)) return sf.newSchema(root1.toFile());
         } catch (Exception ignore) {}
         return null;
     }

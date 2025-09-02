@@ -21,11 +21,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.TreeMap;
+import java.util.Map;
 
 public final class EmulatorEngineImpl implements EmulatorEngine {
     private int version = 0;
     private Program current = null;
     private final List<HistoryEntry> history = new ArrayList<>();
+    private Map<String,Program> functions = Map.of();
     private final Expander expander = new ExpanderImpl();
 
     @Override
@@ -35,6 +37,7 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
             return new LoadOutcome(false, outcome.errors());
         }
         this.current = outcome.program();
+        this.functions = outcome.functions();
         this.version++;
         this.history.clear(); // reset on new load
         return new LoadOutcome(true, List.of());
@@ -42,6 +45,8 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
 
     @Override
     public int getVersion() { return version; }
+
+    public Map<String,Program> getFunctions() { return Map.copyOf(functions); }
 
     @Override
     public ProgramView getProgramView() {
