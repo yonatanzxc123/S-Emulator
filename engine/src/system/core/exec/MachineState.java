@@ -76,6 +76,23 @@ public final class MachineState {
     // expose snapshots for building RunResult later
     public long y() { return y; }
     public long cycles() { return cycles; }
+    public void setPc(int pc) { this.pc = Math.max(0, pc); }
+    public void setCycles(long c) { this.cycles = Math.max(0L, c); }
+
+
     public Map<Integer, Long> snapshotX() { return new HashMap<>(x); }
     public Map<Integer, Long> snapshotZ() { return new HashMap<>(z); }
+
+
+    // for Debugger to restore state
+    public void restoreX(Map<Integer,Long> src) {
+        x.clear();
+        if (src != null) x.putAll(src);
+    }
+    public void restoreZ(Map<Integer,Long> src) {
+        z.clear();
+        if (src != null) z.putAll(src);
+    }
+
+
 }

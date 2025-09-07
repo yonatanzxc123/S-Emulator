@@ -14,7 +14,7 @@ interface InstrHandler<T extends Instruction> {
     void execute(T ins, MachineState st, JumpResolver jr);
 }
 
-public final class Executor {
+public class Executor {
     private final Map<Class<?>, InstrHandler<?>> handlers = new HashMap<>();
 
 

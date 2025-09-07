@@ -47,7 +47,7 @@ public final class FreshNames {
         }
     }
 
-    /** Returns a fresh label like L$1, L$2… guaranteed not to clash with existing labels. so we know we are good */
+    /** Returns a fresh label guaranteed not to clash with existing labels. so we know we are good */
     public String nextLabel() {
         String lab;
         do {
