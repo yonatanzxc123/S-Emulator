@@ -23,6 +23,9 @@ public class Debugger extends Executor {
     // snapshots[k] = state after k steps (k == stepNo)
     private final List<Snapshot> snapshots = new ArrayList<>();
 
+    // breakpoints
+    private final Set<Integer> breakpoints = new HashSet<>();
+
 
     // ------------ public API ------------
 
@@ -34,6 +37,7 @@ public class Debugger extends Executor {
         this.stepNo = 0;
         this.snapshots.clear();
         this.snapshots.add(takeSnapshot(st)); // step 0 snapshot
+        this.breakpoints.clear();
     }
 
     /** Non-destructive view of current state (useful to draw UI at start so take it IDAN) */
@@ -64,11 +68,21 @@ public class Debugger extends Executor {
         return toStep(stepNo, changed);
     }
 
-    /** Run to completion (or until halted by a supreme being such as Carmi) from the current point . */
+    /** Run to completion or until next PC is at breakpoint (or until halted by a supreme being such as Carmi) from the current point . */
     public DebugStep resume() {
         ensureSession();
+
+        // If we're already sitting on a breakpoint, stop immediately (don't consume any instruction).
+        if (!isFinished() && isBreakpoint(st.getPc())) {
+            return toStep(stepNo, Map.of());
+        }
+
         while (!isFinished()) {
+            // Execute one instruction
             step();
+
+            // After stepping, if we're now positioned on a breakpoint, stop here
+            if (!isFinished() && isBreakpoint(st.getPc())) break;
         }
         return toStep(stepNo, Map.of());
     }
@@ -217,6 +231,39 @@ public class Debugger extends Executor {
                 changed
         );
     }
+
+
+    // ------------ breakpoints ------------
+
+    /** Programmatic breakpoint control (UI will call these). */
+    public void setBreakpoints(Collection<Integer> pcs) {
+        ensureSession();
+        breakpoints.clear();
+        if (pcs != null) {
+            for (int pc : pcs) if (pc >= 0 && pc < program.instructions().size()) breakpoints.add(pc);
+        }
+    }
+    public void addBreakpoint(int pc) {
+        ensureSession();
+        if (pc >= 0 && pc < program.instructions().size()) breakpoints.add(pc);
+    }
+    public void removeBreakpoint(int pc) {
+        ensureSession();
+        breakpoints.remove(pc);
+    }
+    public void clearBreakpoints() {
+        ensureSession();
+        breakpoints.clear();
+    }
+    public boolean isBreakpoint(int pc) {
+        return breakpoints.contains(pc);
+    }
+    public Set<Integer> getBreakpoints() {
+        return Collections.unmodifiableSet(breakpoints);
+    }
+
+
+
 }
 
 
