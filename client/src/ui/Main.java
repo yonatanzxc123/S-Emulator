@@ -11,6 +11,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import java.util.Set;
+import java.util.HashSet;
 
 
 
@@ -222,11 +224,9 @@ public final class Main {
                 }
                 // this case is for testing debugging feature, will later be implemented in GUI
                 case "9" -> {
-                    // Need a program loaded
                     var preview = engine.getProgramView();
                     if (preview == null) { System.out.println("No program loaded yet. Use option 1 first."); break; }
 
-                    // Degree selection (same style as Run)
                     int max = engine.getMaxDegree();
                     System.out.println("Max expandable degree: " + max);
                     int degree = -1;
@@ -238,7 +238,6 @@ public final class Main {
                         System.out.println("Invalid degree. Try again.");
                     }
 
-                    // Inputs (reuse the simple comma format for console)
                     System.out.print("Inputs (comma separated, e.g. 1,2,3; empty for none): ");
                     String line = in.nextLine().trim();
                     List<Long> inputs = new ArrayList<>();
@@ -248,30 +247,44 @@ public final class Main {
                         }
                     }
 
-                    // Start debug session via engine
                     var dbg = engine.startDebug(degree, inputs);
                     if (dbg == null) { System.out.println("Failed to start debugger (no program loaded)."); break; }
 
-                    // Build a ProgramView for display/highlighting during debug
-                    // (We map the Program inside the debugger to a view for printing)
                     var debugProgramView = system.core.io.ProgramMapper.toView(dbg.program());
 
-                    final int dbgDegree = degree;                    // capture-safe copy
+                    // Ask for breakpoints (1-based)
+                    System.out.print("Breakpoints (line numbers comma-separated; empty = none): ");
+                    String bpLine = in.nextLine().trim();
+                    if (!bpLine.isEmpty()) {
+                        Set<Integer> bps = new HashSet<>();
+                        for (String tok : bpLine.split(",")) {
+                            try {
+                                int ln = Integer.parseInt(tok.trim());
+                                if (ln >= 1 && ln <= debugProgramView.commands().size()) {
+                                    bps.add(ln - 1); // convert to 0-based PC
+                                } else {
+                                    System.out.println("Ignoring invalid line " + ln);
+                                }
+                            } catch (NumberFormatException ignore) {}
+                        }
+                        dbg.setBreakpoints(bps);
+                    }
+
+                    // capture-safe copies for lambda
+                    final int dbgDegree = degree;
                     final var dbgPV     = debugProgramView;
 
-                    // Helpers
                     java.util.function.Consumer<system.api.DebugStep> printState = step -> {
-                        // Program header
                         System.out.println("DEBUG - Program (degree " + dbgDegree + "): " + dbgPV.name());
-                        // Print current PC & finished flag
                         System.out.println("PC=" + step.pc() + "  cycles=" + step.cycles() + "  finished=" + step.finished());
 
-                        // Show table with current PC highlighted
                         for (var c : dbgPV.commands()) {
-                            String marker = (c.number() - 1 == step.pc() && !step.finished()) ? ">> " : "   ";
+                            int pc = c.number() - 1;
+                            String bpFlag = dbg.isBreakpoint(pc) ? "*" : " "; // show '*' on lines with a breakpoint
+                            String cursor = (pc == step.pc() && !step.finished()) ? ">>" : "  ";
                             String ln = String.format(
-                                    "%s#%d (%s) [%-5s] %s (%d)",
-                                    marker,
+                                    "%s%s #%d (%s) [%-5s] %s (%d)",
+                                    bpFlag, cursor,
                                     c.number(), c.basic() ? "B" : "S",
                                     c.labelOrEmpty() == null ? "" : c.labelOrEmpty(),
                                     c.text(), c.cycles()
@@ -279,49 +292,63 @@ public final class Main {
                             System.out.println(ln);
                         }
 
-                        // Vars
                         System.out.println("-- VARIABLES (full snapshot) --");
                         step.vars().forEach((k,v) -> System.out.println(k + " = " + v));
 
-                        // Changed
                         if (!step.changed().isEmpty()) {
                             System.out.println("-- CHANGED in last step --");
                             step.changed().forEach((k,v) -> System.out.println("* " + k + " = " + v));
                         }
                     };
 
-                    // Initial peek
-                    var cur = dbg.peek();
+                    // If we have any breakpoints, immediately run to the first one
+                    var cur = dbg.getBreakpoints().isEmpty() ? dbg.peek() : dbg.resume();
                     printState.accept(cur);
 
-                    // Sub-loop
-                    System.out.println("""
+                    debugLoop:
+                    while (true) {
+                        System.out.println("""
         Debug commands:
           s = step
           b = step back
           r = resume
           x = stop
+          a N = add breakpoint at line N
+          d N = delete breakpoint at line N
           q = quit debug
         """);
-                    debugLoop:
-                    while (true) {
-                        System.out.print("[debug] command (s/b/r/x/q): ");
-                        String cmd = in.nextLine().trim().toLowerCase();
-                        switch (cmd) {
-                            case "s" -> cur = dbg.step();
-                            case "b" -> cur = dbg.stepBack();
-                            case "r" -> cur = dbg.resume();
-                            case "x" -> cur = dbg.stop();
-                            case "q" -> { System.out.println("Leaving debug."); break debugLoop; } // <-- change
-                            default  -> { System.out.println("Unknown command."); continue; }
+                        System.out.print("[debug] command: ");
+                        String cmd = in.nextLine().trim();
+
+                        if (cmd.equalsIgnoreCase("q")) { System.out.println("Leaving debug."); break debugLoop; }
+                        else if (cmd.equalsIgnoreCase("s")) cur = dbg.step();
+                        else if (cmd.equalsIgnoreCase("b")) cur = dbg.stepBack();
+                        else if (cmd.equalsIgnoreCase("r")) cur = dbg.resume();
+                        else if (cmd.equalsIgnoreCase("x")) cur = dbg.stop();
+                        else if (cmd.matches("^[aA]\\s+\\d+$")) {
+                            int ln = Integer.parseInt(cmd.substring(1).trim());
+                            int pc = ln - 1;
+                            dbg.addBreakpoint(pc);
+                            System.out.println("Added breakpoint at line " + ln);
+                        } else if (cmd.matches("^[dD]\\s+\\d+$")) {
+                            int ln = Integer.parseInt(cmd.substring(1).trim());
+                            int pc = ln - 1;
+                            dbg.removeBreakpoint(pc);
+                            System.out.println("Removed breakpoint at line " + ln);
+                        } else {
+                            System.out.println("Unknown command.");
+                            continue;
                         }
+
                         printState.accept(cur);
                         if (cur.finished()) {
                             System.out.println("Program finished. You can 'b' to walk back or 'q' to exit debug.");
                         }
                     }
-
                 }
+
+
+
 
 
                 default -> System.out.println("Invalid option.");
