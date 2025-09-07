@@ -4,7 +4,8 @@ import system.api.EmulatorEngine;
 import system.api.HistoryEntry;
 import system.api.RunResult;
 import system.api.view.ProgramView;
-import system.core.exec.Executor;
+import system.core.exec.*;
+import system.core.exec.debugg.Debugger;
 import system.core.expand.Expander;
 import system.core.expand.ExpanderImpl;
 import system.core.io.ProgramLoaderJaxb;
@@ -29,6 +30,8 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
     private final List<HistoryEntry> history = new ArrayList<>();
     private Map<String,Program> functions = Map.of();
     private final Expander expander = new ExpanderImpl();
+
+
 
     @Override
     public LoadOutcome loadProgram(Path xmlPath) {
@@ -179,6 +182,25 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
             if (!ins.isBasic()) return true;
         }
         return false;
+    }
+
+
+    // ---- Debugger ----
+    @Override
+    public Debugger startDebug(int degree, List<Long> inputs) {
+        if (current == null) return null;
+
+        int max = getMaxDegree();
+        int use = Math.max(0, Math.min(degree, max));
+
+        // Build the concrete program that would be executed at this degree.
+        final Program programToDebug = (use == 0)
+                ? current
+                : new ExpanderImpl().expandToDegree(current, use);
+
+        Debugger dbg = new Debugger();
+        dbg.init(programToDebug, inputs);
+        return dbg;
     }
 
 

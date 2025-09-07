@@ -33,6 +33,7 @@ public final class Main {
                 6) Exit
                 7) Save State
                 8) Load State
+                9) (hidden) Debug
                 """);
             System.out.print("Choose: ");
             String choice = in.nextLine().trim();
@@ -216,7 +217,112 @@ public final class Main {
                         System.out.println("Load failed:");
                         res.errors().forEach(System.out::println);
                     }
+
+
                 }
+                // this case is for testing debugging feature, will later be implemented in GUI
+                case "9" -> {
+                    // Need a program loaded
+                    var preview = engine.getProgramView();
+                    if (preview == null) { System.out.println("No program loaded yet. Use option 1 first."); break; }
+
+                    // Degree selection (same style as Run)
+                    int max = engine.getMaxDegree();
+                    System.out.println("Max expandable degree: " + max);
+                    int degree = -1;
+                    while (true) {
+                        System.out.print("Choose degree [0.." + max + "]: ");
+                        String d = in.nextLine().trim();
+                        try { degree = Integer.parseInt(d); } catch (NumberFormatException e) { degree = -1; }
+                        if (degree >= 0 && degree <= max) break;
+                        System.out.println("Invalid degree. Try again.");
+                    }
+
+                    // Inputs (reuse the simple comma format for console)
+                    System.out.print("Inputs (comma separated, e.g. 1,2,3; empty for none): ");
+                    String line = in.nextLine().trim();
+                    List<Long> inputs = new ArrayList<>();
+                    if (!line.isEmpty()) {
+                        for (String s : line.split(",")) {
+                            try { inputs.add(Long.parseLong(s.trim())); } catch (NumberFormatException e) { inputs.add(0L); }
+                        }
+                    }
+
+                    // Start debug session via engine
+                    var dbg = engine.startDebug(degree, inputs);
+                    if (dbg == null) { System.out.println("Failed to start debugger (no program loaded)."); break; }
+
+                    // Build a ProgramView for display/highlighting during debug
+                    // (We map the Program inside the debugger to a view for printing)
+                    var debugProgramView = system.core.io.ProgramMapper.toView(dbg.program());
+
+                    final int dbgDegree = degree;                    // capture-safe copy
+                    final var dbgPV     = debugProgramView;
+
+                    // Helpers
+                    java.util.function.Consumer<system.api.DebugStep> printState = step -> {
+                        // Program header
+                        System.out.println("DEBUG - Program (degree " + dbgDegree + "): " + dbgPV.name());
+                        // Print current PC & finished flag
+                        System.out.println("PC=" + step.pc() + "  cycles=" + step.cycles() + "  finished=" + step.finished());
+
+                        // Show table with current PC highlighted
+                        for (var c : dbgPV.commands()) {
+                            String marker = (c.number() - 1 == step.pc() && !step.finished()) ? ">> " : "   ";
+                            String ln = String.format(
+                                    "%s#%d (%s) [%-5s] %s (%d)",
+                                    marker,
+                                    c.number(), c.basic() ? "B" : "S",
+                                    c.labelOrEmpty() == null ? "" : c.labelOrEmpty(),
+                                    c.text(), c.cycles()
+                            );
+                            System.out.println(ln);
+                        }
+
+                        // Vars
+                        System.out.println("-- VARIABLES (full snapshot) --");
+                        step.vars().forEach((k,v) -> System.out.println(k + " = " + v));
+
+                        // Changed
+                        if (!step.changed().isEmpty()) {
+                            System.out.println("-- CHANGED in last step --");
+                            step.changed().forEach((k,v) -> System.out.println("* " + k + " = " + v));
+                        }
+                    };
+
+                    // Initial peek
+                    var cur = dbg.peek();
+                    printState.accept(cur);
+
+                    // Sub-loop
+                    System.out.println("""
+        Debug commands:
+          s = step
+          b = step back
+          r = resume
+          x = stop
+          q = quit debug
+        """);
+                    debugLoop:
+                    while (true) {
+                        System.out.print("[debug] command (s/b/r/x/q): ");
+                        String cmd = in.nextLine().trim().toLowerCase();
+                        switch (cmd) {
+                            case "s" -> cur = dbg.step();
+                            case "b" -> cur = dbg.stepBack();
+                            case "r" -> cur = dbg.resume();
+                            case "x" -> cur = dbg.stop();
+                            case "q" -> { System.out.println("Leaving debug."); break debugLoop; } // <-- change
+                            default  -> { System.out.println("Unknown command."); continue; }
+                        }
+                        printState.accept(cur);
+                        if (cur.finished()) {
+                            System.out.println("Program finished. You can 'b' to walk back or 'q' to exit debug.");
+                        }
+                    }
+
+                }
+
 
                 default -> System.out.println("Invalid option.");
             }
