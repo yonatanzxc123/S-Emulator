@@ -1,5 +1,6 @@
 package ui.components.header;
 
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.concurrent.Task;
@@ -35,9 +36,11 @@ public class HeaderController implements EngineInjector {
     private SimpleStringProperty loadFileLblProp = new SimpleStringProperty("No File Loaded");
     private SimpleBooleanProperty isLoadedProp = new SimpleBooleanProperty(false);
 
-    private EmulatorEngine engine; // injected from App
+    private EmulatorEngine engine;
 
     @Override public void setEngine(EmulatorEngine engine) { this.engine = engine; }
+
+    public ReadOnlyBooleanProperty hasFileLoaded(){ return isLoadedProp; }
 
     @FXML
     private void initialize() {
@@ -73,7 +76,7 @@ public class HeaderController implements EngineInjector {
                     Thread.sleep(50);              // ~2.0s (40 * 50ms)
                     updateProgress(i, 40);
                 }
-                updateMessage("Loaded ✓");
+                updateMessage("Loaded");
                 return outcome;
             }
         };
@@ -85,6 +88,7 @@ public class HeaderController implements EngineInjector {
         task.setOnSucceeded(e -> {
             loadFileLblProp.unbind();
             loadFileLblProp.set(file.getAbsolutePath());
+            isLoadedProp.set(true);
             dialog.close();
         });
 

@@ -1,12 +1,15 @@
 package ui;
 
 import javafx.application.Application;
+import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import system.api.EmulatorEngine;
 import system.core.EmulatorEngineImpl;
+import ui.components.center.CenterController;
+import ui.components.header.HeaderController;
 
 public class MainScreen extends Application {
 
@@ -19,7 +22,7 @@ public class MainScreen extends Application {
     @Override
     public void start(Stage stage) throws Exception {
 
-         FXMLLoader loader = new FXMLLoader(getClass().getResource("MainScreen.fxml"));
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("MainScreen.fxml"));
 
         loader.setControllerFactory(type -> {
             try {
@@ -33,7 +36,7 @@ public class MainScreen extends Application {
             }
         });
         Parent root = loader.load();
-        stage.setScene(new Scene(root, 600, 400));
+        stage.setScene(new Scene(root, 1000, 700));
         stage.show();
 
     }

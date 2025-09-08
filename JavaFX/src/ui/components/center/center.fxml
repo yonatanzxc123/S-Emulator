@@ -9,7 +9,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<SplitPane dividerPositions="0.7" maxHeight="Infinity" maxWidth="Infinity" minHeight="0.0" minWidth="200.0" prefHeight="400.0" prefWidth="600.0" stylesheets="@Center.css" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1">
+<SplitPane dividerPositions="0.7" maxHeight="Infinity" maxWidth="Infinity" minHeight="0.0" minWidth="200.0" prefHeight="400.0" prefWidth="600.0" stylesheets="@Center.css" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.components.center.CenterController">
 
     <items>
         <!-- LEFT PANE -->
@@ -26,11 +26,11 @@
                                     <children>
                                         <HBox alignment="CENTER_LEFT" spacing="5.0" VBox.vgrow="NEVER">
                                             <children>
-                                                <Button text="Program Selector" />
-                                                <Button text="Collapse" />
+                                                <Button fx:id="programSelectorBtn" text="Program Selector" />
+                                                <Button fx:id="collapseBtn" text="Collapse" />
                                                 <Label fx:id="currDegreeLbl" text="Current / Max Degree" />
-                                                <Button text="Expand" />
-                                                <ChoiceBox prefWidth="150.0" />
+                                                <Button fx:id="expandBtn" text="Expand" />
+                                                <ChoiceBox fx:id="chooseVarBtn" prefWidth="150.0" />
                                             </children>
                                             <VBox.margin>
                                                 <Insets bottom="10.0" top="10.0" />
@@ -38,7 +38,7 @@
                                         </HBox>
 
                                         <!-- Instructions table -->
-                                        <fx:include source="../table/Table.fxml" VBox.vgrow="NEVER" />
+                                        <fx:include fx:id="instructionTable" source="../table/Table.fxml" VBox.vgrow="NEVER" />
                                     </children>
                            <padding>
                               <Insets left="10.0" />

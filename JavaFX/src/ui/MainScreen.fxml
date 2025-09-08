@@ -2,12 +2,12 @@
 
 <?import javafx.scene.layout.BorderPane?>
 
-<BorderPane fx:id="mainScreenBorder" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" stylesheets="@MainScreen.css" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.MainScreen">
+<BorderPane fx:id="mainScreenBorder" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" stylesheets="@MainScreen.css" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.MainScreenController">
 
     <top>
-        <fx:include source="components/header/Header.fxml" />
+        <fx:include fx:id="header" source="components/header/Header.fxml" />
     </top>
     <center>
-        <fx:include source = "components/center/center.fxml"/>
+        <fx:include fx:id="center"  source="components/center/center.fxml" />
     </center>
 </BorderPane>
