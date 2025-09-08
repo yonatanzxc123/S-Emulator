@@ -21,5 +21,6 @@ public class MainScreenController implements EngineInjector {
     @FXML
     private void initialize() {
         centerController.bindToHeaderLoader(headerController.hasFileLoaded());
+
     }
 }

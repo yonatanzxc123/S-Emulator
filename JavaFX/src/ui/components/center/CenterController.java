@@ -1,6 +1,5 @@
 package ui.components.center;
 
-import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.fxml.FXML;
@@ -9,7 +8,7 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import system.api.EmulatorEngine;
 import ui.EngineInjector;
-import ui.components.header.HeaderController;
+
 
 public class CenterController implements EngineInjector {
     private EmulatorEngine engine;
