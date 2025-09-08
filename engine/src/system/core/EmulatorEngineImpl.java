@@ -60,48 +60,40 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
     public RunResult run(int degree, List<Long> inputs) {
         if (current == null) return null;
 
-        int max = getMaxDegree();
-        int use = Math.max(0, Math.min(degree, max));
+        return FunctionEnv.with(new FunctionEnv(functions), () -> {
+            int max = getMaxDegree();
+            int use = Math.max(0, Math.min(degree, max));
 
-        Program toRun;
-        ProgramView executedView;
+            Program toRun;
+            ProgramView executedView;
 
-        if (use == 0) {
-            // no expansion – original program, no origins
-            toRun = current;
-            executedView = ProgramMapper.toView(current);
-        } else {
-            // expand and keep origins for printing
-            var exp = new system.core.expand.ExpanderImpl();
-            var res = exp.expandToDegreeWithOrigins(current, use);
-            toRun = res.program();
-            executedView = ProgramMapper.toView(res.program(), res.origins());
-        }
+            if (use == 0) {
+                toRun = current;
+                executedView = ProgramMapper.toView(current);
+            } else {
+                var res = new ExpanderImpl().expandToDegreeWithOrigins(current, use);
+                toRun = res.program();
+                executedView = ProgramMapper.toView(res.program(), res.origins());
+            }
 
-        var exec = new system.core.exec.Executor();
-        var st = exec.run(toRun, inputs);
+            var exec = new Executor();
+            var st = exec.run(toRun, inputs);
 
-        var vars = new LinkedHashMap<String, Long>();
-        vars.put("y", st.y());
-        var xs = new TreeMap<>(st.snapshotX());
-        var zs = new TreeMap<>(st.snapshotZ());
-        xs.forEach((i, v) -> vars.put("x" + i, v));
-        zs.forEach((i, v) -> vars.put("z" + i, v));
+            var vars = new LinkedHashMap<String, Long>();
+            vars.put("y", st.y());
+            var xs = new TreeMap<>(st.snapshotX());
+            var zs = new TreeMap<>(st.snapshotZ());
+            xs.forEach((i, v) -> vars.put("x" + i, v));
+            zs.forEach((i, v) -> vars.put("z" + i, v));
 
-        history.add(new HistoryEntry(
-                history.size() + 1,
-                use,
-                (inputs == null) ? List.of() : List.copyOf(inputs),
-                st.y(),
-                st.cycles()
-        ));
+            history.add(new HistoryEntry(
+                    history.size() + 1, use,
+                    (inputs == null) ? List.of() : List.copyOf(inputs),
+                    st.y(), st.cycles()
+            ));
 
-        return new RunResult(
-                st.y(),
-                st.cycles(),
-                executedView,   // <- now includes origins when degree>0
-                vars
-        );
+            return new RunResult(st.y(), st.cycles(), executedView, vars);
+        });
     }
 
     @Override
@@ -112,26 +104,30 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
     @Override
     public int getMaxDegree() {
         if (current == null) return 0;
-        final int CAP = 1000; // its a  safety cap
-        int d = 0;
-        Program cur = current;
-        while (d < CAP && containsSynthetic(cur)) {
-            cur = expander.expandToDegree(cur, 1);
-            d++;
-        }
-        return d;
+        return FunctionEnv.with(new FunctionEnv(functions), () -> {
+            final int CAP = 1000; // safety cap
+            int d = 0;
+            Program cur = current;
+            while (d < CAP && containsSynthetic(cur)) {
+                cur = expander.expandToDegree(cur, 1); // may expand QUOTE
+                d++;
+            }
+            return d;
+        });
     }
 
     @Override
     public ProgramView getExpandedProgramView(int degree) {
         if (current == null) return null;
-        int max = getMaxDegree();
-        int use = Math.max(0, Math.min(degree, max));
-        if (use == 0) return ProgramMapper.toView(current);
 
-        var exp = new system.core.expand.ExpanderImpl();
-        var res = exp.expandToDegreeWithOrigins(current, use);
-        return ProgramMapper.toView(res.program(), res.origins());
+        return FunctionEnv.with(new FunctionEnv(functions), () -> {
+            int max = getMaxDegree();
+            int use = Math.max(0, Math.min(degree, max));
+            if (use == 0) return ProgramMapper.toView(current);
+
+            var res = new ExpanderImpl().expandToDegreeWithOrigins(current, use);
+            return ProgramMapper.toView(res.program(), res.origins());
+        });
     }
 
 
@@ -189,20 +185,19 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
     @Override
     public Debugger startDebug(int degree, List<Long> inputs) {
         if (current == null) return null;
+        return FunctionEnv.with(new FunctionEnv(functions), () -> {
+            int max = getMaxDegree();             // now safe – already inside FunctionEnv
+            int use = Math.max(0, Math.min(degree, max));
 
-        int max = getMaxDegree();
-        int use = Math.max(0, Math.min(degree, max));
+            final Program programToDebug = (use == 0)
+                    ? current
+                    : new ExpanderImpl().expandToDegree(current, use); // may expand QUOTE
 
-        // Build the concrete program that would be executed at this degree.
-        final Program programToDebug = (use == 0)
-                ? current
-                : new ExpanderImpl().expandToDegree(current, use);
-
-        Debugger dbg = new Debugger();
-        dbg.init(programToDebug, inputs);
-        return dbg;
+            Debugger dbg = new Debugger();
+            dbg.init(programToDebug, inputs);
+            return dbg;
+        });
     }
-
 
 
 

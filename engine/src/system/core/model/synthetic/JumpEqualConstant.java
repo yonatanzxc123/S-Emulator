@@ -2,10 +2,7 @@ package system.core.model.synthetic;
 
 import system.core.expand.helpers.FreshNames;
 import system.core.io.LoaderUtil;
-import system.core.model.Instruction;
-import system.core.model.Program;
-import system.core.model.SyntheticInstruction;
-import system.core.model.Var;
+import system.core.model.*;
 import system.core.model.synthetic.Assignment;
 import system.core.model.synthetic.GotoLabel;
 
@@ -13,11 +10,13 @@ import system.core.model.basic.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 
-public final class JumpEqualConstant extends SyntheticInstruction {
+public final class JumpEqualConstant extends SyntheticInstruction implements Remappable {
     private final Var v;
     private final long k;
     private final String target;
+
 
     public JumpEqualConstant(String label, Var v, long k, String target) {
         super(label);
@@ -68,4 +67,12 @@ public final class JumpEqualConstant extends SyntheticInstruction {
         long k = LoaderUtil.parseNonNegLong(kStr, "constantValue", -1, errs);
         return new JumpEqualConstant(label, v, k, target);
     }
+
+
+    @Override
+    public Instruction remap(UnaryOperator<Var> vm, UnaryOperator<String> lm) {
+        return new JumpEqualConstant(lm.apply(label()), vm.apply(v),k,lm.apply(target));
+
+    }
+
 }

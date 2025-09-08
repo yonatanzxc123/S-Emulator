@@ -1,17 +1,19 @@
 package system.core.model.synthetic;
 
-import system.core.model.Instruction;
-import system.core.model.SyntheticInstruction;
-import system.core.model.Var;
-import system.core.model.Program;
+import system.core.model.*;
 import system.core.model.basic.*;
 import system.core.expand.helpers.FreshNames;
 import system.core.io.LoaderUtil;
 import java.util.Map;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
-public final class ZeroVariable extends SyntheticInstruction {
+
+public final class ZeroVariable extends SyntheticInstruction implements Remappable {
     private final Var v;
+
+
+
     public ZeroVariable(String label, Var v) { super(label); this.v = v; }
     public Var v() { return v; }
 
@@ -31,7 +33,10 @@ public final class ZeroVariable extends SyntheticInstruction {
         return (v == null) ? null : new ZeroVariable(label, v);
     }
 
-
+    @Override
+    public Instruction remap(UnaryOperator<Var> vm, UnaryOperator<String> lm) {
+        return new ZeroVariable(lm.apply(label()), vm.apply(v));
+    }
 
 
 }

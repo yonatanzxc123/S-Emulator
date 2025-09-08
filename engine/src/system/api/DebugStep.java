@@ -10,3 +10,4 @@ public record DebugStep(
         Map<String,Long> vars,  // full snapshot (y, x1.., z1..)
         Map<String,Long> changed // only variables that changed this step
 ) {}
+

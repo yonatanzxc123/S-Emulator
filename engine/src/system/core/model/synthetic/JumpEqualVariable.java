@@ -1,20 +1,19 @@
 package system.core.model.synthetic;
 
-import system.core.model.Instruction;
-import system.core.model.SyntheticInstruction;
-import system.core.model.Var;
-import system.core.model.Program;
+import system.core.model.*;
 import system.core.model.basic.*;
 import system.core.expand.helpers.FreshNames;
 import system.core.io.LoaderUtil;
 
 import java.util.Map;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
-public final class JumpEqualVariable extends SyntheticInstruction {
+public final class JumpEqualVariable extends SyntheticInstruction implements Remappable {
     private final Var a;
     private final Var b;
     private final String target;
+
 
     public JumpEqualVariable(String label, Var a, Var b, String target) {
         super(label);
@@ -74,4 +73,11 @@ public final class JumpEqualVariable extends SyntheticInstruction {
         var b = LoaderUtil.parseVar(bTok, errs, -1);
         return (b == null) ? null : new JumpEqualVariable(label, a, b, target);
     }
+
+    @Override
+    public Instruction remap(UnaryOperator<Var> vm, UnaryOperator<String> lm) {
+        return new JumpEqualVariable(lm.apply(label()),vm.apply(a),vm.apply(b), lm.apply(target));
+    }
+
+
 }
