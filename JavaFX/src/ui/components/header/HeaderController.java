@@ -17,13 +17,15 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import system.api.EmulatorEngine;
+import ui.EngineInjector;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.stream.Collectors;
 
 
-
-public class HeaderController {
+public class HeaderController implements EngineInjector {
     @FXML
     private Button loadFileBtn;
 
@@ -32,6 +34,10 @@ public class HeaderController {
 
     private SimpleStringProperty loadFileLblProp = new SimpleStringProperty("No File Loaded");
     private SimpleBooleanProperty isLoadedProp = new SimpleBooleanProperty(false);
+
+    private EmulatorEngine engine; // injected from App
+
+    @Override public void setEngine(EmulatorEngine engine) { this.engine = engine; }
 
     @FXML
     private void initialize() {
@@ -49,35 +55,45 @@ public class HeaderController {
         if (file == null) {
            return;
         }
-        Task<Path> task = new Task<Path>() {
+        Task<EmulatorEngine.LoadOutcome> task = new Task<>() {
             @Override
-            protected Path call() throws Exception {
-                updateMessage("Loading " + file.getAbsolutePath() + "...");
-                final int steps = 40;
-                for (int i = 1; i <= steps; i++) {
-                    if (isLoadedProp.get()) {break;}
-                    Thread.sleep(50);
-                    updateProgress(i, steps);
+            protected EmulatorEngine.LoadOutcome call() throws Exception {
+                updateMessage("Loading " + file.getName() + " …");
+                updateProgress(0, 40);
+
+                Path xml = file.toPath();
+                var outcome = engine.loadProgram(xml);
+                if (!outcome.ok()) {
+                    String errs = outcome.errors().stream().collect(Collectors.joining("\n"));
+                    throw new IllegalArgumentException(errs);
                 }
-                updateMessage("Loaded");
-                return file.toPath();
+                updateMessage("Initializing engine…");
+                for (int i = 1; i <= 40; i++) {
+                    if (isCancelled()) break;
+                    Thread.sleep(50);              // ~2.0s (40 * 50ms)
+                    updateProgress(i, 40);
+                }
+                updateMessage("Loaded ✓");
+                return outcome;
             }
         };
-        String absolutePath = file.getAbsolutePath();
-        loadFileLblProp.set(absolutePath);
 
-        Stage dialog = createLoadingDialog(stage,task);
+        loadFileLblProp.set(file.getAbsolutePath());
+        loadFileLblProp.bind(task.messageProperty());
+        Stage dialog = createLoadingDialog(stage, task);
 
         task.setOnSucceeded(e -> {
             loadFileLblProp.unbind();
-            loadFileLblProp.set(task.getValue().toAbsolutePath().toString());
+            loadFileLblProp.set(file.getAbsolutePath());
             dialog.close();
         });
+
         task.setOnFailed(e -> {
             loadFileLblProp.unbind();
-            loadFileLblProp.set("Failed: " + task.getException().getMessage());
+            loadFileLblProp.set("Failed: " + (task.getException() == null ? "" : task.getException().getMessage()));
             dialog.close();
         });
+
         task.setOnCancelled(e -> {
             loadFileLblProp.unbind();
             loadFileLblProp.set("Cancelled");
