@@ -1,15 +1,13 @@
 package ui;
 
 import javafx.application.Application;
-import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import system.api.EmulatorEngine;
 import system.core.EmulatorEngineImpl;
-import ui.components.center.CenterController;
-import ui.components.header.HeaderController;
+
 
 public class MainScreen extends Application {
 

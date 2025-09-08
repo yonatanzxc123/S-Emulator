@@ -16,8 +16,6 @@ public class MainScreenController implements EngineInjector {
     @Override
     public void setEngine(EmulatorEngine engine) {
         this.engine = engine;
-        if (headerController != null) headerController.setEngine(engine);
-        if (centerController != null) centerController.setEngine(engine);
     }
 
     @FXML
