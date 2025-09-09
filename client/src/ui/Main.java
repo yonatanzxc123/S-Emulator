@@ -347,10 +347,6 @@ public final class Main {
                     }
                 }
 
-
-
-
-
                 default -> System.out.println("Invalid option.");
             }
         }

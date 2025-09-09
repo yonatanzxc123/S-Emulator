@@ -1,19 +1,19 @@
 package system.core.model.synthetic;
 
-import system.core.model.Instruction;
-import system.core.model.SyntheticInstruction;
-import system.core.model.Var;
-import system.core.model.Program;
+import system.core.model.*;
 import system.core.model.basic.*;
 import system.core.expand.helpers.FreshNames;
 import system.core.io.LoaderUtil;
+
 import java.util.List;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 
 
-public final class Assignment extends SyntheticInstruction {
+public final class Assignment extends SyntheticInstruction implements Remappable {
     private final Var v;     // destination
     private final Var src;   // source
+
 
     public Assignment(String label, Var v, Var src) {
         super(label);
@@ -65,6 +65,12 @@ public final class Assignment extends SyntheticInstruction {
         if (dst == null || srcTok == null) return null;
         var src = LoaderUtil.parseVar(srcTok, errs, -1);
         return (src == null) ? null : new Assignment(label, dst, src);
+    }
+
+
+    @Override
+    public Instruction remap(UnaryOperator<Var> vm, UnaryOperator<String> lm) {
+        return new Assignment(lm.apply(label()), vm.apply(v),vm.apply(src));
     }
 
 

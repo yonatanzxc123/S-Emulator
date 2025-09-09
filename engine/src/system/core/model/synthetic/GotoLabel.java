@@ -1,18 +1,19 @@
 package system.core.model.synthetic;
 
 import system.core.expand.helpers.FreshNames;
-import system.core.model.Program;
-import system.core.model.Instruction;
-import system.core.model.SyntheticInstruction;
-import system.core.model.Var;
+import system.core.model.*;
 import system.core.model.basic.IfGoto;
 import system.core.model.basic.Inc;
 import system.core.io.LoaderUtil;
 import java.util.Map;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
-public final class GotoLabel extends SyntheticInstruction {
+public final class GotoLabel extends SyntheticInstruction implements Remappable {
     private final String target;
+
+
+
     public GotoLabel(String label, String target) { super(label); this.target = target; }
     public String target() { return target; }
 
@@ -32,6 +33,12 @@ public final class GotoLabel extends SyntheticInstruction {
     public static Instruction fromXml(String label, String varToken, Map<String,String> args, List<String> errs) {
         String target = LoaderUtil.need(args.get("gotoLabel"), "gotoLabel", -1, errs);
         return (target == null) ? null : new GotoLabel(label, target);
+    }
+
+
+    @Override
+    public Instruction remap(UnaryOperator<Var> vm, UnaryOperator<String> lm) {
+        return new GotoLabel(lm.apply(label()), lm.apply(target));
     }
 
 

@@ -2,16 +2,20 @@ package system.core.model.basic;
 
 import system.core.model.Instruction;
 import system.core.model.BasicInstruction;
+import system.core.model.Remappable;
 import system.core.model.Var;
 import system.core.io.LoaderUtil;
 import java.util.Map;
 
 
 import java.util.List;
+import java.util.function.UnaryOperator;
 
-public final class IfGoto extends BasicInstruction {
+public final class IfGoto extends BasicInstruction implements Remappable {
     private final Var v;
     private final String target;
+
+
 
     public IfGoto(String label, Var v, String target, int cycles) {
         super(label, cycles);                  // cycles should be 2 for JNZ
@@ -40,6 +44,12 @@ public final class IfGoto extends BasicInstruction {
         var v = LoaderUtil.parseVar(varToken, errs, -1);
         String target = LoaderUtil.need(args.get("JNZLabel"), "JNZLabel", -1, errs);
         return (v == null || target == null) ? null : new IfGoto(label, v, target, 2);
+    }
+
+
+    @Override
+    public Instruction remap(UnaryOperator<Var> vm, UnaryOperator<String> lm) {
+        return new IfGoto(lm.apply(label()), vm.apply(v),lm.apply(target),this.cycles());
     }
 
 }

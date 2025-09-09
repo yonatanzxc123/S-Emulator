@@ -2,16 +2,14 @@ package system.core.model.synthetic;
 
 
 import system.core.expand.helpers.FreshNames;
-import system.core.model.Program;
-import system.core.model.Instruction;
-import system.core.model.SyntheticInstruction;
-import system.core.model.Var;
-import system.core.model.basic.Inc;
+import system.core.model.basic.*;
+import system.core.model.*;
 import system.core.io.LoaderUtil;
 import java.util.Map;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
-public final class ConstantAssignment extends SyntheticInstruction {
+public final class ConstantAssignment extends SyntheticInstruction implements Remappable {
     private final Var v;
     private final long k;
 
@@ -43,5 +41,10 @@ public final class ConstantAssignment extends SyntheticInstruction {
         long k = LoaderUtil.parseNonNegLong(kStr, "constantValue", -1, errs);
         return new ConstantAssignment(label, v, k);
     }
+    @Override
+    public Instruction remap(UnaryOperator<Var> vm, UnaryOperator<String> lm) {
+        return new ConstantAssignment(lm.apply(label()), vm.apply(v), k);
+    }
+
 
 }
