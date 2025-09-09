@@ -249,17 +249,21 @@ public final class Quote extends SyntheticInstruction
                     // loop will consume the comma at the top on next iteration
                 }
                 return new Arg.Call(name, args);
-            } else {                                   // variable token: x#, z#, or y
+            } else {
                 String name = parseName();
                 if ("y".equals(name)) return new Arg.VarRef(Var.y());
-                char c = name.charAt(0);
-                int idx = (name.length() == 1) ? 1 : Integer.parseInt(name.substring(1));
-                return switch (c) {
-                    case 'x' -> new Arg.VarRef(Var.x(idx));
-                    case 'z' -> new Arg.VarRef(Var.z(idx));
-                    default -> throw new IllegalArgumentException("Bad var: " + name);
-                };
+
+                if (name.startsWith("x")) {
+                    int idx = (name.length()==1) ? 1 : Integer.parseInt(name.substring(1));
+                    return new Arg.VarRef(Var.x(idx));
+                }
+                if (name.startsWith("z")) {
+                    int idx = (name.length()==1) ? 1 : Integer.parseInt(name.substring(1));
+                    return new Arg.VarRef(Var.z(idx));
+                }
+                throw new IllegalArgumentException("Expected var token or call, got: " + name);
             }
+
         }
 
         private String parseName() {
@@ -283,11 +287,8 @@ public final class Quote extends SyntheticInstruction
     public static Instruction fromXml(String label, String varToken, Map<String,String> args, List<String> errs) {
         Var dst   = LoaderUtil.parseVar(varToken, errs, -1);
         String fn = LoaderUtil.need(args.get("functionName"), "functionName", -1, errs);
-        // Maybe empty string => zero-arg call
         String fargs = args.getOrDefault("functionArguments", "").trim();
-        if (fargs.startsWith("(") && fargs.endsWith(")")) {
-            fargs = fargs.substring(1, fargs.length() - 1);   // args only
-        }
+        // IMPORTANT: keep fargs exactly as in XML (including outer parens when present)
         if (dst == null || fn == null) return null;
         return new Quote(label, dst, fn, fargs);
     }
