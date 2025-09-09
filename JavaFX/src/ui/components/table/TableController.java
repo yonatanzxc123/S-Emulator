@@ -1,6 +1,8 @@
 package ui.components.table;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyIntegerWrapper;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
@@ -24,6 +26,9 @@ public class TableController implements EngineInjector {
     @FXML private TableColumn<CommandView, String> labelColumn;
     @FXML private TableColumn<CommandView, String> instructionColumn;
     @FXML private TableColumn<CommandView, Number> cyclesColumn;
+
+    private final ReadOnlyObjectWrapper<CommandView> selected = new ReadOnlyObjectWrapper<>();
+    private final ReadOnlyIntegerWrapper selectedLine = new ReadOnlyIntegerWrapper(-1);
 
     @FXML
     private void initialize() {
@@ -56,7 +61,15 @@ public class TableController implements EngineInjector {
                 (TableColumn.CellDataFeatures<CommandView, Number> cd) ->
                         new ReadOnlyObjectWrapper<Number>(cd.getValue().cycles())
         );
+
+        selected.bind(table.getSelectionModel().selectedItemProperty());
+        selectedLine.bind(Bindings.createIntegerBinding(
+                () -> selected.get() == null ? -1 : selected.get().number(),
+                selected
+        ));
+        selected.bind(table.getSelectionModel().selectedItemProperty());
     }
+
 
     public void showDegree(int degree) {
         if (engine == null) { clear(); return; }
@@ -68,9 +81,12 @@ public class TableController implements EngineInjector {
     public void showProgramView(ProgramView pv) {
         if (pv == null || pv.commands() == null) { clear(); return; }
         table.setItems(FXCollections.observableArrayList(pv.commands()));
+        table.getSelectionModel().clearSelection();
     }
 
     public void clear() { table.getItems().clear(); }
+    public ReadOnlyObjectProperty<CommandView> selectedCommandProperty() { return selected.getReadOnlyProperty(); }
+    public CommandView getSelectedCommand() { return selected.get(); }
 }
 
 
