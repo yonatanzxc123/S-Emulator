@@ -15,3 +15,7 @@
 #loadFileBtn:pressed{
     -fx-background-color: #388E3C;
 }
+#titleLbl{
+    -fx-font-weight: 800;
+    -fx-text-fill: blue;
+}

@@ -33,6 +33,10 @@ public class HeaderController implements EngineInjector {
     @FXML
     private Label loadFileLbl;
 
+    @FXML
+    private Label titleLbl;
+
+
     private SimpleStringProperty loadFileLblProp = new SimpleStringProperty("No File Loaded");
     private SimpleBooleanProperty isLoadedProp = new SimpleBooleanProperty(false);
 
@@ -83,8 +87,6 @@ public class HeaderController implements EngineInjector {
                 return outcome;
             }
         };
-
-
         loadFileLblProp.bind(task.messageProperty());
         Stage dialog = createLoadingDialog(stage, task);
 

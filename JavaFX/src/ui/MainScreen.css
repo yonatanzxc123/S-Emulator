@@ -1,4 +1,4 @@
 #mainScreenBorder{
-    -fx-border-color: magenta;
-    -fx-border-width: 5;
+    -fx-border-color: gray;
+    -fx-border-width: 3;
 }

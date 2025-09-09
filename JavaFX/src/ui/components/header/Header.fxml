@@ -6,14 +6,14 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox minHeight="40.0" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.components.header.HeaderController">
+<VBox minHeight="40.0" stylesheets="@header.css" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.components.header.HeaderController">
    <children>
       <HBox alignment="TOP_CENTER" prefHeight="0.0" prefWidth="600.0">
          <children>
-            <Label alignment="TOP_CENTER" minHeight="15.0" prefHeight="30.0" text="S-Emulator" />
+            <Label fx:id="titleLbl" alignment="TOP_CENTER" minHeight="15.0" prefHeight="30.0" text="S-Emulator" />
          </children>
       </HBox>
-      <HBox alignment="CENTER_LEFT" fillHeight="false" minHeight="-Infinity" minWidth="-Infinity" prefHeight="50.0" prefWidth="600.0" spacing="20.0" stylesheets="@header.css">
+      <HBox alignment="CENTER_LEFT" fillHeight="false" minHeight="-Infinity" minWidth="-Infinity" prefHeight="50.0" prefWidth="600.0" spacing="20.0">
          <children>
             <Button fx:id="loadFileBtn" maxHeight="Infinity" minHeight="-Infinity" mnemonicParsing="false" onAction="#onActionLoadFile" text="Load File">
                <HBox.margin>

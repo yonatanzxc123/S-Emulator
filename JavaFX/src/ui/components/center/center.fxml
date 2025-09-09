@@ -27,9 +27,9 @@
                                         <HBox alignment="CENTER_LEFT" spacing="5.0" VBox.vgrow="NEVER">
                                             <children>
                                                 <Button fx:id="programSelectorBtn" text="Program Selector" />
-                                                <Button fx:id="collapseBtn" text="Collapse" />
-                                                <Label fx:id="currDegreeLbl" text="Current / Max Degree" />
-                                                <Button fx:id="expandBtn" text="Expand" />
+                                                <Button fx:id="collapseBtn" onAction="#onActionCollapse" text="Collapse" />
+                                                <Label fx:id="currDegreeLbl" alignment="CENTER" contentDisplay="CENTER" minWidth="50.0" text="Current / Max Degree" />
+                                                <Button fx:id="expandBtn" onAction="#onActionExpansion" text="Expand" />
                                                 <ChoiceBox fx:id="chooseVarBtn" prefWidth="150.0" />
                                             </children>
                                             <VBox.margin>
