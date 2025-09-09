@@ -7,9 +7,17 @@
     -fx-font-size: 14px;
     -fx-font-weight: bold;
 }
+.button:pressed{
+    -fx-background-color: #388E3C;
+}
 
 #currDegreeLbl{
     -fx-border-color: blue;
-    -fx-border-width: 1;
+    -fx-border-width: 0.7;
+    -fx-background-color: #e1e0e0;
+}
+#chooseVarBtn{
+    -fx-border-color: blue;
+    -fx-border-width: 0.7;
     -fx-background-color: #e1e0e0;
 }

@@ -1,0 +1,76 @@
+package ui.components.table;
+
+import javafx.beans.property.ReadOnlyIntegerWrapper;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.collections.FXCollections;
+import javafx.fxml.FXML;
+import javafx.scene.control.Label;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import system.api.EmulatorEngine;
+import system.api.view.CommandView;
+import system.api.view.ProgramView;
+import ui.EngineInjector;
+
+public class TableController implements EngineInjector {
+    private EmulatorEngine engine;
+
+    @Override public void setEngine(EmulatorEngine engine) { this.engine = engine; }
+
+    @FXML private TableView<CommandView> table;
+    @FXML private TableColumn<CommandView, Number> lineColumn;
+    @FXML private TableColumn<CommandView, String> bsColumn;
+    @FXML private TableColumn<CommandView, String> labelColumn;
+    @FXML private TableColumn<CommandView, String> instructionColumn;
+    @FXML private TableColumn<CommandView, Number> cyclesColumn;
+
+    @FXML
+    private void initialize() {
+        table.setPlaceholder(new Label("No program to display"));
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+
+        lineColumn.setCellValueFactory(
+                (TableColumn.CellDataFeatures<CommandView, Number> cd) ->
+                        new ReadOnlyObjectWrapper<Number>(cd.getValue().number())
+        );
+
+        bsColumn.setCellValueFactory(
+                (TableColumn.CellDataFeatures<CommandView, String> cd) ->
+                        new ReadOnlyStringWrapper(cd.getValue().basic() ? "B" : "S")
+        );
+
+        labelColumn.setCellValueFactory(
+                (TableColumn.CellDataFeatures<CommandView, String> cd) -> {
+                    String lbl = cd.getValue().labelOrEmpty();
+                    return new ReadOnlyStringWrapper(lbl == null ? "" : lbl);
+                }
+        );
+
+        instructionColumn.setCellValueFactory(
+                (TableColumn.CellDataFeatures<CommandView, String> cd) ->
+                        new ReadOnlyStringWrapper(cd.getValue().text())
+        );
+
+        cyclesColumn.setCellValueFactory(
+                (TableColumn.CellDataFeatures<CommandView, Number> cd) ->
+                        new ReadOnlyObjectWrapper<Number>(cd.getValue().cycles())
+        );
+    }
+
+    public void showDegree(int degree) {
+        if (engine == null) { clear(); return; }
+        ProgramView pv = (degree == 0) ? engine.getProgramView()
+                : engine.getExpandedProgramView(degree);
+        showProgramView(pv);
+    }
+
+    public void showProgramView(ProgramView pv) {
+        if (pv == null || pv.commands() == null) { clear(); return; }
+        table.setItems(FXCollections.observableArrayList(pv.commands()));
+    }
+
+    public void clear() { table.getItems().clear(); }
+}
+
+
