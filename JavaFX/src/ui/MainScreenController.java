@@ -13,6 +13,7 @@ public class MainScreenController implements EngineInjector {
     private HeaderController headerController; // comes from fx:id="header"
     @FXML private CenterController centerController; // comes from fx:id="center"
 
+
     @Override
     public void setEngine(EmulatorEngine engine) {
         this.engine = engine;
@@ -21,6 +22,10 @@ public class MainScreenController implements EngineInjector {
     @FXML
     private void initialize() {
         centerController.bindToHeaderLoader(headerController.hasFileLoaded());
-
+        headerController.hasFileLoaded().addListener((obs, was, loaded) -> {
+            if (loaded) {
+                centerController.showDegree(0);
+            }
+        });
     }
 }

@@ -58,6 +58,9 @@ public class HeaderController implements EngineInjector {
         if (file == null) {
            return;
         }
+        final boolean wasLoaded    = isLoadedProp.get();
+        final String  prevLabelTxt = loadFileLblProp.get();
+        isLoadedProp.set(false);
         Task<EmulatorEngine.LoadOutcome> task = new Task<>() {
             @Override
             protected EmulatorEngine.LoadOutcome call() throws Exception {
@@ -81,7 +84,7 @@ public class HeaderController implements EngineInjector {
             }
         };
 
-        loadFileLblProp.set(file.getAbsolutePath());
+
         loadFileLblProp.bind(task.messageProperty());
         Stage dialog = createLoadingDialog(stage, task);
 
@@ -94,17 +97,19 @@ public class HeaderController implements EngineInjector {
 
         task.setOnFailed(e -> {
             loadFileLblProp.unbind();
-            loadFileLblProp.set("Failed: " + (task.getException() == null ? "" : task.getException().getMessage()));
+            loadFileLblProp.set(prevLabelTxt);
+            isLoadedProp.set(wasLoaded);
+            showError(stage, "Failed to load file", task.getException());
             dialog.close();
         });
 
         task.setOnCancelled(e -> {
             loadFileLblProp.unbind();
-            loadFileLblProp.set("Cancelled");
+            loadFileLblProp.set(prevLabelTxt);
+            isLoadedProp.set(wasLoaded);
             dialog.close();
         });
 
-        loadFileLblProp.bind(task.messageProperty());
 
         dialog.setOnShown(e -> {
             Thread t = new Thread(task, "file-loader");
@@ -114,6 +119,17 @@ public class HeaderController implements EngineInjector {
         dialog.showAndWait();
 
     }
+
+    private void showError(Stage owner, String title, Throwable ex) {
+        String msg = (ex == null) ? "Unknown error." : ex.getMessage();
+        javafx.scene.control.Alert a = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+        a.initOwner(owner);
+        a.setTitle(title);
+        a.setHeaderText(title);
+        a.setContentText(msg);
+        a.showAndWait();
+    }
+
     private Stage createLoadingDialog(Stage owner, Task<?> task) {
         ProgressIndicator spinner = new ProgressIndicator();
         spinner.progressProperty().bind(task.progressProperty());

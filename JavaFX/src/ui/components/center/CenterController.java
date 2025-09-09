@@ -8,6 +8,7 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import system.api.EmulatorEngine;
 import ui.EngineInjector;
+import ui.components.table.TableController;
 
 
 public class CenterController implements EngineInjector {
@@ -26,6 +27,7 @@ public class CenterController implements EngineInjector {
     @FXML
     private ChoiceBox<String> chooseVarBtn;
 
+    @FXML private ui.components.table.TableController instructionTableController;
 
     @FXML
     private void initialize() {
@@ -41,8 +43,13 @@ public class CenterController implements EngineInjector {
         collapseBtn.disableProperty().bind(Bindings.not(loaded));
         expandBtn.disableProperty().bind(Bindings.not(loaded));
         chooseVarBtn.disableProperty().bind(Bindings.not(loaded));
-    }
 
+    }
+    public void showDegree(int degree) {
+        if (instructionTableController != null) {
+            instructionTableController.showDegree(degree);
+        }
+    }
 
 
 }

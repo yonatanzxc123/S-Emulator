@@ -5,11 +5,11 @@
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.layout.StackPane?>
 
-<ScrollPane fitToHeight="false" fitToWidth="true" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" pannable="true" prefHeight="600.0" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1">
+<ScrollPane fitToHeight="false" fitToWidth="true" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" pannable="true" prefHeight="600.0" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.components.table.TableController">
    <content>
       <StackPane alignment="TOP_CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="100.0" minWidth="-Infinity">
          <children>
-            <TableView maxHeight="1.7976931348623157E308" minHeight="100.0" prefHeight="600.0" StackPane.alignment="TOP_CENTER">
+            <TableView fx:id="table" maxHeight="1.7976931348623157E308" minHeight="100.0" prefHeight="600.0" StackPane.alignment="TOP_CENTER">
               <columns>
                 <TableColumn fx:id="lineColumn" prefWidth="-1.0" text="#line" />
                 <TableColumn fx:id="bsColumn" prefWidth="-1.0" text="B\S" />
