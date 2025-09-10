@@ -130,9 +130,6 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
         });
     }
 
-
-
-
     // --- Load/Save state---
     @Override
     public LoadOutcome saveState(Path basePath) {
@@ -170,8 +167,6 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
         return s.endsWith(ext) ? p : Paths.get(s + ext);
     }
 
-
-
     // ---- helper ----
     private static boolean containsSynthetic(Program p) {
         for (Instruction ins : p.instructions()) {
@@ -179,7 +174,6 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
         }
         return false;
     }
-
 
     // ---- Debugger ----
     @Override

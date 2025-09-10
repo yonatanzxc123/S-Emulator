@@ -12,7 +12,7 @@
           <TableColumn fx:id="lineColumn" prefWidth="-1.0" text="#line" />
           <TableColumn fx:id="bsColumn" prefWidth="-1.0" text="B\S" />
             <TableColumn fx:id="labelColumn" prefWidth="10.0" text="Label" />
-            <TableColumn fx:id="instructionColumn" prefWidth="75.0" text="Instruction" />
+            <TableColumn fx:id="instructionColumn" minWidth="75.0" prefWidth="-1.0" text="Instruction" />
             <TableColumn fx:id="cyclesColumn" prefWidth="15.0" text="Cycles" />
         </columns>
          <columnResizePolicy>

@@ -50,7 +50,7 @@
                         <!-- BOTTOM PART: history table -->
                         <AnchorPane minHeight="50.0" prefHeight="100.0">
                             <children>
-                                <fx:include fx:id="expansionTable" source="../table/Table.fxml" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                <fx:include fx:id="historyTable" source="../table/Table.fxml" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
                             </children>
                      <padding>
                         <Insets bottom="10.0" left="10.0" />

@@ -2,6 +2,7 @@ package system.core.exec;
 
 import system.core.model.Program;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 public final class FunctionEnv {
     private static final ThreadLocal<FunctionEnv> TL = new ThreadLocal<>();
@@ -16,7 +17,7 @@ public final class FunctionEnv {
         return e;
     }
 
-    public static <T> T with(FunctionEnv env, java.util.concurrent.Callable<T> body) {
+    public static <T> T with(FunctionEnv env, Callable<T> body) {
         var prev = TL.get();
         TL.set(env);
         try { return body.call(); }

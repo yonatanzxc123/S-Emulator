@@ -8,10 +8,7 @@ import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
@@ -124,7 +121,7 @@ public class HeaderController implements EngineInjector {
 
     private void showError(Stage owner, String title, Throwable ex) {
         String msg = (ex == null) ? "Unknown error." : ex.getMessage();
-        javafx.scene.control.Alert a = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+        Alert a = new Alert(javafx.scene.control.Alert.AlertType.ERROR);
         a.initOwner(owner);
         a.setTitle(title);
         a.setHeaderText(title);
