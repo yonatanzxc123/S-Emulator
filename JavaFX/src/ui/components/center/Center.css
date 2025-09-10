@@ -4,6 +4,32 @@
     -fx-border-color: black;
     -fx-border-width: 1;
     -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+#programSelectorBtn{
+    -fx-background-color: #4CAF50;
+    -fx-background-radius: 0;
+    -fx-border-color: black;
+    -fx-border-width: 1;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+#expandBtn{
+    -fx-background-color: #4CAF50;
+    -fx-background-radius: 0;
+    -fx-border-color: black;
+    -fx-border-width: 1;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+#collapseBtn{
+    -fx-background-color: #4CAF50;
+    -fx-background-radius: 0;
+    -fx-border-color: black;
+    -fx-border-width: 1;
+    -fx-text-fill: white;
     -fx-font-size: 14px;
     -fx-font-weight: bold;
 }
