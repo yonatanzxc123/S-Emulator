@@ -152,43 +152,60 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
             errs.add("Missing instruction name at #" + line);
             return null;
         }
-        String pkg = switch (kind.toLowerCase(Locale.ROOT)) {
-            case "basic"     -> "system.core.model.basic";
-            case "synthetic" -> "system.core.model.synthetic";
-            default          -> {
-                errs.add("Unknown type '" + kind + "' at #" + line + " (expected 'basic' or 'synthetic').");
-                yield null;
-            }
-        };
-        if (pkg == null) return null;
 
+        // pick candidate packages
+        List<String> pkgs;
         String className;
-        if ("basic".equalsIgnoreCase(kind) && BASIC_ALIASES.containsKey(name.toUpperCase(Locale.ROOT))) {
-            className = BASIC_ALIASES.get(name.toUpperCase(Locale.ROOT));
-        } else {
+
+        if ("basic".equalsIgnoreCase(kind)) {
+            // basic op aliases (unchanged)
+            if (BASIC_ALIASES.containsKey(name.toUpperCase(Locale.ROOT))) {
+                className = BASIC_ALIASES.get(name.toUpperCase(Locale.ROOT));
+            } else {
+                className = toCamel(name);
+            }
+            pkgs = List.of("system.core.model.basic");
+        } else if ("synthetic".equalsIgnoreCase(kind)) {
             className = toCamel(name);
+            // NEW: try both legacy and advanced packages
+            pkgs = List.of(
+                    "system.core.model.synthetic",
+                    "system.core.model.synthetic.advanced"
+            );
+        } else {
+            errs.add("Unknown type '" + kind + "' at #" + line + " (expected 'basic' or 'synthetic').");
+            return null;
         }
 
-        String fqcn = pkg + "." + className;
-        try {
-            Class<?> cls = Class.forName(fqcn);
-            if (!Instruction.class.isAssignableFrom(cls)) {
-                errs.add("Class " + fqcn + " does not implement Instruction (at #" + line + ").");
+        // try each candidate package until one works
+        Exception lastError = null;
+        for (String base : pkgs) {
+            String fqcn = base + "." + className;
+            try {
+                Class<?> cls = Class.forName(fqcn);
+                if (!Instruction.class.isAssignableFrom(cls)) {
+                    errs.add("Class " + fqcn + " does not implement Instruction (at #" + line + ").");
+                    return null;
+                }
+                Method m = cls.getDeclaredMethod("fromXml", String.class, String.class, Map.class, List.class);
+                Object result = m.invoke(null, label, varToken, args, errs);
+                return (Instruction) result;
+            } catch (ClassNotFoundException e) {
+                // try next package
+                lastError = e;
+            } catch (NoSuchMethodException e) {
+                errs.add("Instruction class " + fqcn + " is missing static fromXml(String,String,Map,List).");
+                return null;
+            } catch (Exception e) {
+                errs.add("Failed to build " + fqcn + " at #" + line + ": " + e.getMessage());
                 return null;
             }
-            Method m = cls.getDeclaredMethod("fromXml", String.class, String.class, Map.class, List.class);
-            Object result = m.invoke(null, label, varToken, args, errs);
-            return (Instruction) result;
-        } catch (ClassNotFoundException e) {
-            errs.add("Unknown instruction at #" + line + ": '" + name + "' (not found as " + fqcn + ")");
-            return null;
-        } catch (NoSuchMethodException e) {
-            errs.add("Instruction class " + fqcn + " is missing static fromXml(String,String,Map,List).");
-            return null;
-        } catch (Exception e) {
-            errs.add("Failed to build " + fqcn + " at #" + line + ": " + e.getMessage());
-            return null;
         }
+
+        // none matched
+        errs.add("Unknown instruction at #" + line + ": '" + name + "' (tried " +
+                String.join(", ", pkgs) + " as " + className + ")");
+        return null;
     }
 
     private static String toCamel(String opcodeUpper) {
