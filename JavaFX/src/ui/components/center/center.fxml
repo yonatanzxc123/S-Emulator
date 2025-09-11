@@ -54,7 +54,12 @@
                         <!-- BOTTOM PART: history table -->
                         <AnchorPane minHeight="50.0" prefHeight="100.0">
                             <children>
-                                <fx:include fx:id="historyTable" source="../table/Table.fxml" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                        <VBox alignment="TOP_CENTER" prefHeight="200.0" prefWidth="100.0" AnchorPane.bottomAnchor="-0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                           <children>
+                              <Label alignment="CENTER" text="History of a marked Instruction" textAlignment="CENTER" underline="true" />
+                                      <fx:include fx:id="historyTable" source="../table/Table.fxml" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                           </children>
+                        </VBox>
                             </children>
                      <padding>
                         <Insets bottom="10.0" left="10.0" />
@@ -77,15 +82,16 @@
                               <Label alignment="CENTER" contentDisplay="CENTER" text="Debugger\Execution" />
                               <FlowPane alignment="TOP_CENTER" hgap="5.0" minHeight="-Infinity" minWidth="-Infinity" prefWidth="100.0" vgap="5.0">
                                  <children>
-                                    <Button fx:id="startBtn" mnemonicParsing="false" text="Start" />
-                                    <Button fx:id="debugBtn" mnemonicParsing="false" text="Debug" />
-                                    <Button fx:id="stopBtn" mnemonicParsing="false" text="Stop" />
-                                    <Button fx:id="resumeBtn" mnemonicParsing="false" text="Resume" />
-                                    <Button fx:id="stepOverBtn" mnemonicParsing="false" text="Step Over" />
-                                    <Button fx:id="stepBackBtn" mnemonicParsing="false" text="Step Back" />
+                                    <Button fx:id="newRunBtn" mnemonicParsing="false" onAction="#onActionNewRun" text="New Run" />
+                                    <Button fx:id="startBtn" mnemonicParsing="false" onAction="#onActionStart" text="Start" />
+                                    <Button fx:id="debugBtn" mnemonicParsing="false" onAction="#onActionDebug" text="Debug" />
+                                    <Button fx:id="stopBtn" mnemonicParsing="false" onAction="#onActionStop" text="Stop" />
+                                    <Button fx:id="resumeBtn" mnemonicParsing="false" onAction="#onActionResume" text="Resume" />
+                                    <Button fx:id="stepOverBtn" mnemonicParsing="false" onAction="#onActionStepOver" text="Step Over" />
+                                    <Button fx:id="stepBackBtn" mnemonicParsing="false" onAction="#onActionStepBack" text="Step Back" />
                                  </children>
                               </FlowPane>
-                              <GridPane VBox.vgrow="ALWAYS">
+                              <GridPane hgap="5.0" VBox.vgrow="ALWAYS">
                                 <columnConstraints>
                                   <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
                                   <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
@@ -99,9 +105,9 @@
                                       <fx:include fx:id="inputTable" source="../inputtable/inputTable.fxml" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0" />
                                   </AnchorPane>
                                   <AnchorPane GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.rowSpan="1" GridPane.vgrow="ALWAYS">
-                                      <fx:include source="../vartable/varTable.fxml" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0" />
+                                      <fx:include fx:id="varTable" source="../vartable/varTable.fxml" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0" />
                                   </AnchorPane>
-                                 <AnchorPane fx:id="varTable" prefHeight="200.0" prefWidth="200.0" GridPane.rowIndex="1">
+                                 <AnchorPane prefHeight="200.0" prefWidth="200.0" GridPane.rowIndex="1">
                                     <children>
                                        <Label fx:id="cyclesLbl" alignment="CENTER" contentDisplay="CENTER" text="Cycles" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
                                     </children>
@@ -109,6 +115,9 @@
                                        <Insets top="10.0" />
                                     </GridPane.margin>
                                  </AnchorPane>
+                                 <VBox.margin>
+                                    <Insets bottom="5.0" left="5.0" right="5.0" />
+                                 </VBox.margin>
                               </GridPane>
                            </children>
                            <padding>

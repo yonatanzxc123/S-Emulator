@@ -47,3 +47,19 @@
     -fx-border-width: 0.7;
     -fx-background-color: #e1e0e0;
 }
+
+#cyclesLbl{
+    -fx-border-color:blue;
+    -fx-border-width:0.7;
+    -fx-background-color: #BF1FD1FF;
+}
+#varTable{
+    -fx-border-color:blue;
+    -fx-border-width:0.7;
+    -fx-background-color: #BF1FD1FF;
+}
+#inputsTable{
+    -fx-border-color:blue;
+    -fx-border-width:0.7;
+    -fx-background-color: #5A64F6FF;
+}

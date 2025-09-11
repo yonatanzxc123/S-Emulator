@@ -78,10 +78,28 @@ public class TableController implements EngineInjector {
         showProgramView(pv);
     }
 
+    public void selectByLineNumber(int number) {
+        if (table.getItems() == null) return;
+        for (int i = 0; i < table.getItems().size(); i++) {
+            if (table.getItems().get(i).number() == number) {
+                final int rowIdx = i;
+                table.getSelectionModel().clearAndSelect(rowIdx);
+                table.scrollTo(Math.max(0, rowIdx - 3));
+                return;
+            }
+        }
+        table.getSelectionModel().clearSelection();
+    }
+
     public void showProgramView(ProgramView pv) {
         if (pv == null || pv.commands() == null) { clear(); return; }
         table.setItems(FXCollections.observableArrayList(pv.commands()));
         table.getSelectionModel().clearSelection();
+    }
+    public void clearSelection() {
+        if (table != null) {
+            table.getSelectionModel().clearSelection();
+        }
     }
 
     public void clear() { table.getItems().clear(); }
