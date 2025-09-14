@@ -15,19 +15,25 @@ import system.api.view.CommandView;
 import system.api.view.ProgramView;
 import ui.EngineInjector;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 public class TableController implements EngineInjector {
     private EmulatorEngine engine;
 
     @Override public void setEngine(EmulatorEngine engine) { this.engine = engine; }
 
-    @FXML private TableView<CommandView> table;
-    @FXML private TableColumn<CommandView, Number> lineColumn;
-    @FXML private TableColumn<CommandView, String> bsColumn;
-    @FXML private TableColumn<CommandView, String> labelColumn;
-    @FXML private TableColumn<CommandView, String> instructionColumn;
-    @FXML private TableColumn<CommandView, Number> cyclesColumn;
+    @FXML private TableView<Row> table;
+    @FXML private TableColumn<Row, Number> lineColumn;
+    @FXML private TableColumn<Row, String> bsColumn;
+    @FXML private TableColumn<Row, String> labelColumn;
+    @FXML private TableColumn<Row, String> instructionColumn;
+    @FXML private TableColumn<Row, Number> cyclesColumn;
 
-    private final ReadOnlyObjectWrapper<CommandView> selected = new ReadOnlyObjectWrapper<>();
+    private List<CommandView> lastCommands = List.of();
+
+    private final ReadOnlyObjectWrapper<Row> selectedRow = new ReadOnlyObjectWrapper<>();
+    private final ReadOnlyObjectWrapper<CommandView> selectedCmd = new ReadOnlyObjectWrapper<>();
     private final ReadOnlyIntegerWrapper selectedLine = new ReadOnlyIntegerWrapper(-1);
 
     @FXML
@@ -35,41 +41,24 @@ public class TableController implements EngineInjector {
         table.setPlaceholder(new Label("No program to display"));
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 
-        lineColumn.setCellValueFactory(
-                (TableColumn.CellDataFeatures<CommandView, Number> cd) ->
-                        new ReadOnlyObjectWrapper<Number>(cd.getValue().number())
-        );
+        lineColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue().getLine()));
+        bsColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getBs()));
+        labelColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getLabel()));
+        instructionColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getInstruction()));
+        cyclesColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue().getCycles()));
 
-        bsColumn.setCellValueFactory(
-                (TableColumn.CellDataFeatures<CommandView, String> cd) ->
-                        new ReadOnlyStringWrapper(cd.getValue().basic() ? "B" : "S")
-        );
-
-        labelColumn.setCellValueFactory(
-                (TableColumn.CellDataFeatures<CommandView, String> cd) -> {
-                    String lbl = cd.getValue().labelOrEmpty();
-                    return new ReadOnlyStringWrapper(lbl == null ? "" : lbl);
-                }
-        );
-
-        instructionColumn.setCellValueFactory(
-                (TableColumn.CellDataFeatures<CommandView, String> cd) ->
-                        new ReadOnlyStringWrapper(cd.getValue().text())
-        );
-
-        cyclesColumn.setCellValueFactory(
-                (TableColumn.CellDataFeatures<CommandView, Number> cd) ->
-                        new ReadOnlyObjectWrapper<Number>(cd.getValue().cycles())
-        );
-
-        selected.bind(table.getSelectionModel().selectedItemProperty());
+        selectedRow.bind(table.getSelectionModel().selectedItemProperty());
         selectedLine.bind(Bindings.createIntegerBinding(
-                () -> selected.get() == null ? -1 : selected.get().number(),
-                selected
+                () -> selectedRow.get() == null ? -1 : selectedRow.get().getLine(),
+                selectedRow
         ));
-        selected.bind(table.getSelectionModel().selectedItemProperty());
+        // map current selected Row -> underlying CommandView
+        selectedCmd.bind(Bindings.createObjectBinding(() -> {
+            int idx = table.getSelectionModel().getSelectedIndex();
+            if (idx < 0 || idx >= lastCommands.size()) return null;
+            return lastCommands.get(idx);
+        }, table.getSelectionModel().selectedIndexProperty()));
     }
-
 
     public void showDegree(int degree) {
         if (engine == null) { clear(); return; }
@@ -78,10 +67,31 @@ public class TableController implements EngineInjector {
         showProgramView(pv);
     }
 
-    public void selectByLineNumber(int number) {
+    public void showProgramView(ProgramView pv) {
+        if (pv == null || pv.commands() == null) { clear(); return; }
+        lastCommands = pv.commands();
+        var rows = lastCommands.stream()
+                .map(Row::new) // display real line numbers
+                .collect(Collectors.toList());
+        table.setItems(FXCollections.observableArrayList(rows));
+        table.getSelectionModel().clearSelection();
+    }
+
+    public void showProgramViewRenumbered(ProgramView pv) {
+        if (pv == null || pv.commands() == null) { clear(); return; }
+        lastCommands = pv.commands();
+        var rows = java.util.stream.IntStream.range(0, lastCommands.size())
+                .mapToObj(i -> new Row(lastCommands.get(i), i + 1)) // displayLine = 1..n
+                .collect(Collectors.toList());
+        table.setItems(FXCollections.observableArrayList(rows));
+        table.getSelectionModel().clearSelection();
+    }
+
+    public void selectByLineNumber(int engineLineNumber) {
         if (table.getItems() == null) return;
         for (int i = 0; i < table.getItems().size(); i++) {
-            if (table.getItems().get(i).number() == number) {
+            // match against the underlying command’s true number
+            if (table.getItems().get(i).getCommand().number() == engineLineNumber) {
                 final int rowIdx = i;
                 table.getSelectionModel().clearAndSelect(rowIdx);
                 table.scrollTo(Math.max(0, rowIdx - 3));
@@ -91,20 +101,19 @@ public class TableController implements EngineInjector {
         table.getSelectionModel().clearSelection();
     }
 
-    public void showProgramView(ProgramView pv) {
-        if (pv == null || pv.commands() == null) { clear(); return; }
-        table.setItems(FXCollections.observableArrayList(pv.commands()));
-        table.getSelectionModel().clearSelection();
-    }
     public void clearSelection() {
-        if (table != null) {
-            table.getSelectionModel().clearSelection();
-        }
+        if (table != null) table.getSelectionModel().clearSelection();
     }
 
-    public void clear() { table.getItems().clear(); }
-    public ReadOnlyObjectProperty<CommandView> selectedCommandProperty() { return selected.getReadOnlyProperty(); }
-    public CommandView getSelectedCommand() { return selected.get(); }
+    public void clear() {
+        lastCommands = List.of();
+        if (table.getItems() != null) table.getItems().clear();
+        clearSelection();
+    }
+
+    // keep CenterController API the same:
+    public ReadOnlyObjectProperty<CommandView> selectedCommandProperty() { return selectedCmd.getReadOnlyProperty(); }
+    public CommandView getSelectedCommand() { return selectedCmd.get(); }
 }
 
 

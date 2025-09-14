@@ -253,15 +253,18 @@ public class CenterController implements EngineInjector {
 
     public void onActionResume() {
         if (debugga == null) return;
+
         Thread t = new Thread(() -> {
-            while (inDebug.get() && !debugga.isFinished()) {
-                DebugStep s = debugga.step();
-                javafx.application.Platform.runLater(() -> render(s));
-                if (s.finished()) break;
-                try { Thread.sleep(40); } catch (InterruptedException ignored) {}
-            }
-            javafx.application.Platform.runLater(this::exitDebug);
-        }, "debug-resume");
+            DebugStep s = debugga.resume();
+
+            javafx.application.Platform.runLater(() -> {
+                render(s);
+                if (s.finished()) {
+                    exitDebug();
+                }
+            });
+        }, "debug-resume-fast");
+
         t.setDaemon(true);
         t.start();
     }
@@ -347,10 +350,11 @@ public class CenterController implements EngineInjector {
 
     private List<CommandView> buildAncestryRows(CommandView selected) {
         List<CommandView> out = new ArrayList<>();
-        out.add(selected);
 
         String chain = selected.originChain();
-        if (chain == null || chain.isBlank()) return out;
+        if (chain == null || chain.isBlank()) {
+            return out;
+        }
 
         String[] parts = chain.split("  >>>  ");
         List<String> links = new ArrayList<>();
