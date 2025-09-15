@@ -9,10 +9,12 @@ import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import system.api.DebugStep;
 import system.api.EmulatorEngine;
+import system.api.HistoryEntry;
 import system.api.view.CommandView;
 import system.api.view.ProgramView;
 import system.core.exec.debugg.Debugger;
 import ui.EngineInjector;
+import ui.components.historytable.HistoryTableController;
 import ui.components.inputtable.InputTableController;
 import ui.components.table.Row;
 import ui.components.table.TableController;
@@ -65,6 +67,8 @@ public class CenterController implements EngineInjector {
     @FXML
     private TableController historyTableController;
     @FXML
+    private HistoryTableController runHistoryTableController;
+    @FXML
     private InputTableController inputTableController;
     @FXML
     private VarTableController varTableController;
@@ -101,6 +105,10 @@ public class CenterController implements EngineInjector {
             int line = sel.number();
             lineSelected(line, sel);
         });
+
+        if (runHistoryTableController != null) {
+            runHistoryTableController.setOnRerun(this::onActionRerun);
+        }
 
     }
 
@@ -154,6 +162,14 @@ public class CenterController implements EngineInjector {
             } else {
                 maxDegree.set(0);
                 currDegree.set(0);
+            }
+        });
+        loaded.addListener((o, was, isNow) -> {
+            canStart.set(false);
+            if (!isNow) {
+                inDebug.set(false);
+                varTableController.clear();
+                if (runHistoryTableController != null) runHistoryTableController.clear(); // <-- add this line
             }
         });
 
@@ -308,12 +324,49 @@ public class CenterController implements EngineInjector {
     }
     private void exitDebug() {
         inDebug.set(false);
-        debugga = null;
+
+        if (debugga != null && runHistoryTableController != null) {
+            DebugStep lastStep = debugga.peek();
+            if (lastStep != null && lastStep.finished()) {
+                int runNo = runHistoryTableController.getEntries().size() + 1;
+                int degree = currDegree.get();
+                List<Long> inputs = (inputTableController == null) ? List.of() : inputTableController.readValues();
+                Map<String, Long> vars = lastStep.vars();
+                long y = (vars != null && vars.containsKey("y")) ? vars.get("y") : 0L;
+                long cycles = lastStep.cycles();
+                system.api.HistoryEntry entry = new system.api.HistoryEntry(runNo, degree, inputs, y, cycles);
+                runHistoryTableController.addEntry(entry);
+            }
+            debugga = null;
+        }
     }
 
     private void pushSnapshotToUI() {
         if (debugga == null) return;
         render(debugga.peek());
+    }
+
+    private void onActionRerun() {
+        if (runHistoryTableController == null || inputTableController == null) return;
+
+        HistoryEntry entry = runHistoryTableController.getSelectedEntry();
+        if (entry == null) return;
+
+        // Set the degree
+        showDegree(entry.degree());
+
+        // Trigger new run setup
+        onActionNewRun();
+
+        // Set the input values
+        if (inputTableController != null) {
+            List<String> inputVars = engine.getProgramView().inputsUsed();
+            List<Long> inputs = entry.inputs();
+
+            for (int i = 0; i < Math.min(inputVars.size(), inputs.size()); i++) {
+                inputTableController.setValue(inputVars.get(i), inputs.get(i));
+            }
+        }
     }
 
     public void onActionStart(){
@@ -327,6 +380,7 @@ public class CenterController implements EngineInjector {
         if (pv == null) {
 
             return;
+
         }
 
         // Pull inputs from the rightmost table
@@ -349,6 +403,13 @@ public class CenterController implements EngineInjector {
             cyclesLbl.setText(String.valueOf(result.cycles()));
         }
 
+        if (result != null && runHistoryTableController != null) {
+            int runNo = runHistoryTableController.getEntries().size() + 1;
+            long y = result.y();
+            long cycles = result.cycles();
+            system.api.HistoryEntry entry = new system.api.HistoryEntry(runNo, degree, inputs, y, cycles);
+            runHistoryTableController.addEntry(entry);
+        }
     }
 
     public void lineSelected(int line, CommandView selected) {
