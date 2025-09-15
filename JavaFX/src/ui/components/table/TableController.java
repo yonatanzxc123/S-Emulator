@@ -1,14 +1,12 @@
 package ui.components.table;
 
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.ReadOnlyIntegerWrapper;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import system.api.EmulatorEngine;
 import system.api.view.CommandView;
@@ -35,6 +33,10 @@ public class TableController implements EngineInjector {
     private final ReadOnlyObjectWrapper<Row> selectedRow = new ReadOnlyObjectWrapper<>();
     private final ReadOnlyObjectWrapper<CommandView> selectedCmd = new ReadOnlyObjectWrapper<>();
     private final ReadOnlyIntegerWrapper selectedLine = new ReadOnlyIntegerWrapper(-1);
+    private final StringProperty highlightVar = new SimpleStringProperty();
+    public StringProperty highlightVarProperty() { return highlightVar; }
+    public void setHighlightVar(String v) { highlightVar.set(v); }
+    public String getHighlightVar() { return highlightVar.get(); }
 
     @FXML
     private void initialize() {
@@ -58,6 +60,49 @@ public class TableController implements EngineInjector {
             if (idx < 0 || idx >= lastCommands.size()) return null;
             return lastCommands.get(idx);
         }, table.getSelectionModel().selectedIndexProperty()));
+
+        highlightVar.addListener((obs, oldV, newV) -> table.refresh());
+
+        table.setRowFactory((TableView<Row> tv) ->
+                new TableRow<Row>() {
+                    @Override
+                    protected void updateItem(Row item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty || item == null) {
+                            setStyle("");
+                            return;
+                        }
+                        String hv = highlightVar.get();
+                        if (hv == null || hv.isBlank()) {
+                            setStyle("");
+                        } else {
+                            boolean uses = usesVar(item.getInstruction(), hv);
+                            setStyle(uses ? "-fx-background-color: #FFF1B3;" : "");
+                        }
+                    }
+                }
+        );
+        highlightVar.addListener((obs, o, n) -> table.refresh());
+    }
+
+    public void setHighlightVariable(String var) {
+        highlightVar.set(var == null ? "" : var.trim());
+    }
+
+    private static boolean usesVar(String text, String var) {
+        if (text == null || var == null || var.isEmpty()) return false;
+        int n = text.length();
+        for (int i = 0; i < n; i++) {
+            char ch = text.charAt(i);
+            if (Character.isLetter(ch)) {
+                int j = i + 1;
+                while (j < n && Character.isLetterOrDigit(text.charAt(j))) j++;
+                String tok = text.substring(i, j);
+                if (tok.equals(var)) return true;   // exact token match
+                i = j - 1;
+            }
+        }
+        return false;
     }
 
     public void showDegree(int degree) {

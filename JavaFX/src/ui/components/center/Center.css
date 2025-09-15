@@ -48,6 +48,21 @@
     -fx-background-color: #e1e0e0;
 }
 
+#chooseVarBtn .context-menu {
+    -fx-border-color: blue;
+    -fx-border-width: 0.7;
+    -fx-background-color: #e1e0e0;
+}
+
+#chooseVarBtn .menu-item {
+    -fx-background-color: #e1e0e0;
+    -fx-text-fill: #333;
+    -fx-font-size: 14px;
+}
+#chooseVarBtn .menu-item:focused {
+    -fx-background-color: #b3d1ff;
+}
+
 #cyclesLbl{
     -fx-border-color:blue;
     -fx-border-width:0.7;
