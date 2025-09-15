@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+
+<TableView fx:id="inputsTable" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/24.0.1" fx:controller="ui.components.inputtable.InputTableController">
+  <columns>
+    <TableColumn fx:id="varColumn" prefWidth="75.0" text="Var" />
+    <TableColumn fx:id="valueColumn" prefWidth="75.0" text="Value" />
+  </columns>
+   <columnResizePolicy>
+      <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+   </columnResizePolicy>
+</TableView>

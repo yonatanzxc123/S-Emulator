@@ -2,21 +2,29 @@ package ui.components.center;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleListProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.ChoiceBox;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
+import javafx.scene.input.MouseEvent;
+import system.api.DebugStep;
 import system.api.EmulatorEngine;
 import system.api.view.CommandView;
 import system.api.view.ProgramView;
+import system.core.exec.debugg.Debugger;
 import ui.EngineInjector;
+import ui.components.inputtable.InputTableController;
+import ui.components.table.Row;
 import ui.components.table.TableController;
+import ui.components.vartable.VarTableController;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 
 public class CenterController implements EngineInjector {
@@ -37,15 +45,41 @@ public class CenterController implements EngineInjector {
     private Button expandBtn;
     @FXML
     private ChoiceBox<String> chooseVarBtn;
+    @FXML
+    private Button newRunBtn;
+    @FXML
+    private Button startBtn;
+    @FXML
+    private Button debugBtn;
+    @FXML
+    private Button stopBtn;
+    @FXML
+    private Button resumeBtn;
+    @FXML
+    private Button stepOverBtn;
+    @FXML
+    private Button stepBackBtn;
+    @FXML
+    private Label cyclesLbl;
+
+
 
     @FXML
     private TableController instructionTableController;
     @FXML
     private TableController historyTableController;
+    @FXML
+    private InputTableController inputTableController;
+    @FXML
+    private VarTableController varTableController;
 
     private SimpleIntegerProperty currDegree = new SimpleIntegerProperty(0);
     private SimpleIntegerProperty maxDegree = new SimpleIntegerProperty(0);
+    private SimpleListProperty<ProgramView> selectedProgram = new SimpleListProperty<>();
+    private BooleanProperty canStart = new SimpleBooleanProperty(false);
+    private BooleanProperty inDebug = new SimpleBooleanProperty(false);
 
+    private Debugger debugga;
 
     @FXML
     private void initialize() {
@@ -99,6 +133,44 @@ public class CenterController implements EngineInjector {
             }
         });
 
+        startBtn.disableProperty().bind(
+                Bindings.or(Bindings.not(loaded), canStart.not())
+        );
+
+        loaded.addListener((obs, was, isNowLoaded) -> {
+            if (isNowLoaded) {
+                canStart.set(false);
+            } else {
+                canStart.set(false);
+            }
+        });
+
+        startBtn.disableProperty().bind(
+                Bindings.or(Bindings.not(loaded), canStart.not()).or(inDebug)
+        );
+
+        // Debug is enabled when "ready" and not already debugging.
+        debugBtn.disableProperty().bind(
+                Bindings.or(Bindings.not(loaded), canStart.not()).or(inDebug)
+        );
+
+        // Debug controls only while in debug:
+        stopBtn.disableProperty().bind(inDebug.not());
+        resumeBtn.disableProperty().bind(inDebug.not());
+        stepOverBtn.disableProperty().bind(inDebug.not());
+        stepBackBtn.disableProperty().bind(inDebug.not());
+
+        // Reset startable when a new file loads
+        loaded.addListener((o, was, isNow) -> {
+            canStart.set(false);
+            if (!isNow) {
+                inDebug.set(false);
+                varTableController.clear();
+            }
+        });
+        newRunBtn.disableProperty().bind(
+                Bindings.or(Bindings.not(loaded), inDebug)
+        );
     }
 
     public void showDegree(int degree) {
@@ -119,6 +191,135 @@ public class CenterController implements EngineInjector {
         if (currDegree.get() > 0) {
             currDegree.set(currDegree.get() - 1);
             instructionTableController.showDegree(currDegree.get());
+        }
+
+    }
+    public void onActionNewRun(){
+        ProgramView pv = (currDegree.get() == 0)
+                ? engine.getProgramView()
+                : engine.getExpandedProgramView(currDegree.get());
+
+        if (pv == null || pv.inputsUsed() == null || pv.inputsUsed().isEmpty()) {
+            inputTableController.clear();
+            return;
+        }
+        inputTableController.showInputs(pv.inputsUsed());
+        canStart.set(true);
+    }
+    public void onActionDebug(){
+        if (engine == null) return;
+        var inputs = (inputTableController == null) ? List.<Long>of() : inputTableController.readValues();
+
+        debugga = engine.startDebug(currDegree.get(), inputs);
+        if (debugga == null) return;
+
+        inDebug.set(true);
+
+        // Show initial snapshot
+        pushSnapshotToUI();
+    }
+    public void render(DebugStep s) {
+        if (s == null) return;
+
+        if (cyclesLbl != null) {
+            cyclesLbl.setText(String.valueOf(s.cycles()));
+        }
+
+        // Vars table
+        if (varTableController != null) {
+            varTableController.showSnapshot(s.vars());
+        }
+
+        // Instruction highlight
+        if (instructionTableController != null) {
+            instructionTableController.selectByLineNumber(s.pc() + 1);
+        }
+    }
+
+    public void onActionStepOver() {
+        if (debugga == null) return;
+        DebugStep s = debugga.step();
+        render(s);
+        if (s.finished()) exitDebug();
+    }
+
+
+    public void onActionStepBack() {
+        if (debugga == null) return;
+        DebugStep s = debugga.stepBack();
+        render(s);
+    }
+
+
+    public void onActionResume() {
+        if (debugga == null) return;
+
+        Thread t = new Thread(() -> {
+            DebugStep s = debugga.resume();
+
+            javafx.application.Platform.runLater(() -> {
+                render(s);
+                if (s.finished()) {
+                    exitDebug();
+                }
+            });
+        }, "debug-resume-fast");
+
+        t.setDaemon(true);
+        t.start();
+    }
+
+
+    public void onActionStop() {
+        if (debugga == null) { inDebug.set(false); return; }
+        DebugStep s = debugga.stop();
+        render(s);
+        if (instructionTableController != null) {
+            instructionTableController.clearSelection();
+        }
+        exitDebug();
+    }
+    private void exitDebug() {
+        inDebug.set(false);
+        debugga = null;
+    }
+
+    private void pushSnapshotToUI() {
+        if (debugga == null) return;
+        render(debugga.peek());
+    }
+
+    public void onActionStart(){
+        if (engine == null) return;
+
+        // Ensure a program is loaded & degree is current
+        final int degree = currDegree.get();
+        ProgramView pv = (degree == 0) ? engine.getProgramView()
+                : engine.getExpandedProgramView(degree);
+        inDebug.set(false);
+        if (pv == null) {
+
+            return;
+        }
+
+        // Pull inputs from the rightmost table
+        var inputs = (inputTableController == null) ? java.util.List.<Long>of()
+                : inputTableController.readValues();
+
+
+        // Run!
+        var result = engine.run(degree, inputs);
+        if (result == null) return;
+
+        // Show executed program on the left
+        if (result.executedProgram() != null && instructionTableController != null) {
+            instructionTableController.showProgramView(result.executedProgram());
+        }
+
+
+        // Show cycles
+        if (cyclesLbl != null) {
+            cyclesLbl.setText(String.valueOf(result.cycles()));
         }
 
     }
@@ -149,10 +350,11 @@ public class CenterController implements EngineInjector {
 
     private List<CommandView> buildAncestryRows(CommandView selected) {
         List<CommandView> out = new ArrayList<>();
-        out.add(selected);
 
         String chain = selected.originChain();
-        if (chain == null || chain.isBlank()) return out;
+        if (chain == null || chain.isBlank()) {
+            return out;
+        }
 
         String[] parts = chain.split("  >>>  ");
         List<String> links = new ArrayList<>();

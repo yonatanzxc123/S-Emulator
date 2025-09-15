@@ -10,7 +10,6 @@ import system.core.EmulatorEngineImpl;
 
 
 public class MainScreen extends Application {
-
     private EmulatorEngine engine;
 
     @Override
@@ -36,6 +35,7 @@ public class MainScreen extends Application {
         Parent root = loader.load();
         stage.setScene(new Scene(root, 1000, 700));
         stage.show();
+
 
     }
 }
