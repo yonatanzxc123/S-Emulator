@@ -383,18 +383,25 @@ public class CenterController implements EngineInjector {
 
         }
 
-        // Pull inputs from the rightmost table
         var inputs = (inputTableController == null) ? java.util.List.<Long>of()
                 : inputTableController.readValues();
 
 
-        // Run!
         var result = engine.run(degree, inputs);
         if (result == null) return;
 
-        // Show executed program on the left
         if (result.executedProgram() != null && instructionTableController != null) {
             instructionTableController.showProgramView(result.executedProgram());
+        }
+
+        if (result.executedProgram() != null && instructionTableController != null) {
+            instructionTableController.showProgramView(result.executedProgram());
+        }
+
+
+        if (varTableController != null) {
+            varTableController.showSnapshot(result.variablesOrdered());
+
         }
 
 
