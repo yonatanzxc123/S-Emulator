@@ -2,29 +2,27 @@ package ui.components.center;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleListProperty;
+import javafx.beans.property.*;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import system.api.DebugStep;
 import system.api.EmulatorEngine;
+import system.api.HistoryEntry;
 import system.api.view.CommandView;
 import system.api.view.ProgramView;
 import system.core.exec.debugg.Debugger;
 import ui.EngineInjector;
+import ui.components.historytable.HistoryTableController;
 import ui.components.inputtable.InputTableController;
 import ui.components.table.Row;
 import ui.components.table.TableController;
 import ui.components.vartable.VarTableController;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
+import static javafx.application.Platform.runLater;
 
 
 public class CenterController implements EngineInjector {
@@ -69,6 +67,8 @@ public class CenterController implements EngineInjector {
     @FXML
     private TableController historyTableController;
     @FXML
+    private HistoryTableController runHistoryTableController;
+    @FXML
     private InputTableController inputTableController;
     @FXML
     private VarTableController varTableController;
@@ -78,6 +78,7 @@ public class CenterController implements EngineInjector {
     private SimpleListProperty<ProgramView> selectedProgram = new SimpleListProperty<>();
     private BooleanProperty canStart = new SimpleBooleanProperty(false);
     private BooleanProperty inDebug = new SimpleBooleanProperty(false);
+    private final StringProperty highlightVar = new SimpleStringProperty("");
 
     private Debugger debugga;
 
@@ -90,6 +91,12 @@ public class CenterController implements EngineInjector {
         expandBtn.setDisable(true);
         currDegreeLbl.setText("Current / Maximum degree");
 
+        chooseVarBtn.getSelectionModel().selectedItemProperty().addListener((obs, ov, nv) -> {
+            if (instructionTableController != null) {
+                instructionTableController.setHighlightVar(nv == null ? "" : nv.trim());
+            }
+        });
+
         instructionTableController.selectedCommandProperty().addListener((obs, oldSel, sel) -> {
             if (sel == null) {
                 historyTableController.clear();
@@ -98,6 +105,10 @@ public class CenterController implements EngineInjector {
             int line = sel.number();
             lineSelected(line, sel);
         });
+
+        if (runHistoryTableController != null) {
+            runHistoryTableController.setOnRerun(this::onActionRerun);
+        }
 
     }
 
@@ -127,9 +138,38 @@ public class CenterController implements EngineInjector {
                 if (instructionTableController != null) {
                     instructionTableController.showDegree(currDegree.get());
                 }
+                refreshVariableChoices();
+                canStart.set(false);
             } else {
                 maxDegree.set(0);
                 currDegree.set(0);
+                canStart.set(false);
+                inDebug.set(false);
+                if (varTableController != null) varTableController.clear();
+                chooseVarBtn.getItems().clear();
+                if (instructionTableController != null) instructionTableController.setHighlightVar("");
+            }
+        });
+
+        loaded.addListener((obs, was, isNowLoaded) -> {
+            if (isNowLoaded) {
+                int md = (engine == null) ? 0 : engine.getMaxDegree();
+                maxDegree.set(md);
+                currDegree.set(Math.min(currDegree.get(), md));
+                if (instructionTableController != null) {
+                    instructionTableController.showDegree(currDegree.get());
+                }
+            } else {
+                maxDegree.set(0);
+                currDegree.set(0);
+            }
+        });
+        loaded.addListener((o, was, isNow) -> {
+            canStart.set(false);
+            if (!isNow) {
+                inDebug.set(false);
+                varTableController.clear();
+                if (runHistoryTableController != null) runHistoryTableController.clear(); // <-- add this line
             }
         });
 
@@ -149,7 +189,7 @@ public class CenterController implements EngineInjector {
                 Bindings.or(Bindings.not(loaded), canStart.not()).or(inDebug)
         );
 
-        // Debug is enabled when "ready" and not already debugging.
+        // Debug is enabled when ready and not already debugging.
         debugBtn.disableProperty().bind(
                 Bindings.or(Bindings.not(loaded), canStart.not()).or(inDebug)
         );
@@ -177,6 +217,7 @@ public class CenterController implements EngineInjector {
         if (instructionTableController != null) {
             instructionTableController.showDegree(degree);
             currDegree.set(degree);
+
         }
     }
 
@@ -184,6 +225,7 @@ public class CenterController implements EngineInjector {
         if (engine.getMaxDegree() >= currDegree.get()) {
             currDegree.set(currDegree.get() + 1);
             instructionTableController.showDegree(currDegree.get());
+            refreshVariableChoices();
         }
     }
 
@@ -191,6 +233,7 @@ public class CenterController implements EngineInjector {
         if (currDegree.get() > 0) {
             currDegree.set(currDegree.get() - 1);
             instructionTableController.showDegree(currDegree.get());
+            refreshVariableChoices();
         }
 
     }
@@ -257,7 +300,7 @@ public class CenterController implements EngineInjector {
         Thread t = new Thread(() -> {
             DebugStep s = debugga.resume();
 
-            javafx.application.Platform.runLater(() -> {
+            runLater(() -> {
                 render(s);
                 if (s.finished()) {
                     exitDebug();
@@ -281,12 +324,49 @@ public class CenterController implements EngineInjector {
     }
     private void exitDebug() {
         inDebug.set(false);
-        debugga = null;
+
+        if (debugga != null && runHistoryTableController != null) {
+            DebugStep lastStep = debugga.peek();
+            if (lastStep != null && lastStep.finished()) {
+                int runNo = runHistoryTableController.getEntries().size() + 1;
+                int degree = currDegree.get();
+                List<Long> inputs = (inputTableController == null) ? List.of() : inputTableController.readValues();
+                Map<String, Long> vars = lastStep.vars();
+                long y = (vars != null && vars.containsKey("y")) ? vars.get("y") : 0L;
+                long cycles = lastStep.cycles();
+                system.api.HistoryEntry entry = new system.api.HistoryEntry(runNo, degree, inputs, y, cycles);
+                runHistoryTableController.addEntry(entry);
+            }
+            debugga = null;
+        }
     }
 
     private void pushSnapshotToUI() {
         if (debugga == null) return;
         render(debugga.peek());
+    }
+
+    private void onActionRerun() {
+        if (runHistoryTableController == null || inputTableController == null) return;
+
+        HistoryEntry entry = runHistoryTableController.getSelectedEntry();
+        if (entry == null) return;
+
+        // Set the degree
+        showDegree(entry.degree());
+
+        // Trigger new run setup
+        onActionNewRun();
+
+        // Set the input values
+        if (inputTableController != null) {
+            List<String> inputVars = engine.getProgramView().inputsUsed();
+            List<Long> inputs = entry.inputs();
+
+            for (int i = 0; i < Math.min(inputVars.size(), inputs.size()); i++) {
+                inputTableController.setValue(inputVars.get(i), inputs.get(i));
+            }
+        }
     }
 
     public void onActionStart(){
@@ -300,20 +380,28 @@ public class CenterController implements EngineInjector {
         if (pv == null) {
 
             return;
+
         }
 
-        // Pull inputs from the rightmost table
         var inputs = (inputTableController == null) ? java.util.List.<Long>of()
                 : inputTableController.readValues();
 
 
-        // Run!
         var result = engine.run(degree, inputs);
         if (result == null) return;
 
-        // Show executed program on the left
         if (result.executedProgram() != null && instructionTableController != null) {
             instructionTableController.showProgramView(result.executedProgram());
+        }
+
+        if (result.executedProgram() != null && instructionTableController != null) {
+            instructionTableController.showProgramView(result.executedProgram());
+        }
+
+
+        if (varTableController != null) {
+            varTableController.showSnapshot(result.variablesOrdered());
+
         }
 
 
@@ -322,6 +410,13 @@ public class CenterController implements EngineInjector {
             cyclesLbl.setText(String.valueOf(result.cycles()));
         }
 
+        if (result != null && runHistoryTableController != null) {
+            int runNo = runHistoryTableController.getEntries().size() + 1;
+            long y = result.y();
+            long cycles = result.cycles();
+            system.api.HistoryEntry entry = new system.api.HistoryEntry(runNo, degree, inputs, y, cycles);
+            runHistoryTableController.addEntry(entry);
+        }
     }
 
     public void lineSelected(int line, CommandView selected) {
@@ -405,7 +500,83 @@ public class CenterController implements EngineInjector {
             return new CommandView(fallbackNumber, true, "", link, 0, "");
         }
     }
+
+    // all of the choice box methods
+    private void refreshVariableChoices() {
+        if (chooseVarBtn == null) return;
+
+        ProgramView pv = (currDegree.get() == 0) ? engine.getProgramView()
+                : engine.getExpandedProgramView(currDegree.get());
+        if (pv == null) {
+            chooseVarBtn.getItems().clear();
+            if (instructionTableController != null) instructionTableController.setHighlightVar("");
+            return;
+        }
+
+        List<String> vars = computeVars(pv);
+        chooseVarBtn.getItems().setAll(vars);
+        chooseVarBtn.getSelectionModel().clearSelection();     // no highlight by default
+        if (instructionTableController != null) instructionTableController.setHighlightVar("");
+    }
+
+    private static List<String> computeVars(ProgramView pv) {
+        Set<String> out = new LinkedHashSet<>();
+        // declared inputs (x#)
+        if (pv.inputsUsed() != null) out.addAll(pv.inputsUsed());
+        // scan command texts
+        if (pv.commands() != null) {
+            for (CommandView c : pv.commands()) collectVarsFromText(c.text(), out);
+        }
+        // sort y, x1..xn, z1..zn
+        List<String> sorted = new ArrayList<>(out);
+        sorted.sort((a, b) -> {
+            if (a.equals(b)) return 0;
+            if (a.equals("y")) return -1;
+            if (b.equals("y")) return 1;
+            boolean ax = a.startsWith("x"), bx = b.startsWith("x");
+            boolean az = a.startsWith("z"), bz = b.startsWith("z");
+            if (ax && bz) return -1; if (az && bx) return 1;
+            if (ax && bx) return Integer.compare(intSuffix(a), intSuffix(b));
+            if (az && bz) return Integer.compare(intSuffix(a), intSuffix(b));
+            return a.compareTo(b); // fallback
+        });
+        return sorted;
+    }
+
+    private static void collectVarsFromText(String text, Set<String> out) {
+        if (text == null) return;
+        int n = text.length();
+        for (int i = 0; i < n; i++) {
+            char ch = text.charAt(i);
+            if (Character.isLetter(ch)) {
+                int j = i + 1;
+                while (j < n && Character.isLetterOrDigit(text.charAt(j))) j++;
+                String tok = text.substring(i, j);
+                if (isVarToken(tok)) out.add(tok);
+                i = j - 1;
+            }
+        }
+    }
+
+    private static boolean isVarToken(String t) {
+        if (t.equals("y")) return true;
+        if (t.length() >= 2 && (t.charAt(0) == 'x' || t.charAt(0) == 'z')) {
+            for (int k = 1; k < t.length(); k++) if (!Character.isDigit(t.charAt(k))) return false;
+            return true;
+        }
+        return false;
+    }
+
+    private static int intSuffix(String s) {
+        int i = 1, n = s.length(), val = 0;
+        while (i < n && Character.isDigit(s.charAt(i))) {
+            val = val * 10 + (s.charAt(i) - '0');
+            i++;
+        }
+        return val;
+    }
 }
+
 
 
 

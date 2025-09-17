@@ -50,6 +50,15 @@ public class InputTableController implements EngineInjector {
            row.setValue(nv);
        });
    }
+
+    public void setValue(String varName, Long value) {
+        for (InputsRow row : items) {
+            if (row.getName().equals(varName)) {
+                row.setValue(value);
+                break;
+            }
+        }
+    }
     public void showInputs(List<String> inputNames) {
         items.setAll(inputNames.stream()
                 .map(n -> new InputsRow(n, 0))

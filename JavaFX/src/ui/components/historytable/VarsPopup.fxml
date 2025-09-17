@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="10" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="ui.components.historytable.VarsPopupController">
+    <padding>
+        <Insets top="10" right="10" bottom="10" left="10"/>
+    </padding>
+    <TableView fx:id="varsTable">
+        <columns>
+            <TableColumn fx:id="varNameColumn" text="Variable" prefWidth="100"/>
+            <TableColumn fx:id="varValueColumn" text="Value" prefWidth="150"/>
+        </columns>
+    </TableView>
+</VBox>
