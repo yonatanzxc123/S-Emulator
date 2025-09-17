@@ -404,8 +404,6 @@ public class CenterController implements EngineInjector {
 
         }
 
-
-        // Show cycles
         if (cyclesLbl != null) {
             cyclesLbl.setText(String.valueOf(result.cycles()));
         }

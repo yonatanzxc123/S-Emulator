@@ -60,7 +60,7 @@ public class HistoryTableController {
         if (entry == null) return;
 
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/components/varspopup/VarsPopup.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/components/historytable/VarsPopup.fxml"));
             Scene scene = new Scene(loader.load());
             VarsPopupController controller = loader.getController();
 
