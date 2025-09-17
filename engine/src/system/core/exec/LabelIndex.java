@@ -25,8 +25,8 @@ public final class LabelIndex implements JumpResolver {
 
     @Override
     public int resolve(String label) {
-        if (label == null || label.isEmpty()) return -2; // invalid, won't be used
-        if ("EXIT".equals(label)) return -1;
-        return first.getOrDefault(label, -2); // -2 means not found (invalid program)
+        if (label == null || label.isEmpty()) return JumpResolver.NOT_FOUND; // -1
+        if ("EXIT".equals(label)) return JumpResolver.EXIT;                  // -2
+        return first.getOrDefault(label, JumpResolver.NOT_FOUND);
     }
 }

@@ -26,12 +26,16 @@ public class Debugger extends Executor {
     // breakpoints
     private final Set<Integer> breakpoints = new HashSet<>();
 
+    // Hold a FunctionEnv to resolve functions in case of Quote instructions for the whole debugg session
+    private FunctionEnv env;
+
 
     // ------------ public API ------------
 
     /** Start a new debug session */
-    public void init(Program p, List<Long> inputs) {
+    public void init(Program p, List<Long> inputs, Map<String, Program> functions) {
         this.program = Objects.requireNonNull(p, "program");
+        this.env = new FunctionEnv(functions);
         this.jr = LabelIndex.build(p);
         this.st = MachineState.init(inputs);
         this.stepNo = 0;
@@ -42,84 +46,95 @@ public class Debugger extends Executor {
 
     /** Non-destructive view of current state (useful to draw UI at start so take it IDAN) */
     public DebugStep peek() {
-        ensureSession();
-        return toStep(stepNo, Map.of());
+        return FunctionEnv.with(env, () -> {
+            ensureSession();
+            return toStep(stepNo, Map.of());
+        });
     }
 
     /** Execute exactly one instruction (also known as step over). */
     public DebugStep step() {
-        ensureSession();
-        if (isFinished()) {
-            return toStep(stepNo, Map.of());
-        }
-        Snapshot before = snapshots.get(stepNo);
+        return FunctionEnv.with(env, () -> {
+            ensureSession();
+            if (isFinished()) {
+                return toStep(stepNo, Map.of());
+            }
+            Snapshot before = snapshots.get(stepNo);
 
-        // execute one instruction using the normal Executor semantics
-        int pc = st.getPc();
-        var ins = program.instructions().get(pc);
-        super.step(ins, st, jr); // advances pc / cycles / writes vars / may halt or may not ?
+            // execute one instruction using the normal Executor semantics
+            int pc = st.getPc();
+            var ins = program.instructions().get(pc);
+            super.step(ins, st, jr); // advances pc / cycles / writes vars
 
-        // record new state
-        Snapshot after = takeSnapshot(st);
-        snapshots.add(after);
-        stepNo++;
+            // record new state
+            Snapshot after = takeSnapshot(st);
+            snapshots.add(after);
+            stepNo++;
 
-        Map<String,Long> changed = diff(before , after);
-        return toStep(stepNo, changed);
+            Map<String,Long> changed = diff(before , after);
+            return toStep(stepNo, changed);
+        });
     }
-
     /** Run to completion or until next PC is at breakpoint (or until halted by a supreme being such as Carmi) from the current point . */
     public DebugStep resume() {
-        ensureSession();
+        return FunctionEnv.with(env, () -> {
+            ensureSession();
 
-        // If we're already sitting on a breakpoint, stop immediately (don't consume any instruction).
-        if (!isFinished() && isBreakpoint(st.getPc())) {
+            // If we're already sitting on a breakpoint, stop immediately (don't consume any instruction).
+            if (!isFinished() && isBreakpoint(st.getPc())) {
+                return toStep(stepNo, Map.of());
+            }
+
+            while (!isFinished()) {
+                // Execute one instruction
+                step();
+
+                // After stepping, if we're now positioned on a breakpoint, stop here
+                if (!isFinished() && isBreakpoint(st.getPc())) break;
+            }
             return toStep(stepNo, Map.of());
-        }
-
-        while (!isFinished()) {
-            // Execute one instruction
-            step();
-
-            // After stepping, if we're now positioned on a breakpoint, stop here
-            if (!isFinished() && isBreakpoint(st.getPc())) break;
-        }
-        return toStep(stepNo, Map.of());
+        });
     }
 
     /** Stop immediately (mark halted -> hold up wait a min). */
     public DebugStep stop() {
-        ensureSession();
-        st.halt();
-        // replace last snapshot with the halted state for consistency
-        snapshots.set(stepNo, takeSnapshot(st));
-        return toStep(stepNo, Map.of());
+        return FunctionEnv.with(env, () -> {
+            ensureSession();
+            st.halt();
+            // replace last snapshot with the halted state for consistency
+            snapshots.set(stepNo, takeSnapshot(st));
+            return toStep(stepNo, Map.of());
+        });
     }
 
     /** Step one instruction backward, if possible if not we cry. */
     public DebugStep stepBack() {
-        ensureSession();
-        if (stepNo == 0) {
-            return toStep(0, Map.of()); // already at start
-        }
-        Snapshot erased = snapshots.get(stepNo);       // state after the step we undo
-        Snapshot prev   = snapshots.get(stepNo - 1);   // state we restore to
+        return FunctionEnv.with(env, () -> {
+            ensureSession();
+            if (stepNo == 0) {
+                return toStep(0, Map.of()); // already at start
+            }
+            Snapshot erased = snapshots.get(stepNo);       // state after the step we undo
+            Snapshot prev = snapshots.get(stepNo - 1);   // state we restore to
 
-        // Restore machine state from prev
-        this.st = rehydrate(prev);
+            // Restore machine state from prev
+            this.st = rehydrate(prev);
 
-        // Drop the erased tail and move the cursor back one step
-        snapshots.remove(snapshots.size() - 1);
-        stepNo--;
+            // Drop the erased tail and move the cursor back one step
+            snapshots.remove(snapshots.size() - 1);
+            stepNo--;
 
-        // Changes to highlight = what just changed due to undo (due + undo = ubadandu?)
-        Map<String,Long> changed = diff(prev, erased); // same vars but reversed direction
-        return toStep(stepNo, changed);
+            // Changes to highlight = what just changed due to undo (due + undo = ubadandu?)
+            Map<String, Long> changed = diff(prev, erased); // same vars but reversed direction
+            return toStep(stepNo, changed);
+        });
     }
 
     public boolean isFinished() {
-        ensureSession();
-        return st.isHalted() || st.getPc() >= program.instructions().size();
+        return FunctionEnv.with(env, () -> {
+            ensureSession();
+            return st.isHalted() || st.getPc() >= program.instructions().size();
+        });
     }
 
     public Program program() { return program; } // in case UI needs it if not delete it Idan
@@ -127,7 +142,7 @@ public class Debugger extends Executor {
     // ------------ internals ------------
 
     private void ensureSession() {
-        if (program == null || st == null) {
+        if (program == null || st == null || env == null) {
             throw new IllegalStateException("Debugger not initialized. Call init(program, inputs) first.");
         }
     }
@@ -237,23 +252,35 @@ public class Debugger extends Executor {
 
     /** Programmatic breakpoint control (UI will call these). */
     public void setBreakpoints(Collection<Integer> pcs) {
-        ensureSession();
-        breakpoints.clear();
-        if (pcs != null) {
-            for (int pc : pcs) if (pc >= 0 && pc < program.instructions().size()) breakpoints.add(pc);
-        }
+        FunctionEnv.with(env, () -> {
+            ensureSession();
+            breakpoints.clear();
+            if (pcs != null) {
+                for (int pc : pcs) if (pc >= 0 && pc < program.instructions().size()) breakpoints.add(pc);
+            }
+            return null;
+        });
     }
     public void addBreakpoint(int pc) {
-        ensureSession();
-        if (pc >= 0 && pc < program.instructions().size()) breakpoints.add(pc);
+        FunctionEnv.with(env, () -> {
+            ensureSession();
+            if (pc >= 0 && pc < program.instructions().size()) breakpoints.add(pc);
+            return null;
+        });
     }
     public void removeBreakpoint(int pc) {
-        ensureSession();
-        breakpoints.remove(pc);
+        FunctionEnv.with(env, () -> {
+            ensureSession();
+            breakpoints.remove(pc);
+            return null;
+        });
     }
     public void clearBreakpoints() {
-        ensureSession();
-        breakpoints.clear();
+        FunctionEnv.with(env, () -> {
+            ensureSession();
+            breakpoints.clear();
+            return null;
+        });
     }
     public boolean isBreakpoint(int pc) {
         return breakpoints.contains(pc);
@@ -261,10 +288,10 @@ public class Debugger extends Executor {
     public Set<Integer> getBreakpoints() {
         return Collections.unmodifiableSet(breakpoints);
     }
-
-
-
 }
+
+
+
 
 
 

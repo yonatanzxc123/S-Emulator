@@ -188,7 +188,7 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
                     : new ExpanderImpl().expandToDegree(current, use); // may expand QUOTE
 
             Debugger dbg = new Debugger();
-            dbg.init(programToDebug, inputs);
+            dbg.init(programToDebug, inputs, functions);
             return dbg;
         });
     }
