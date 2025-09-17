@@ -81,12 +81,18 @@ public final class JumpEqualFunction extends SyntheticInstruction
         if (s.get(v) == sub.y()) {
             // Adjust if your JumpResolver API differs.
             int dest =jr.resolve(targetLabel);
-
+            if(dest == JumpResolver.EXIT) {
+                s.halt();
+                return;
+            }
             if (dest == JumpResolver.NOT_FOUND) {
                 throw new IllegalStateException("label '" + targetLabel + "' not found");
             }
-            s.jumpTo(dest);
-            return;
+            if (dest >= 0){
+                s.jumpTo(dest);
+                return;
+
+            }
 
         }
 
