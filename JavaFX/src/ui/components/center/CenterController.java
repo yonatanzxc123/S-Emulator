@@ -4,9 +4,11 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.*;
 import javafx.beans.value.ObservableBooleanValue;
+import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.AnchorPane;
 import system.api.DebugStep;
 import system.api.EmulatorEngine;
 import system.api.HistoryEntry;
@@ -59,6 +61,12 @@ public class CenterController implements EngineInjector {
     private Button stepBackBtn;
     @FXML
     private Label cyclesLbl;
+    @FXML
+    private Button specificExpandBtn;
+    @FXML
+    private AnchorPane summaryAnchor;
+    @FXML
+    private Label summaryLabel;
 
 
 
@@ -90,6 +98,27 @@ public class CenterController implements EngineInjector {
         collapseBtn.setDisable(true);
         expandBtn.setDisable(true);
         currDegreeLbl.setText("Current / Maximum degree");
+        if (summaryAnchor != null && instructionTableController != null) {
+            TableView<Row> table = instructionTableController.getTable();
+
+            // Wait for the table to be rendered and items to be added
+            table.getItems().addListener((ListChangeListener<Row>) change -> {
+                if (!table.getItems().isEmpty()) {
+                    // Force layout calculation
+                    table.applyCss();
+                    table.layout();
+
+                    // Get the actual row height from the first row
+                    if (!table.lookupAll(".table-row-cell").isEmpty()) {
+                        javafx.scene.Node firstRow = table.lookupAll(".table-row-cell").iterator().next();
+                        double rowHeight = firstRow.getBoundsInLocal().getHeight();
+                        if (rowHeight > 0) {
+                            summaryAnchor.setPrefHeight(rowHeight);
+                        }
+                    }
+                }
+            });
+        }
 
         chooseVarBtn.getSelectionModel().selectedItemProperty().addListener((obs, ov, nv) -> {
             if (instructionTableController != null) {
@@ -121,6 +150,7 @@ public class CenterController implements EngineInjector {
                 Bindings.or(Bindings.not(loaded), currDegree.greaterThanOrEqualTo(maxDegree))
         );
         chooseVarBtn.disableProperty().bind(Bindings.not(loaded));
+        specificExpandBtn.disableProperty().bind(Bindings.not(loaded));
 
         StringBinding labelText = Bindings.createStringBinding(
                 () -> loaded.get()
@@ -217,6 +247,7 @@ public class CenterController implements EngineInjector {
         if (instructionTableController != null) {
             instructionTableController.showDegree(degree);
             currDegree.set(degree);
+            updateSummary();
 
         }
     }
@@ -226,6 +257,7 @@ public class CenterController implements EngineInjector {
             currDegree.set(currDegree.get() + 1);
             instructionTableController.showDegree(currDegree.get());
             refreshVariableChoices();
+            updateSummary();
         }
     }
 
@@ -234,9 +266,59 @@ public class CenterController implements EngineInjector {
             currDegree.set(currDegree.get() - 1);
             instructionTableController.showDegree(currDegree.get());
             refreshVariableChoices();
+            updateSummary();
         }
 
     }
+
+    public void onActionSpecificExpand() {
+        if (engine == null) return;
+
+        // Get available expansion options (0 to maxDegree)
+        int max = maxDegree.get();
+        int current = currDegree.get();
+
+        if (max <= 0) return;
+
+        // Create list of available degrees
+        List<String> options = new ArrayList<>();
+        for (int i = 0; i <= max; i++) {
+            if (i == current) {
+                options.add(i + " (current)");
+            } else {
+                options.add(String.valueOf(i));
+            }
+        }
+
+        // Create and show choice dialog
+        ChoiceDialog<String> dialog = new ChoiceDialog<>(String.valueOf(current), options);
+        dialog.setTitle("Specific Expansion");
+        dialog.setHeaderText("Select expansion degree");
+        dialog.setContentText("Choose degree (0 to " + max + "):");
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(selectedOption -> {
+            try {
+                // Parse the selected degree (remove "(current)" suffix if present)
+                String degreeStr = selectedOption.replace(" (current)", "").trim();
+                int selectedDegree = Integer.parseInt(degreeStr);
+
+                // Validate the degree is within bounds
+                if (selectedDegree >= 0 && selectedDegree <= max) {
+                    // Update current degree and refresh the instruction table
+                    currDegree.set(selectedDegree);
+                    if (instructionTableController != null) {
+                        instructionTableController.showDegree(selectedDegree);
+                    }
+                    refreshVariableChoices();
+                }
+            } catch (NumberFormatException e) {
+                // Handle parsing error silently or show error dialog
+                System.err.println("Invalid degree selection: " + selectedOption);
+            }
+        });
+    }
+
     public void onActionNewRun(){
         ProgramView pv = (currDegree.get() == 0)
                 ? engine.getProgramView()
@@ -423,6 +505,27 @@ public class CenterController implements EngineInjector {
         historyTableController.showProgramView(
                 new ProgramView("Ancestry", List.of(), List.of(), rows)
         );
+    }
+
+    private void updateSummary() {
+        if (summaryLabel == null || instructionTableController == null) return;
+
+        List<CommandView> commands = instructionTableController.getLastCommands();
+        if (commands == null || commands.isEmpty()) {
+            summaryLabel.setText("Summary: 0 Basic, 0 Synthetic instructions");
+            return;
+        }
+
+        long basicCount = commands.stream()
+                .mapToLong(cmd -> cmd.basic() ? 1 : 0)
+                .sum();
+
+        long syntheticCount = commands.stream()
+                .mapToLong(cmd -> cmd.basic() ? 0 : 1)
+                .sum();
+
+        summaryLabel.setText(String.format("Summary: %d Basic, %d Synthetic instructions",
+                basicCount, syntheticCount));
     }
 
     private static List<CommandView> renumber(List<CommandView> rows) {

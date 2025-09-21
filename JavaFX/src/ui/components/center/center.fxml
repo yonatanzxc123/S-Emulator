@@ -11,6 +11,7 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
 <SplitPane dividerPositions="0.6" maxHeight="Infinity" maxWidth="Infinity" minHeight="0.0" minWidth="200.0" prefHeight="400.0" prefWidth="600.0" stylesheets="@Center.css" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.components.center.CenterController">
@@ -32,17 +33,38 @@
                                             <children>
                                                 <Button fx:id="programSelectorBtn" text="Program Selector" />
                                                 <Button fx:id="collapseBtn" onAction="#onActionCollapse" text="Collapse" />
-                                                <Label fx:id="currDegreeLbl" alignment="CENTER" contentDisplay="CENTER" minWidth="50.0" text="Current / Max Degree" />
+                                                <Label fx:id="currDegreeLbl" alignment="CENTER" contentDisplay="CENTER" minWidth="20.0" text="Current / Max Degree" />
                                                 <Button fx:id="expandBtn" onAction="#onActionExpansion" text="Expand" />
-                                                <ChoiceBox fx:id="chooseVarBtn" prefWidth="150.0" />
+                                                <ChoiceBox fx:id="chooseVarBtn" prefWidth="150.0">
+                                       <HBox.margin>
+                                          <Insets />
+                                       </HBox.margin></ChoiceBox>
                                             </children>
                                             <VBox.margin>
                                                 <Insets bottom="10.0" top="10.0" />
                                             </VBox.margin>
                                         </HBox>
-
-                                        <!-- Instructions table -->
-                                        <fx:include fx:id="instructionTable" source="../table/Table.fxml" VBox.vgrow="NEVER" />
+                              <Button fx:id="specificExpandBtn" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onActionSpecificExpand" text="Expand (Specific)">
+                                 <VBox.margin>
+                                    <Insets bottom="5.0" left="20.0" right="20.0" />
+                                 </VBox.margin>
+                              </Button>
+                              <StackPane>
+                                 <children>
+      
+                                              <!-- Instructions table -->
+                                              <fx:include fx:id="instructionTable" source="../table/Table.fxml" VBox.vgrow="NEVER" />
+      
+                                              <AnchorPane fx:id="summaryAnchor" prefHeight="25.0" StackPane.alignment="BOTTOM_CENTER">
+                                                  <children>
+                                                      <Label fx:id="summaryLabel" alignment="CENTER" maxWidth="1.7976931348623157E308" text="Summary: 0 Basic, 0 Synthetic instructions" AnchorPane.bottomAnchor="5.0" AnchorPane.leftAnchor="20.0" AnchorPane.rightAnchor="20.0" />
+                                                  </children>
+                                       <StackPane.margin>
+                                          <Insets bottom="6.0" left="17.0" right="17.0" />
+                                       </StackPane.margin>
+                                              </AnchorPane>
+                                 </children>
+                              </StackPane>
                                     </children>
                            <padding>
                               <Insets left="10.0" />

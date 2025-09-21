@@ -24,6 +24,10 @@ public final class Row {
     public String getInstruction() { return cmd.text(); }
     public int getCycles() { return cmd.cycles(); }
 
-
+    public boolean shouldShowLineNumber() {
+        return displayLine > 0;
+    }
     public CommandView getCommand() { return cmd; }
+
+
 }

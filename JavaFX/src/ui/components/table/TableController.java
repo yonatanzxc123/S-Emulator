@@ -8,6 +8,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.layout.AnchorPane;
 import system.api.EmulatorEngine;
 import system.api.view.CommandView;
 import system.api.view.ProgramView;
@@ -28,6 +29,7 @@ public class TableController implements EngineInjector {
     @FXML private TableColumn<Row, String> instructionColumn;
     @FXML private TableColumn<Row, Number> cyclesColumn;
 
+
     private List<CommandView> lastCommands = List.of();
 
     private final ReadOnlyObjectWrapper<Row> selectedRow = new ReadOnlyObjectWrapper<>();
@@ -43,7 +45,10 @@ public class TableController implements EngineInjector {
         table.setPlaceholder(new Label("No program to display"));
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 
-        lineColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue().getLine()));
+        lineColumn.setCellValueFactory(cd -> {
+            Row row = cd.getValue();
+            return new ReadOnlyObjectWrapper<>(row.shouldShowLineNumber() ? row.getLine() : null);
+        });
         bsColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getBs()));
         labelColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getLabel()));
         instructionColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().getInstruction()));
@@ -118,6 +123,8 @@ public class TableController implements EngineInjector {
         var rows = lastCommands.stream()
                 .map(Row::new) // display real line numbers
                 .collect(Collectors.toList());
+
+        rows.add(new Row(createBlankCommand(),0));
         table.setItems(FXCollections.observableArrayList(rows));
         table.getSelectionModel().clearSelection();
     }
@@ -130,6 +137,10 @@ public class TableController implements EngineInjector {
                 .collect(Collectors.toList());
         table.setItems(FXCollections.observableArrayList(rows));
         table.getSelectionModel().clearSelection();
+    }
+
+    private CommandView createBlankCommand() {
+        return new CommandView(0, true, "", "", 0, "");
     }
 
     public void selectByLineNumber(int engineLineNumber) {
@@ -156,9 +167,18 @@ public class TableController implements EngineInjector {
         clearSelection();
     }
 
-    // keep CenterController API the same:
     public ReadOnlyObjectProperty<CommandView> selectedCommandProperty() { return selectedCmd.getReadOnlyProperty(); }
     public CommandView getSelectedCommand() { return selectedCmd.get(); }
+
+    public List<CommandView> getLastCommands() {
+        return lastCommands;
+    }
+
+    public TableView<Row> getTable() {
+        return table;
+    }
 }
+
+
 
 
