@@ -33,12 +33,23 @@ public final class Quote extends SyntheticInstruction
         return target + " ← (" + functionName + args + ")";
     }
 
-    @Override public List<Var> variablesUsed() { return List.of(target); }
+    @Override
+    public List<Var> variablesUsed() {
+        // The target is written; reads come from the argument expressions. take notice
+        List<Var> used = new ArrayList<>();
+        for (CallSyntax.Arg a : CallSyntax.parseArgs(functionArguments)) collectVars(a, used);
+        return used;
+    }
 
     @Override
     public Instruction remap(UnaryOperator<Var> vm, UnaryOperator<String> lm) {
-        return new Quote(lm.apply(label()), vm.apply(target), functionName, functionArguments);
+        // Remap vars inside the argument AST too, then re-render inner-args.
+        List<CallSyntax.Arg> ast = CallSyntax.parseArgs(functionArguments);
+        List<CallSyntax.Arg> remapped = remapArgs(ast, vm);
+        String newInner = CallSyntax.renderInnerArgs(remapped);
+        return new Quote(lm.apply(label()), vm.apply(target), functionName, newInner);
     }
+
 
     // ---------- run-time (SelfExecutable) ----------
     @Override
@@ -158,7 +169,7 @@ public final class Quote extends SyntheticInstruction
             out.add(new Assignment("", dst, vr.v()));
         } else {
             CallSyntax.Call call = (CallSyntax.Call) a;
-            String fargs = renderArgsOnly(call.args());   // <-- only inner args
+            String fargs = CallSyntax.renderInnerArgs(call.args());
             out.add(new Quote("", dst, call.name(), fargs));
         }
     }
@@ -168,8 +179,34 @@ public final class Quote extends SyntheticInstruction
         Var dst   = LoaderUtil.parseVar(varToken, errs, -1);
         String fn = LoaderUtil.need(args.get("functionName"), "functionName", -1, errs);
         String fargs = args.getOrDefault("functionArguments", "").trim();
-        // IMPORTANT: keep fargs exactly as in XML (including outer parens when present)
         if (dst == null || fn == null) return null;
         return new Quote(label, dst, fn, fargs);
     }
+
+
+
+    //helpers
+
+
+    private static void collectVars(CallSyntax.Arg a, List<Var> out) {
+        if (a instanceof CallSyntax.VarRef vr) out.add(vr.v());
+        else {
+            CallSyntax.Call c = (CallSyntax.Call) a;
+            for (CallSyntax.Arg sub : c.args()) collectVars(sub, out);
+        }
+    }
+
+    private static List<CallSyntax.Arg> remapArgs(List<CallSyntax.Arg> args, java.util.function.UnaryOperator<Var> vm) {
+        List<CallSyntax.Arg> out = new ArrayList<>(args.size());
+        for (CallSyntax.Arg a : args) {
+            if (a instanceof CallSyntax.VarRef vr) {
+                out.add(new CallSyntax.VarRef(vm.apply(vr.v())));
+            } else {
+                CallSyntax.Call c = (CallSyntax.Call) a;
+                out.add(new CallSyntax.Call(c.name(), remapArgs(c.args(), vm)));
+            }
+        }
+        return out;
+    }
+
 }

@@ -21,6 +21,10 @@ import java.util.List;
  */
 public final class CallSyntax {
 
+
+    private CallSyntax() {}
+
+
     // ---- AST
     public sealed interface Arg permits VarRef, Call {}
     public static record VarRef(Var v) implements Arg {}
@@ -52,29 +56,32 @@ public final class CallSyntax {
         if (raw == null) return List.of();
         String s = raw.trim();
         if (s.isEmpty() || s.equals("()")) return List.of();
-
-        // split by top-level commas
         List<String> tokens = new ArrayList<>();
         int depth = 0, start = 0;
         for (int k = 0; k < s.length(); k++) {
             char c = s.charAt(k);
             if (c == '(') depth++;
-            else if (c == ')') depth--;
+            else if (c == ')') { depth--; if (depth < 0) throw new IllegalArgumentException("Unbalanced ')' in: " + s); }
             else if (c == ',' && depth == 0) {
-                tokens.add(s.substring(start, k).trim());
+                String tok = s.substring(start, k).trim();
+                if (!tok.isEmpty()) tokens.add(tok);
                 start = k + 1;
             }
         }
-        tokens.add(s.substring(start).trim());
+        if (depth != 0) throw new IllegalArgumentException("Unbalanced parentheses in: " + s);
+        String last = s.substring(start).trim();
+        if (!last.isEmpty()) tokens.add(last);
 
         List<Arg> out = new ArrayList<>();
         for (String t : tokens) {
-            if (t.isEmpty()) continue;
+            // IMPORTANT: do *not* strip here; tokens like "(Foo,...)" must keep their parens
             Parser p = new Parser(t);
             out.add(p.parseArg());
         }
         return out;
     }
+
+
 
     private static final class Parser {
         private final String s; private int i;
@@ -129,5 +136,33 @@ public final class CallSyntax {
         private void skipWs() { while (i < s.length() && Character.isWhitespace(s.charAt(i))) i++; }
     }
 
-    private CallSyntax() {}
+    // This helper strips a single outer pair of parentheses if they enclose the whole string.
+    // E.g. for me in the future :
+    //       "(x1,y)" -> "x1,y" but "(x1,(add,y,z2))" -> "x1,(add,y,z2)" (outer parens stripped)
+    //       "((x1,y),z)" -> "((x1,y),z)" (not stripped because inner parens don't match)`
+    //       "x1,y" -> "x1,y" (no outer parens)/
+    //       "((x1,y))" -> "(x1,y)" (outer parens stripped)
+
+    public static String stripOuterParensIfWhole(String s) {
+        if (s == null) return null;
+        s = s.trim();
+        if (s.length() < 2 || s.charAt(0) != '(' || s.charAt(s.length()-1) != ')') return s;
+        int depth = 0;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '(') depth++;
+            else if (c == ')') depth--;
+            // if we ever close back to depth 0 before the last char,
+            // outer parens don't enclose the whole string
+            if (depth == 0 && i < s.length()-1) return s;
+        }
+        // got here => one pair encloses the whole string
+        return s.substring(1, s.length()-1).trim();
+    }
+
+
+
+
+
+
 }
