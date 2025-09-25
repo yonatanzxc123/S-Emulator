@@ -4,6 +4,9 @@ import system.core.model.Var;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
+import system.core.exec.FunctionEnv;
+
 
 /**
  * ---- Small local AST + parser ---- (AST stands for Abstract Syntax Tree)
@@ -161,6 +164,41 @@ public final class CallSyntax {
     }
 
 
+    // ---------- NEW: pretty-name aware rendering ----------
+
+    /** Render a single Arg using a name-mapper (e.g., formal "Minus" -> user "-"). */
+    public static String render(Arg a, Function<String,String> namer) {
+        if (a instanceof VarRef vr) return vr.v().toString();
+        Call c = (Call) a;
+        String shown = (namer == null) ? c.name() : namer.apply(c.name());
+        StringBuilder sb = new StringBuilder("(").append(shown);
+        for (Arg sub : c.args()) sb.append(',').append(render(sub, namer));
+        sb.append(')');
+        return sb.toString();
+    }
+
+    /** Pretty render for inner args (no outer parentheses), applying the mapper to every call name. */
+    public static String renderInnerArgsPretty(List<Arg> args, Function<String,String> namer) {
+        if (args.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < args.size(); i++) {
+            if (i > 0) sb.append(',');
+            sb.append(render(args.get(i), namer));
+        }
+        return sb.toString();
+    }
+
+    /** Returns a name-mapper that uses FunctionEnv (if set) to map formal names to user strings. */
+    public static java.util.function.Function<String,String> envNamerOrIdentity() {
+        return fn -> {
+            try {
+                var p = FunctionEnv.current().get(fn);
+                return (p == null) ? fn : p.name();   // Program.name() carries the <UserString>
+            } catch (IllegalStateException ignore) {  // FunctionEnv not set (e.g., Show Program)
+                return fn;                            // fall back to formal name
+            }
+        };
+    }
 
 
 
