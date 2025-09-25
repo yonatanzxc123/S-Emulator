@@ -10,19 +10,25 @@ import java.io.Serializable;
 
 public final class Program implements Serializable {
     private final String name;
+    private final String userString;
     private final List<Instruction> instructions;
 
     //Constructor for a fresh program
     public Program(String name) {
-        this(name, new ArrayList<>());
+        this(name, "", new ArrayList<>());
     }
+
     //Constructor for a loaded program (for example in a program that is being expanded by an expander)
-    public Program(String name, List<Instruction> instructions) {
+
+    public Program(String name,String userString, List<Instruction> instructions) {
         this.name = Objects.requireNonNull(name, "name");
+        this.userString =(userString == null ? "" : userString);
         this.instructions = new ArrayList<>(Objects.requireNonNull(instructions, "instructions"));
     }
 
     public String name() { return name; }
+    public String userString()  { return userString; } // NEW
+
 
     /** Returns a live, read-only view of the instructions.
      *  The view reflects future calls to {@link #add(Instruction)}.

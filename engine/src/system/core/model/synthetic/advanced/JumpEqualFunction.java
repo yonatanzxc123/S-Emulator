@@ -53,10 +53,19 @@ public final class JumpEqualFunction extends SyntheticInstruction
 
     @Override public int cycles() { return 6; }
 
-    @Override public String asText() {
-        String args = functionArguments.isEmpty() ? "" : "," + functionArguments;
-        return "IF " + v + " = (" + functionName + args + ") GOTO " + targetLabel;
+    @Override
+    public String asText() {
+        var namer = CallSyntax.envNamerOrIdentity();
+        String fnShown = namer.apply(functionName);
+        String inner   = CallSyntax.renderInnerArgsPretty(
+                CallSyntax.parseArgs(functionArguments),
+                namer
+        );
+        String args = inner.isEmpty() ? "" : "," + inner;
+        return "IF " + v + " = (" + fnShown + args + ") GOTO " + targetLabel;
     }
+
+
 
     @Override public List<Var> variablesUsed() { return List.of(v); }
 
@@ -64,6 +73,7 @@ public final class JumpEqualFunction extends SyntheticInstruction
         if (targetLabel.isBlank() || "EXIT".equals(targetLabel)) return List.of();
         return List.of(targetLabel);
     }
+
 
     // ---------- degree 0: execute directly (evaluate Q(...) then compare) ----------
     @Override

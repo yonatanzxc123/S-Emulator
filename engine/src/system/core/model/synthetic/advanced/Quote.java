@@ -28,9 +28,16 @@ public final class Quote extends SyntheticInstruction
 
     @Override public int cycles() { return 5; }
 
-    @Override public String asText() {
-        String args = functionArguments.isEmpty() ? "" : "," + functionArguments;
-        return target + " ← (" + functionName + args + ")";
+    @Override
+    public String asText() {
+        var namer = CallSyntax.envNamerOrIdentity();
+        String fnShown = namer.apply(functionName);
+        String inner   = CallSyntax.renderInnerArgsPretty(
+                CallSyntax.parseArgs(functionArguments),
+                namer
+        );
+        String args = inner.isEmpty() ? "" : "," + inner;
+        return target + " ← (" + fnShown + args + ")";
     }
 
     @Override

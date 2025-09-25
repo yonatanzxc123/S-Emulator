@@ -53,7 +53,8 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
 
     @Override
     public ProgramView getProgramView() {
-        return (current == null) ? null : ProgramMapper.toView(current);
+        if (current == null) return null;
+        return FunctionEnv.with(new FunctionEnv(functions), () -> ProgramMapper.toView(current));
     }
 
     @Override

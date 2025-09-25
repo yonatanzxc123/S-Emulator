@@ -42,4 +42,17 @@ public final class FunctionEnv {
         catch (Exception e) { throw new RuntimeException(e); }
         finally { TL.set(prev); }
     }
+
+    // pretty symbol for a function, falling back to the formal name (meaning userString and program name from the xml)
+    public String prettyNameOf(String functionName) {
+        Program p = functions.get(functionName);
+        if (p == null) return functionName;
+        String u = p.userString();
+        return (u == null || u.isBlank()) ? functionName : u;
+    }
+
+
+
+
+
 }

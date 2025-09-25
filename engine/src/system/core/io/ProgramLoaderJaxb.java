@@ -62,7 +62,7 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
             // Build main program
             Program program = mapProgramFrom(
                     root.getSInstructions(),
-                    (root.getName() == null ? "Unnamed" : root.getName()),
+                    (root.getName() == null ? "Unnamed" : root.getName()),"",
                     errs
             );
 
@@ -85,7 +85,7 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
                         continue;
                     }
                     Program body = mapProgramFrom(f.getSInstructions(),
-                            userString.isBlank() ? formalName : userString,
+                            userString.isBlank() ? formalName : userString,"",
                             errs);
                     functions.put(formalName, body);
                 }
@@ -103,7 +103,7 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
         }
     }
 
-    private static Program mapProgramFrom(SInstructions block, String name, List<String> errs) {
+    private static Program mapProgramFrom(SInstructions block, String name, String userString, List<String> errs) {
         Program p = new Program(name);
         int line = 0;
         for (SInstruction si : block.getSInstruction()) {
