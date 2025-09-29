@@ -151,8 +151,10 @@ public class CenterController implements EngineInjector {
         expandBtn.disableProperty().bind(
                 Bindings.or(Bindings.not(loaded), currDegree.greaterThanOrEqualTo(maxDegree))
         );
+        specificExpandBtn.disableProperty().bind(
+                Bindings.or(Bindings.not(loaded), maxDegree.isEqualTo(0))
+        );
         chooseVarBtn.disableProperty().bind(Bindings.not(loaded));
-        specificExpandBtn.disableProperty().bind(Bindings.not(loaded));
 
         StringBinding labelText = Bindings.createStringBinding(
                 () -> loaded.get()
@@ -502,9 +504,17 @@ public class CenterController implements EngineInjector {
             cyclesLbl.setText(String.valueOf(s.cycles()));
         }
 
+        String currentInstruction = null;
+        if (instructionTableController != null) {
+            List<CommandView> commands = instructionTableController.getLastCommands();
+            if (commands != null && s.pc() < commands.size()) {
+                currentInstruction = commands.get(s.pc()).text();
+            }
+        }
+
         // Vars table
         if (varTableController != null) {
-            varTableController.showSnapshot(s.vars());
+            varTableController.showSnapshotWithInstruction(s.vars(), currentInstruction);
         }
 
         // Instruction highlight
@@ -759,8 +769,26 @@ public class CenterController implements EngineInjector {
     private void refreshVariableChoices() {
         if (chooseVarBtn == null) return;
 
-        ProgramView pv = (currDegree.get() == 0) ? engine.getProgramView()
-                : engine.getExpandedProgramView(currDegree.get());
+        ProgramView pv = null;
+
+        if (currentSelectedProgram == null) {
+            // Main program
+            pv = (currDegree.get() == 0) ? engine.getProgramView()
+                    : engine.getExpandedProgramView(currDegree.get());
+        } else {
+            // Function program - get the actual function's view
+            Map<String, system.core.model.Program> functions = ((system.core.EmulatorEngineImpl) engine).getFunctions();
+            system.core.model.Program selectedFunc = functions.get(currentSelectedProgram);
+
+            if (selectedFunc != null) {
+                // Convert the function Program to ProgramView using the same approach as showSelectedProgram()
+                pv = system.core.exec.FunctionEnv.with(
+                        new system.core.exec.FunctionEnv(functions),
+                        () -> system.core.io.ProgramMapper.toView(selectedFunc)
+                );
+            }
+        }
+
         if (pv == null) {
             chooseVarBtn.getItems().clear();
             if (instructionTableController != null) instructionTableController.setHighlightVar("");
@@ -769,7 +797,7 @@ public class CenterController implements EngineInjector {
 
         List<String> vars = computeVars(pv);
         chooseVarBtn.getItems().setAll(vars);
-        chooseVarBtn.getSelectionModel().clearSelection();     // no highlight by default
+        chooseVarBtn.getSelectionModel().clearSelection();
         if (instructionTableController != null) instructionTableController.setHighlightVar("");
     }
 
