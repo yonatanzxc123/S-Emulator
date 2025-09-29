@@ -434,6 +434,7 @@ public class CenterController implements EngineInjector {
                         instructionTableController.showDegree(selectedDegree);
                     }
                     refreshVariableChoices();
+                    updateSummary();
                 }
             } catch (NumberFormatException e) {
                 // Handle parsing error silently or show error dialog
@@ -486,6 +487,10 @@ public class CenterController implements EngineInjector {
         if (debugga == null) return;
 
         inDebug.set(true);
+
+        if (varTableController != null) {
+            varTableController.resetChangeTracking();
+        }
 
         // Show initial snapshot
         pushSnapshotToUI();
