@@ -151,8 +151,10 @@ public class CenterController implements EngineInjector {
         expandBtn.disableProperty().bind(
                 Bindings.or(Bindings.not(loaded), currDegree.greaterThanOrEqualTo(maxDegree))
         );
+        specificExpandBtn.disableProperty().bind(
+                Bindings.or(Bindings.not(loaded), maxDegree.isEqualTo(0))
+        );
         chooseVarBtn.disableProperty().bind(Bindings.not(loaded));
-        specificExpandBtn.disableProperty().bind(Bindings.not(loaded));
 
         StringBinding labelText = Bindings.createStringBinding(
                 () -> loaded.get()
