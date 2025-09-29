@@ -31,7 +31,7 @@
                                     <children>
                                         <HBox alignment="CENTER" spacing="5.0" VBox.vgrow="NEVER">
                                             <children>
-                                                <Button fx:id="programSelectorBtn" text="Program Selector" />
+                                                <Button fx:id="programSelectorBtn" onAction="#onActionProgramSelector" text="Program Selector" />
                                                 <Button fx:id="collapseBtn" onAction="#onActionCollapse" text="Collapse" />
                                                 <Label fx:id="currDegreeLbl" alignment="CENTER" contentDisplay="CENTER" minWidth="20.0" text="Current / Max Degree" />
                                                 <Button fx:id="expandBtn" onAction="#onActionExpansion" text="Expand" />
@@ -51,10 +51,10 @@
                               </Button>
                               <StackPane>
                                  <children>
-      
+
                                               <!-- Instructions table -->
                                               <fx:include fx:id="instructionTable" source="../table/Table.fxml" VBox.vgrow="NEVER" />
-      
+
                                               <AnchorPane fx:id="summaryAnchor" prefHeight="25.0" StackPane.alignment="BOTTOM_CENTER">
                                                   <children>
                                                       <Label fx:id="summaryLabel" alignment="CENTER" maxWidth="1.7976931348623157E308" text="Summary: 0 Basic, 0 Synthetic instructions" AnchorPane.bottomAnchor="5.0" AnchorPane.leftAnchor="20.0" AnchorPane.rightAnchor="20.0" />
