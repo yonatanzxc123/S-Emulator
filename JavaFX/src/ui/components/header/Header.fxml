@@ -3,6 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
@@ -15,11 +16,16 @@
       </HBox>
       <HBox alignment="CENTER_LEFT" fillHeight="false" minHeight="-Infinity" minWidth="-Infinity" prefHeight="50.0" prefWidth="600.0" spacing="20.0">
          <children>
-            <Button fx:id="loadFileBtn" maxHeight="Infinity" minHeight="-Infinity" mnemonicParsing="false" onAction="#onActionLoadFile" text="Load File">
+            <Button fx:id="loadFileBtn" maxHeight="Infinity" minHeight="-Infinity" mnemonicParsing="false" onAction="#onActionLoadFile" text="Load File"/>
+
+            <ToggleButton fx:id="animToggleBtn" text ="Animations" onAction="#onToggleAnimations" selected="true">
+               <Insets />
                <HBox.margin>
                   <Insets />
                </HBox.margin>
-            </Button>
+            </ToggleButton>
+
+
             <Label fx:id="loadFileLbl" maxHeight="Infinity" maxWidth="1.7976931348623157E308" minWidth="100.0" prefWidth="380.0" text="No file loaded yet" HBox.hgrow="ALWAYS">
                <HBox.margin>
                   <Insets right="20.0" />

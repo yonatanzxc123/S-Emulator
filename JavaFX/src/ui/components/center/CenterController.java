@@ -26,6 +26,10 @@ import java.util.*;
 
 import static javafx.application.Platform.runLater;
 
+import ui.anim.Animations;
+import ui.anim.AnimationSettings;
+import ui.anim.RowHighlighter;
+
 
 public class CenterController implements EngineInjector {
     private EmulatorEngine engine;
@@ -501,7 +505,7 @@ public class CenterController implements EngineInjector {
         if (s == null) return;
 
         if (cyclesLbl != null) {
-            cyclesLbl.setText(String.valueOf(s.cycles()));
+            Animations.countTo(cyclesLbl,s.cycles());
         }
 
         String currentInstruction = null;
@@ -526,6 +530,13 @@ public class CenterController implements EngineInjector {
     public void onActionStepOver() {
         if (debugga == null) return;
         DebugStep s = debugga.step();
+        //animation related
+        Animations.pop(stepOverBtn);
+        if (instructionTableController != null && s != null && !s.finished()) {
+            TableView<Row> tv = instructionTableController.getTable();
+            RowHighlighter.pulseRow(tv, s.pc());
+        }
+
         render(s);
         if (s.finished()) exitDebug();
     }
@@ -649,7 +660,7 @@ public class CenterController implements EngineInjector {
         }
 
         if (cyclesLbl != null) {
-            cyclesLbl.setText(String.valueOf(result.cycles()));
+            Animations.countTo(cyclesLbl,result.cycles());
         }
 
         if (result != null && runHistoryTableController != null) {

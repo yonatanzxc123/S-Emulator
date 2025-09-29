@@ -22,6 +22,9 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.stream.Collectors;
 
+import ui.anim.Animations;
+import ui.anim.AnimationSettings;
+
 
 public class HeaderController implements EngineInjector {
     @FXML
@@ -32,6 +35,9 @@ public class HeaderController implements EngineInjector {
 
     @FXML
     private Label titleLbl;
+
+    @FXML
+    private ToggleButton animToggleBtn;
 
 
     private SimpleStringProperty loadFileLblProp = new SimpleStringProperty("No File Loaded");
@@ -47,6 +53,11 @@ public class HeaderController implements EngineInjector {
     private void initialize() {
         loadFileLbl.textProperty().bind(loadFileLblProp);
         loadFileLbl.prefHeightProperty().bind(loadFileBtn.heightProperty());
+
+        if (animToggleBtn != null) {
+            animToggleBtn.setSelected(AnimationSettings.isEnabled());
+            AnimationSettings.enabledProperty().bindBidirectional(animToggleBtn.selectedProperty());
+        }
     }
 
     @FXML
@@ -92,6 +103,8 @@ public class HeaderController implements EngineInjector {
             loadFileLblProp.set(file.getAbsolutePath());
             isLoadedProp.set(true);
             dialog.close();
+
+            Animations.glow(loadFileLbl);
         });
 
         task.setOnFailed(e -> {
@@ -155,5 +168,13 @@ public class HeaderController implements EngineInjector {
         dlg.setTitle("Loading");
         dlg.setScene(new Scene(root));
         return dlg;
+    }
+
+
+    @FXML
+    private void onToggleAnimations() {
+        if (animToggleBtn != null) {
+            AnimationSettings.setEnabled(animToggleBtn.isSelected());
+        }
     }
 }
