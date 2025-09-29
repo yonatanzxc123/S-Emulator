@@ -16,9 +16,9 @@
       </HBox>
       <HBox alignment="CENTER_LEFT" fillHeight="false" minHeight="-Infinity" minWidth="-Infinity" prefHeight="50.0" prefWidth="600.0" spacing="20.0">
          <children>
-            <Button fx:id="loadFileBtn" maxHeight="Infinity" minHeight="-Infinity" mnemonicParsing="false" onAction="#onActionLoadFile" text="Load File"/>
+            <Button fx:id="loadFileBtn" maxHeight="Infinity" minHeight="-Infinity" mnemonicParsing="false" onAction="#onActionLoadFile" text="Load File" />
 
-            <ToggleButton fx:id="animToggleBtn" text ="Animations" onAction="#onToggleAnimations" selected="true">
+            <ToggleButton fx:id="animToggleBtn" onAction="#onToggleAnimations" selected="true" text="Animations">
                <Insets />
                <HBox.margin>
                   <Insets />

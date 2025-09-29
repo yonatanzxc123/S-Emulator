@@ -12,6 +12,31 @@
     -fx-font-size: 14px;
     -fx-font-weight: bold;
 }
+#animToggleBtn{
+    -fx-background-color: #FF5722;
+    -fx-background-radius: 0;
+    -fx-border-color: #D84315;
+    -fx-border-width: 2;
+    -fx-text-fill: #FFF3E0;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+#animToggleBtn:pressed{
+    -fx-background-color: #D84315;
+}
+
+
+#animToggleBtn.off {
+    -fx-background-color: #4CAF50;
+    -fx-text-fill: white;
+    -fx-border-color: black;
+    -fx-border-width: 1;
+}
+
+#animToggleBtn.off:pressed {
+    -fx-background-color: #388E3C;
+}
 #loadFileBtn:pressed{
     -fx-background-color: #388E3C;
 }
