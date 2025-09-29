@@ -92,6 +92,11 @@ public final class Quote extends SyntheticInstruction
                 Program subProg = requireFunction(call.name());
                 Executor ex = new Executor();
                 MachineState sub = ex.run(subProg, xs);
+
+
+                // add the cycles from the sub-call to the current state
+                s.addCycles((int)Math.min(Integer.MAX_VALUE, sub.cycles()));
+
                 yield sub.y();
             }
         };
