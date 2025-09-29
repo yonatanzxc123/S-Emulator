@@ -84,35 +84,16 @@ public class HistoryTableController implements EngineInjector {
                 vars.add(new VarsPopupController.VarEntry("x" + (i + 1), inputs.get(i)));
             }
 
-            // Get actual final z values by re-running the execution
-            if (engine != null) {
-                // Re-run the program with the same parameters to get final variable states
-                var result = engine.run(entry.degree(), entry.inputs());
+            // Add z variables from stored final variables
+            Map<String, Long> finalVars = entry.finalVariables();
+            if (finalVars != null) {
+                List<String> zVars = finalVars.keySet().stream()
+                        .filter(this::isZVar)
+                        .sorted((a, b) -> Integer.compare(intSuffix(a), intSuffix(b)))
+                        .toList();
 
-                if (result != null && result.variablesOrdered() != null) {
-                    Map<String, Long> finalVars = result.variablesOrdered();
-
-                    // Get all z variables from the program
-                    ProgramView pv = (entry.degree() == 0) ? engine.getProgramView()
-                            : engine.getExpandedProgramView(entry.degree());
-
-                    if (pv != null) {
-                        Set<String> zVars = new LinkedHashSet<>();
-                        if (pv.commands() != null) {
-                            for (CommandView c : pv.commands()) {
-                                collectZVarsFromText(c.text(), zVars);
-                            }
-                        }
-
-                        // Add z variables with their actual final values
-                        List<String> sortedZVars = new ArrayList<>(zVars);
-                        sortedZVars.sort((a, b) -> Integer.compare(intSuffix(a), intSuffix(b)));
-
-                        for (String zVar : sortedZVars) {
-                            Long finalValue = finalVars.getOrDefault(zVar, 0L);
-                            vars.add(new VarsPopupController.VarEntry(zVar, finalValue));
-                        }
-                    }
+                for (String zVar : zVars) {
+                    vars.add(new VarsPopupController.VarEntry(zVar, finalVars.get(zVar)));
                 }
             }
 
@@ -128,22 +109,6 @@ public class HistoryTableController implements EngineInjector {
         }
     }
 
-
-    // Add these helper methods to HistoryTableController
-    private void collectZVarsFromText(String text, Set<String> out) {
-        if (text == null) return;
-        int n = text.length();
-        for (int i = 0; i < n; i++) {
-            char ch = text.charAt(i);
-            if (Character.isLetter(ch)) {
-                int j = i + 1;
-                while (j < n && Character.isLetterOrDigit(text.charAt(j))) j++;
-                String tok = text.substring(i, j);
-                if (isZVar(tok)) out.add(tok);
-                i = j - 1;
-            }
-        }
-    }
 
     private boolean isZVar(String t) {
         if (t.length() >= 2 && t.charAt(0) == 'z') {

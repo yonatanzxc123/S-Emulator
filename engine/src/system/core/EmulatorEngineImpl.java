@@ -90,7 +90,7 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
             history.add(new HistoryEntry(
                     history.size() + 1, use,
                     (inputs == null) ? List.of() : List.copyOf(inputs),
-                    st.y(), st.cycles()
+                    st.y(), st.cycles(),vars
             ));
 
             return new RunResult(st.y(), st.cycles(), executedView, vars);

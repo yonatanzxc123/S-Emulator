@@ -563,7 +563,7 @@ public class CenterController implements EngineInjector {
                 Map<String, Long> vars = lastStep.vars();
                 long y = (vars != null && vars.containsKey("y")) ? vars.get("y") : 0L;
                 long cycles = lastStep.cycles();
-                system.api.HistoryEntry entry = new system.api.HistoryEntry(runNo, degree, inputs, y, cycles);
+                system.api.HistoryEntry entry = new system.api.HistoryEntry(runNo, degree, inputs, y, cycles, vars);
                 runHistoryTableController.addEntry(entry);
             }
             debugga = null;
@@ -641,7 +641,8 @@ public class CenterController implements EngineInjector {
             int runNo = runHistoryTableController.getEntries().size() + 1;
             long y = result.y();
             long cycles = result.cycles();
-            system.api.HistoryEntry entry = new system.api.HistoryEntry(runNo, degree, inputs, y, cycles);
+            Map<String, Long> finalVars = result.variablesOrdered(); // Get final variables
+            system.api.HistoryEntry entry = new system.api.HistoryEntry(runNo, degree, inputs, y, cycles, finalVars);
             runHistoryTableController.addEntry(entry);
         }
     }
