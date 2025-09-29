@@ -87,6 +87,8 @@ public class CenterController implements EngineInjector {
     private BooleanProperty canStart = new SimpleBooleanProperty(false);
     private BooleanProperty inDebug = new SimpleBooleanProperty(false);
     private final StringProperty highlightVar = new SimpleStringProperty("");
+    private final Map<String, List<HistoryEntry>> programHistories = new HashMap<>();
+    private String currentSelectedProgram = null;
 
     private Debugger debugga;
 
@@ -241,6 +243,18 @@ public class CenterController implements EngineInjector {
         newRunBtn.disableProperty().bind(
                 Bindings.or(Bindings.not(loaded), inDebug)
         );
+        loaded.addListener((o, was, isNow) -> {
+            canStart.set(false);
+            if (!isNow) {
+                inDebug.set(false);
+                varTableController.clear();
+                if (runHistoryTableController != null) runHistoryTableController.clear();
+
+                // Clear program histories and reset selection
+                programHistories.clear();
+                currentSelectedProgram = null;
+            }
+        });
     }
 
     public void showDegree(int degree) {
@@ -251,6 +265,115 @@ public class CenterController implements EngineInjector {
 
         }
     }
+
+    public void onActionProgramSelector() {
+        if (engine == null) return;
+
+        List<String> programOptions = new ArrayList<>();
+        programOptions.add("Main Program");
+
+        // Add all functions
+        Map<String, system.core.model.Program> functions = ((system.core.EmulatorEngineImpl) engine).getFunctions();
+        functions.keySet().stream().sorted().forEach(programOptions::add);
+
+        if (programOptions.size() <= 1) {
+            // No functions available
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Program Selector");
+            alert.setHeaderText("No additional programs available");
+            alert.setContentText("This XML file only contains the main program.");
+            alert.showAndWait();
+            return;
+        }
+
+        // Create choice dialog
+        String currentSelection = (currentSelectedProgram == null) ? "Main Program" : currentSelectedProgram;
+        ChoiceDialog<String> dialog = new ChoiceDialog<>(currentSelection, programOptions);
+        dialog.setTitle("Program Selector");
+        dialog.setHeaderText("Select a program to view and execute");
+        dialog.setContentText("Available programs:");
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(this::selectProgram);
+    }
+
+    private void selectProgram(String selectedProgram) {
+        // Save current program's history if switching
+        if (runHistoryTableController != null) {
+            if (currentSelectedProgram != null) {
+                // Save function program history
+                programHistories.put(currentSelectedProgram, new ArrayList<>(runHistoryTableController.getEntries()));
+            } else {
+                // Save main program history (currentSelectedProgram is null = main program)
+                programHistories.put("Main Program", new ArrayList<>(runHistoryTableController.getEntries()));
+            }
+        }
+
+        // Update current selection
+        if ("Main Program".equals(selectedProgram)) {
+            currentSelectedProgram = null;
+        } else {
+            currentSelectedProgram = selectedProgram;
+        }
+
+        // Clear current UI state
+        canStart.set(false);
+        inDebug.set(false);
+        if (varTableController != null) varTableController.clear();
+        if (inputTableController != null) inputTableController.clear();
+        if (cyclesLbl != null) cyclesLbl.setText("0");
+        chooseVarBtn.getItems().clear();
+        if (instructionTableController != null) instructionTableController.setHighlightVar("");
+
+        showSelectedProgram();
+
+        // Restore history for selected program
+        if (runHistoryTableController != null) {
+            String historyKey = (currentSelectedProgram == null) ? "Main Program" : currentSelectedProgram;
+            List<HistoryEntry> history = programHistories.getOrDefault(historyKey, new ArrayList<>());
+            runHistoryTableController.setEntries(history);
+        }
+
+        // Reset degree to 0 for new program
+        currDegree.set(0);
+        updateMaxDegreeForSelectedProgram();
+        refreshVariableChoices();
+        updateSummary();
+    }
+
+
+    private void showSelectedProgram() {
+        if (currentSelectedProgram == null) {
+            // Show main program
+            if (instructionTableController != null) {
+                instructionTableController.showDegree(0);
+            }
+        } else {
+            // Show selected function as a program
+            Map<String, system.core.model.Program> functions = ((system.core.EmulatorEngineImpl) engine).getFunctions();
+            system.core.model.Program selectedFunc = functions.get(currentSelectedProgram);
+
+            if (selectedFunc != null && instructionTableController != null) {
+                // Convert function to ProgramView and display
+                ProgramView funcView = system.core.exec.FunctionEnv.with(
+                        new system.core.exec.FunctionEnv(functions),
+                        () -> system.core.io.ProgramMapper.toView(selectedFunc)
+                );
+                instructionTableController.showProgramView(funcView);
+            }
+        }
+    }
+
+    private void updateMaxDegreeForSelectedProgram() {
+        if (currentSelectedProgram == null) {
+            // Use main program's max degree
+            maxDegree.set(engine.getMaxDegree());
+        } else {
+            // Functions typically don't have expansions, so max degree is 0
+            maxDegree.set(0);
+        }
+    }
+
 
     public void onActionExpansion() {
         if (engine.getMaxDegree() >= currDegree.get()) {
@@ -320,15 +443,39 @@ public class CenterController implements EngineInjector {
     }
 
     public void onActionNewRun(){
-        ProgramView pv = (currDegree.get() == 0)
-                ? engine.getProgramView()
-                : engine.getExpandedProgramView(currDegree.get());
+        ProgramView pv;
+
+        if (currentSelectedProgram == null) {
+            // Main program logic
+            pv = (currDegree.get() == 0) ? engine.getProgramView()
+                    : engine.getExpandedProgramView(currDegree.get());
+        } else {
+            // Function logic - functions don't expand, so always degree 0
+            Map<String, system.core.model.Program> functions = ((system.core.EmulatorEngineImpl) engine).getFunctions();
+            system.core.model.Program selectedFunc = functions.get(currentSelectedProgram);
+
+            if (selectedFunc != null) {
+                pv = system.core.exec.FunctionEnv.with(
+                        new system.core.exec.FunctionEnv(functions),
+                        () -> system.core.io.ProgramMapper.toView(selectedFunc)
+                );
+            } else {
+                pv = null;
+            }
+        }
 
         if (pv == null || pv.inputsUsed() == null || pv.inputsUsed().isEmpty()) {
             inputTableController.clear();
             return;
         }
+
         inputTableController.showInputs(pv.inputsUsed());
+        if (varTableController != null) {
+            varTableController.clear();
+        }
+        if (cyclesLbl != null) {
+            cyclesLbl.setText("0");
+        }
         canStart.set(true);
     }
     public void onActionDebug(){

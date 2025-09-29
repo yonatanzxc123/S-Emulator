@@ -12,13 +12,22 @@ import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.stage.Stage;
+import system.api.EmulatorEngine;
 import system.api.HistoryEntry;
+import system.api.view.CommandView;
+import system.api.view.ProgramView;
+import ui.EngineInjector;
 
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
-public class HistoryTableController {
+public class HistoryTableController implements EngineInjector {
+    private EmulatorEngine engine;
+    @Override
+    public void setEngine(EmulatorEngine engine) {
+        this.engine=engine;
+    }
+
     @FXML
     private TableView<HistoryEntry> table;
     @FXML private TableColumn<HistoryEntry, Integer> runNoColumn;
@@ -75,10 +84,36 @@ public class HistoryTableController {
                 vars.add(new VarsPopupController.VarEntry("x" + (i + 1), inputs.get(i)));
             }
 
-            // Add z values based on the degree
-            // Each degree has z1 through zN where N is the degree
-            for (int i = 1; i <= entry.degree(); i++) {
-                vars.add(new VarsPopupController.VarEntry("z" + i, 0L)); // Default to 0 since we don't have z values stored
+            // Get actual final z values by re-running the execution
+            if (engine != null) {
+                // Re-run the program with the same parameters to get final variable states
+                var result = engine.run(entry.degree(), entry.inputs());
+
+                if (result != null && result.variablesOrdered() != null) {
+                    Map<String, Long> finalVars = result.variablesOrdered();
+
+                    // Get all z variables from the program
+                    ProgramView pv = (entry.degree() == 0) ? engine.getProgramView()
+                            : engine.getExpandedProgramView(entry.degree());
+
+                    if (pv != null) {
+                        Set<String> zVars = new LinkedHashSet<>();
+                        if (pv.commands() != null) {
+                            for (CommandView c : pv.commands()) {
+                                collectZVarsFromText(c.text(), zVars);
+                            }
+                        }
+
+                        // Add z variables with their actual final values
+                        List<String> sortedZVars = new ArrayList<>(zVars);
+                        sortedZVars.sort((a, b) -> Integer.compare(intSuffix(a), intSuffix(b)));
+
+                        for (String zVar : sortedZVars) {
+                            Long finalValue = finalVars.getOrDefault(zVar, 0L);
+                            vars.add(new VarsPopupController.VarEntry(zVar, finalValue));
+                        }
+                    }
+                }
             }
 
             controller.setVariables(vars);
@@ -92,6 +127,43 @@ public class HistoryTableController {
             e.printStackTrace();
         }
     }
+
+
+    // Add these helper methods to HistoryTableController
+    private void collectZVarsFromText(String text, Set<String> out) {
+        if (text == null) return;
+        int n = text.length();
+        for (int i = 0; i < n; i++) {
+            char ch = text.charAt(i);
+            if (Character.isLetter(ch)) {
+                int j = i + 1;
+                while (j < n && Character.isLetterOrDigit(text.charAt(j))) j++;
+                String tok = text.substring(i, j);
+                if (isZVar(tok)) out.add(tok);
+                i = j - 1;
+            }
+        }
+    }
+
+    private boolean isZVar(String t) {
+        if (t.length() >= 2 && t.charAt(0) == 'z') {
+            for (int k = 1; k < t.length(); k++) {
+                if (!Character.isDigit(t.charAt(k))) return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private int intSuffix(String s) {
+        int i = 1, n = s.length(), val = 0;
+        while (i < n && Character.isDigit(s.charAt(i))) {
+            val = val * 10 + (s.charAt(i) - '0');
+            i++;
+        }
+        return val;
+    }
+
 
     public void setOnRerun(Runnable callback) {
         this.rerunCallback = callback;
@@ -114,6 +186,11 @@ public class HistoryTableController {
 
     public ObservableList<HistoryEntry> getEntries() {
         return entries;
+    }
+
+    public void setEntries(List<HistoryEntry> entries) {
+        this.entries.clear();
+        this.entries.addAll(entries);
     }
     public void clear() {
         entries.clear();
