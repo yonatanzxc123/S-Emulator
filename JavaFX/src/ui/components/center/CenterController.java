@@ -502,9 +502,17 @@ public class CenterController implements EngineInjector {
             cyclesLbl.setText(String.valueOf(s.cycles()));
         }
 
+        String currentInstruction = null;
+        if (instructionTableController != null) {
+            List<CommandView> commands = instructionTableController.getLastCommands();
+            if (commands != null && s.pc() < commands.size()) {
+                currentInstruction = commands.get(s.pc()).text();
+            }
+        }
+
         // Vars table
         if (varTableController != null) {
-            varTableController.showSnapshot(s.vars());
+            varTableController.showSnapshotWithInstruction(s.vars(), currentInstruction);
         }
 
         // Instruction highlight

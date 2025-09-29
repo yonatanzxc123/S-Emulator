@@ -30,6 +30,7 @@ public class VarTableController implements EngineInjector {
     private final ObservableList<VarRow> rows = FXCollections.observableArrayList();
     private Map<String, Long> previousValues = new HashMap<>();
     private Set<String> changedVars = new HashSet<>();
+    private Map<String, Long> allEncounteredVars = new HashMap<>();
 
     @FXML
     private void initialize() {
@@ -73,22 +74,73 @@ public class VarTableController implements EngineInjector {
         }
 
         // Update previous values
-        previousValues.clear();
+        allEncounteredVars.putAll(vars);
         previousValues.putAll(vars);
 
-        var names = new ArrayList<>(vars.keySet());
+        var names = new ArrayList<>(allEncounteredVars.keySet());
         Collections.sort(names);
-        rows.setAll(names.stream().map(n -> new VarRow(n, vars.getOrDefault(n, 0L))).toList());
+        rows.setAll(names.stream().map(n -> new VarRow(n, allEncounteredVars.get(n))).toList());
+    }
+
+    public void showSnapshotWithInstruction(Map<String, Long> vars, String currentInstruction) {
+        if (vars == null) {
+            clear();
+            return;
+        }
+
+        // Extract variables from current instruction and add missing ones
+        if (currentInstruction != null) {
+            Set<String> varsInInstruction = new HashSet<>();
+            collectVarsFromText(currentInstruction, varsInInstruction);
+
+            // Add any missing variables with default value 0
+            for (String varName : varsInInstruction) {
+                if (!allEncounteredVars.containsKey(varName)) {
+                    allEncounteredVars.put(varName, 0L);
+                }
+            }
+        }
+
+        // Continue with normal processing
+        showSnapshot(vars);
+    }
+
+    private void collectVarsFromText(String text, Set<String> out) {
+        if (text == null) return;
+        int n = text.length();
+        for (int i = 0; i < n; i++) {
+            char ch = text.charAt(i);
+            if (Character.isLetter(ch)) {
+                int j = i + 1;
+                while (j < n && Character.isLetterOrDigit(text.charAt(j))) j++;
+                String tok = text.substring(i, j);
+                if (isVarToken(tok)) out.add(tok);
+                i = j - 1;
+            }
+        }
+    }
+
+    private boolean isVarToken(String t) {
+        if (t.equals("y")) return true;
+        if (t.length() >= 2 && (t.charAt(0) == 'x' || t.charAt(0) == 'z')) {
+            for (int k = 1; k < t.length(); k++) {
+                if (!Character.isDigit(t.charAt(k))) return false;
+            }
+            return true;
+        }
+        return false;
     }
 
     public void clear() {
         rows.clear();
         previousValues.clear();
         changedVars.clear();
+        allEncounteredVars.clear();
     }
     public void resetChangeTracking() {
         changedVars.clear();
         previousValues.clear();
+        allEncounteredVars.clear();
     }
 
 }
