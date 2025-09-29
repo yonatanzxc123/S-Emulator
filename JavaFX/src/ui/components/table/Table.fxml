@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.layout.StackPane?>
 
-
-<StackPane alignment="TOP_CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="100.0" minWidth="-Infinity" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.components.table.TableController">
+<StackPane alignment="TOP_CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="100.0" minWidth="-Infinity" stylesheets="@Table.css" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.components.table.TableController">
    <children>
-      <TableView fx:id="table" maxHeight="1.7976931348623157E308" minHeight="100.0" prefHeight="600.0" stylesheets="@Table.css" StackPane.alignment="TOP_CENTER">
+      <TableView fx:id="table" maxHeight="1.7976931348623157E308" minHeight="100.0" prefHeight="600.0" StackPane.alignment="TOP_CENTER">
         <columns>
           <TableColumn fx:id="lineColumn" prefWidth="-1.0" text="#line" />
           <TableColumn fx:id="bsColumn" prefWidth="-1.0" text="B\S" />
@@ -18,6 +18,9 @@
          <columnResizePolicy>
             <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
          </columnResizePolicy>
+          <StackPane.margin>
+              <Insets bottom="5.0" />
+          </StackPane.margin>
       </TableView>
    </children>
 </StackPane>
