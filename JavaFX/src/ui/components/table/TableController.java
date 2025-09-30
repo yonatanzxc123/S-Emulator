@@ -34,6 +34,7 @@ public class TableController implements EngineInjector {
     private List<CommandView> lastCommands = List.of();
     private final Set<Integer> breakpoints = new HashSet<>();
     private BreakpointClickHandler breakpointHandler;
+    private boolean breakpointsEnabled = true;
 
     public interface BreakpointClickHandler {
         void onBreakpointToggle(int lineNumber, boolean isSet);
@@ -143,25 +144,27 @@ public class TableController implements EngineInjector {
             {
                 setOnMouseEntered(e -> {
                     Row row = getTableRow().getItem();
-                    if (row != null && row.shouldShowLineNumber() && !breakpoints.contains(row.getLine())) {
+                    if (row != null && row.shouldShowLineNumber() && !breakpoints.contains(row.getLine()) && breakpointsEnabled) {
                         setText("");
                         if (dot == null) {
                             dot = new Circle(4);
                         }
-                        dot.setFill(Color.RED.deriveColor(0, 1, 1, 0.3)); // Semi-transparent
+                        dot.setFill(Color.RED.deriveColor(0, 1, 1, 0.3));
                         setGraphic(dot);
                     }
                 });
 
                 setOnMouseExited(e -> {
                     Row row = getTableRow().getItem();
-                    if (row != null && row.shouldShowLineNumber() && !breakpoints.contains(row.getLine())) {
+                    if (row != null && row.shouldShowLineNumber() && !breakpoints.contains(row.getLine()) && breakpointsEnabled) {
                         setText(getItem().toString());
                         setGraphic(null);
                     }
                 });
 
                 setOnMouseClicked(e -> {
+                    if (!breakpointsEnabled) return; // Don't handle clicks if breakpoints disabled
+
                     Row row = getTableRow().getItem();
                     if (row != null && row.shouldShowLineNumber()) {
                         int lineNum = row.getLine();
@@ -192,6 +195,17 @@ public class TableController implements EngineInjector {
         highlightVar.set(var == null ? "" : var.trim());
     }
 
+    public void setBreakpointsEnabled(boolean enabled) {
+        this.breakpointsEnabled = enabled;
+        if (!enabled) {
+            breakpoints.clear();
+        }
+        table.refresh();
+    }
+
+    public boolean isBreakpointsEnabled() {
+        return breakpointsEnabled;
+    }
     public void setBreakpoint(int lineNumber, boolean set) {
         if (set) {
             breakpoints.add(lineNumber);

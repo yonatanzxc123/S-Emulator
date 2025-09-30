@@ -145,6 +145,9 @@ public class CenterController implements EngineInjector {
         if (runHistoryTableController != null) {
             runHistoryTableController.setOnRerun(this::onActionRerun);
         }
+        if (historyTableController != null) {
+            historyTableController.setBreakpointsEnabled(false);
+        }
 
     }
 
@@ -208,7 +211,19 @@ public class CenterController implements EngineInjector {
             if (!isNow) {
                 inDebug.set(false);
                 varTableController.clear();
-                if (runHistoryTableController != null) runHistoryTableController.clear(); // <-- add this line
+                if (runHistoryTableController != null) runHistoryTableController.clear();
+
+                // Clear input table and cycles when file is unloaded
+                if (inputTableController != null) inputTableController.clear();
+                if (cyclesLbl != null) cyclesLbl.setText("0");
+
+                // Clear program histories and reset selection
+                programHistories.clear();
+                currentSelectedProgram = null;
+            } else {
+                // Clear input table and cycles when new file is loaded
+                if (inputTableController != null) inputTableController.clear();
+                if (cyclesLbl != null) cyclesLbl.setText("0");
             }
         });
 
