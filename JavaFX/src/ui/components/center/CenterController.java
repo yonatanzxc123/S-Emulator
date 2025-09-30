@@ -697,7 +697,8 @@ public class CenterController implements EngineInjector {
         List<CommandView> rows = buildAncestryRows(selected);
         rows = renumber(rows);
         historyTableController.showProgramView(
-                new ProgramView("Ancestry", List.of(), List.of(), rows)
+                new ProgramView("Ancestry", List.of(), List.of(), rows),
+                false // Don't show blank line for ancestry/history table
         );
     }
 

@@ -229,13 +229,20 @@ public class TableController implements EngineInjector {
     }
 
     public void showProgramView(ProgramView pv) {
+        showProgramView(pv, true); // Default to showing blank line
+    }
+
+    public void showProgramView(ProgramView pv, boolean showBlankLine) {
         if (pv == null || pv.commands() == null) { clear(); return; }
         lastCommands = pv.commands();
         var rows = lastCommands.stream()
                 .map(Row::new) // display real line numbers
                 .collect(Collectors.toList());
 
-        rows.add(new Row(createBlankCommand(),0));
+        if (showBlankLine) {
+            rows.add(new Row(createBlankCommand(), 0));
+        }
+
         table.setItems(FXCollections.observableArrayList(rows));
         table.getSelectionModel().clearSelection();
     }
