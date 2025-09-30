@@ -1,0 +1,7 @@
+Manifest-Version: 1.0
+Main-Class: Main
+Class-Path: engine.jar lib/javafx.base.jar lib/javafx.controls.jar lib/j
+ avafx.fxml.jar lib/javafx.graphics.jar lib/javafx.media.jar lib/javafx.
+ swing.jar lib/javafx.web.jar lib/javafx-swt.jar lib/angus-activation.ja
+ r lib/jakarta.activation-api.jar lib/jakarta.xml.bind-api.jar lib/jaxb-
+ core.jar lib/jaxb-impl.jar lib/jaxb-jxc.jar lib/jaxb-xjc.jar

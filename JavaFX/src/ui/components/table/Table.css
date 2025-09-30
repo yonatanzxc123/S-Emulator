@@ -4,3 +4,35 @@
     -fx-border-color: blue;
 }
 
+.table-cell:hover {
+    -fx-background-color: derive(-fx-selection-bar, 50%);
+}
+
+.table-row-cell:selected .table-cell {
+    -fx-background-color: -fx-selection-bar;
+}
+
+.table-cell.line-column {
+    -fx-alignment: CENTER;
+}
+
+/* Red dot for actual breakpoints - highest priority */
+.table-cell.line-column.breakpoint {
+    -fx-background-image: radial-gradient(center 50% 50%, radius 4px, red, red 100%, transparent 100%);
+    -fx-background-repeat: no-repeat;
+    -fx-background-position: center;
+    -fx-text-fill: transparent;
+}
+
+/* Semi-transparent red dot on hover - only when NO breakpoint */
+.table-cell.line-column:hover {
+    -fx-background-image: radial-gradient(center 50% 50%, radius 4px, rgba(255,0,0,0.3), rgba(255,0,0,0.3) 100%, transparent 100%);
+    -fx-background-repeat: no-repeat;
+    -fx-background-position: center;
+    -fx-text-fill: transparent;
+}
+
+/* Keep normal hover background for breakpoint cells */
+.table-cell.line-column.breakpoint:hover {
+    -fx-background-color: derive(-fx-selection-bar, 50%);
+}

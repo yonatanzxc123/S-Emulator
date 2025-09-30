@@ -80,18 +80,16 @@ public class Debugger extends Executor {
         return FunctionEnv.with(env, () -> {
             ensureSession();
 
-            // If we're already sitting on a breakpoint, stop immediately (don't consume any instruction).
-            if (!isFinished() && isBreakpoint(st.getPc())) {
-                return toStep(stepNo, Map.of());
-            }
-
-            while (!isFinished()) {
-                // Execute one instruction
+            // Always execute at least one step first
+            if (!isFinished()) {
                 step();
-
-                // After stepping, if we're now positioned on a breakpoint, stop here
-                if (!isFinished() && isBreakpoint(st.getPc())) break;
             }
+
+            // Then continue until we hit a breakpoint or finish
+            while (!isFinished() && !isBreakpoint(st.getPc())) {
+                step();
+            }
+
             return toStep(stepNo, Map.of());
         });
     }

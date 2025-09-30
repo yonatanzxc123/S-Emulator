@@ -4,17 +4,18 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
-import javafx.scene.control.TableView;
+import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import system.api.EmulatorEngine;
 import system.api.view.CommandView;
 import system.api.view.ProgramView;
 import ui.EngineInjector;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class TableController implements EngineInjector {
@@ -31,6 +32,17 @@ public class TableController implements EngineInjector {
 
 
     private List<CommandView> lastCommands = List.of();
+    private final Set<Integer> breakpoints = new HashSet<>();
+    private BreakpointClickHandler breakpointHandler;
+    private boolean breakpointsEnabled = true;
+
+    public interface BreakpointClickHandler {
+        void onBreakpointToggle(int lineNumber, boolean isSet);
+    }
+
+    public void setBreakpointHandler(BreakpointClickHandler handler) {
+        this.breakpointHandler = handler;
+    }
 
     private final ReadOnlyObjectWrapper<Row> selectedRow = new ReadOnlyObjectWrapper<>();
     private final ReadOnlyObjectWrapper<CommandView> selectedCmd = new ReadOnlyObjectWrapper<>();
@@ -87,11 +99,124 @@ public class TableController implements EngineInjector {
                     }
                 }
         );
+
+        lineColumn.setCellFactory(column -> new TableCell<Row, Number>() {
+            private Circle dot;
+
+            @Override
+            protected void updateItem(Number item, boolean empty) {
+                super.updateItem(item, empty);
+
+                // Clear styles and graphics
+                getStyleClass().removeAll("line-column", "breakpoint");
+                setGraphic(null);
+
+                if (empty || item == null) {
+                    setText("");
+                    return;
+                }
+
+                Row row = getTableRow().getItem();
+                if (row != null && row.shouldShowLineNumber()) {
+                    int lineNum = row.getLine();
+                    boolean hasBreakpoint = breakpoints.contains(lineNum);
+
+                    getStyleClass().add("line-column");
+
+                    if (hasBreakpoint) {
+                        getStyleClass().add("breakpoint");
+                        setText("");
+                        // Create red dot
+                        if (dot == null) {
+                            dot = new Circle(4);
+                        }
+                        dot.setFill(Color.RED);
+                        setGraphic(dot);
+                    } else {
+                        setText(item.toString());
+                    }
+                } else {
+                    setText("");
+                }
+            }
+
+            // Mouse handlers for hover effect
+            {
+                setOnMouseEntered(e -> {
+                    Row row = getTableRow().getItem();
+                    if (row != null && row.shouldShowLineNumber() && !breakpoints.contains(row.getLine()) && breakpointsEnabled) {
+                        setText("");
+                        if (dot == null) {
+                            dot = new Circle(4);
+                        }
+                        dot.setFill(Color.RED.deriveColor(0, 1, 1, 0.3));
+                        setGraphic(dot);
+                    }
+                });
+
+                setOnMouseExited(e -> {
+                    Row row = getTableRow().getItem();
+                    if (row != null && row.shouldShowLineNumber() && !breakpoints.contains(row.getLine()) && breakpointsEnabled) {
+                        setText(getItem().toString());
+                        setGraphic(null);
+                    }
+                });
+
+                setOnMouseClicked(e -> {
+                    if (!breakpointsEnabled) return; // Don't handle clicks if breakpoints disabled
+
+                    Row row = getTableRow().getItem();
+                    if (row != null && row.shouldShowLineNumber()) {
+                        int lineNum = row.getLine();
+                        boolean isSet = breakpoints.contains(lineNum);
+
+                        if (isSet) {
+                            breakpoints.remove(lineNum);
+                        } else {
+                            breakpoints.add(lineNum);
+                        }
+
+                        updateItem(getItem(), isEmpty());
+
+                        if (breakpointHandler != null) {
+                            breakpointHandler.onBreakpointToggle(lineNum, !isSet);
+                        }
+                    }
+                    e.consume();
+                });
+            }
+        });
+
+
         highlightVar.addListener((obs, o, n) -> table.refresh());
     }
 
     public void setHighlightVariable(String var) {
         highlightVar.set(var == null ? "" : var.trim());
+    }
+
+    public void setBreakpointsEnabled(boolean enabled) {
+        this.breakpointsEnabled = enabled;
+        if (!enabled) {
+            breakpoints.clear();
+        }
+        table.refresh();
+    }
+
+    public boolean isBreakpointsEnabled() {
+        return breakpointsEnabled;
+    }
+    public void setBreakpoint(int lineNumber, boolean set) {
+        if (set) {
+            breakpoints.add(lineNumber);
+        } else {
+            breakpoints.remove(lineNumber);
+        }
+        table.refresh();
+    }
+
+    public Set<Integer> getBreakpoints() {
+        return new HashSet<>(breakpoints);
     }
 
     private static boolean usesVar(String text, String var) {
@@ -118,13 +243,20 @@ public class TableController implements EngineInjector {
     }
 
     public void showProgramView(ProgramView pv) {
+        showProgramView(pv, true); // Default to showing blank line
+    }
+
+    public void showProgramView(ProgramView pv, boolean showBlankLine) {
         if (pv == null || pv.commands() == null) { clear(); return; }
         lastCommands = pv.commands();
         var rows = lastCommands.stream()
                 .map(Row::new) // display real line numbers
                 .collect(Collectors.toList());
 
-        rows.add(new Row(createBlankCommand(),0));
+        if (showBlankLine) {
+            rows.add(new Row(createBlankCommand(), 0));
+        }
+
         table.setItems(FXCollections.observableArrayList(rows));
         table.getSelectionModel().clearSelection();
     }
@@ -176,6 +308,10 @@ public class TableController implements EngineInjector {
 
     public TableView<Row> getTable() {
         return table;
+    }
+    public void clearBreakpoints() {
+        breakpoints.clear();
+        table.refresh();
     }
 }
 
