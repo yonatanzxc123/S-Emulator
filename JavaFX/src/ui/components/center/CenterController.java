@@ -103,6 +103,7 @@ public class CenterController implements EngineInjector {
         programSelectorBtn.setDisable(true);
         collapseBtn.setDisable(true);
         expandBtn.setDisable(true);
+        setupBreakpointHandling();
         currDegreeLbl.setText("Current / Maximum degree");
         if (summaryAnchor != null && instructionTableController != null) {
             TableView<Row> table = instructionTableController.getTable();
@@ -314,7 +315,9 @@ public class CenterController implements EngineInjector {
                 programHistories.put("Main Program", new ArrayList<>(runHistoryTableController.getEntries()));
             }
         }
-
+        if (instructionTableController != null) {
+            instructionTableController.clearBreakpoints();
+        }
         // Update current selection
         if ("Main Program".equals(selectedProgram)) {
             currentSelectedProgram = null;
@@ -382,16 +385,22 @@ public class CenterController implements EngineInjector {
 
 
     public void onActionExpansion() {
-        if (engine.getMaxDegree() >= currDegree.get()) {
-            currDegree.set(currDegree.get() + 1);
-            instructionTableController.showDegree(currDegree.get());
-            refreshVariableChoices();
-            updateSummary();
+        if (instructionTableController != null) {
+            instructionTableController.clearBreakpoints();
         }
+
+        currDegree.set(currDegree.get() + 1);
+        instructionTableController.showDegree(currDegree.get());
+        refreshVariableChoices();
+        updateSummary();
     }
 
     public void onActionCollapse() {
         if (currDegree.get() > 0) {
+            if (instructionTableController != null) {
+                instructionTableController.clearBreakpoints();
+            }
+
             currDegree.set(currDegree.get() - 1);
             instructionTableController.showDegree(currDegree.get());
             refreshVariableChoices();
@@ -434,6 +443,10 @@ public class CenterController implements EngineInjector {
 
                 // Validate the degree is within bounds
                 if (selectedDegree >= 0 && selectedDegree <= max) {
+
+                    if (instructionTableController != null) {
+                        instructionTableController.clearBreakpoints();
+                    }
                     // Update current degree and refresh the instruction table
                     currDegree.set(selectedDegree);
                     if (instructionTableController != null) {
@@ -492,13 +505,20 @@ public class CenterController implements EngineInjector {
         debugga = engine.startDebug(currDegree.get(), inputs);
         if (debugga == null) return;
 
+        // Sync breakpoints from UI to debugger
+        if (instructionTableController != null) {
+            Set<Integer> uiBreakpoints = instructionTableController.getBreakpoints();
+            for (Integer lineNum : uiBreakpoints) {
+                debugga.addBreakpoint(lineNum - 1); // Convert to 0-based
+            }
+        }
+
         inDebug.set(true);
 
         if (varTableController != null) {
             varTableController.resetChangeTracking();
         }
 
-        // Show initial snapshot
         pushSnapshotToUI();
     }
     public void render(DebugStep s) {
@@ -868,7 +888,22 @@ public class CenterController implements EngineInjector {
         }
         return val;
     }
+    private void setupBreakpointHandling() {
+        if (instructionTableController != null) {
+            instructionTableController.setBreakpointHandler((lineNumber, isSet) -> {
+                if (debugga != null) {
+                    if (isSet) {
+                        debugga.addBreakpoint(lineNumber - 1); // Convert to 0-based
+                    } else {
+                        debugga.removeBreakpoint(lineNumber - 1);
+                    }
+                }
+            });
+        }
+    }
 }
+
+
 
 
 
