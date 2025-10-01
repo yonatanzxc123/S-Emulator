@@ -9,10 +9,10 @@ public final class AnimationSettings {
     private static final Preferences PREFS =
             Preferences.userRoot().node("ui/anim/AnimationSettings");
 
-    private static final BooleanProperty enabled = new SimpleBooleanProperty(true);
+    private static final BooleanProperty enabled = new SimpleBooleanProperty(false);
 
     static {
-        boolean saved = PREFS.getBoolean("enabled", true);
+        boolean saved = PREFS.getBoolean("enabled", false);
         enabled.set(saved);
         enabled.addListener((obs, oldV, newV) -> {
             PREFS.putBoolean("enabled", newV);
