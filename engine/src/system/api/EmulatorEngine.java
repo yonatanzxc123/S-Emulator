@@ -3,9 +3,11 @@ package system.api;
 
 import system.api.view.ProgramView;
 import system.core.exec.debugg.Debugger;
+import system.core.model.Program;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 public interface EmulatorEngine {
     record LoadOutcome(boolean ok, List<String> errors) {}
@@ -20,7 +22,7 @@ public interface EmulatorEngine {
     List<HistoryEntry> getRunHistory();
     ProgramView getExpandedProgramView(int degree);
     int getMaxDegree();
-
+    Map<String, Program> getFunctions();
     //Debugger
     Debugger startDebug(int degree, java.util.List<Long> inputs);
 
