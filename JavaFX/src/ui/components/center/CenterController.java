@@ -14,7 +14,10 @@ import system.api.EmulatorEngine;
 import system.api.HistoryEntry;
 import system.api.view.CommandView;
 import system.api.view.ProgramView;
+import system.core.EmulatorEngineImpl;
 import system.core.exec.debugg.Debugger;
+import system.core.expand.ExpanderImpl;
+import system.core.model.Program;
 import ui.EngineInjector;
 import ui.components.historytable.HistoryTableController;
 import ui.components.inputtable.InputTableController;
@@ -340,6 +343,9 @@ public class CenterController implements EngineInjector {
             currentSelectedProgram = selectedProgram;
         }
 
+        // IMPORTANT: Reset degree to 0 BEFORE clearing UI state
+        currDegree.set(0);
+
         // Clear current UI state
         canStart.set(false);
         inDebug.set(false);
@@ -349,6 +355,10 @@ public class CenterController implements EngineInjector {
         chooseVarBtn.getItems().clear();
         if (instructionTableController != null) instructionTableController.setHighlightVar("");
 
+        // Update max degree for the selected program
+        updateMaxDegreeForSelectedProgram();
+
+        // Show the selected program at degree 0
         showSelectedProgram();
 
         // Restore history for selected program
@@ -358,34 +368,15 @@ public class CenterController implements EngineInjector {
             runHistoryTableController.setEntries(history);
         }
 
-        // Reset degree to 0 for new program
-        currDegree.set(0);
-        updateMaxDegreeForSelectedProgram();
+        // Refresh variables and summary
         refreshVariableChoices();
         updateSummary();
     }
 
 
-    private void showSelectedProgram() {
-        if (currentSelectedProgram == null) {
-            // Show main program
-            if (instructionTableController != null) {
-                instructionTableController.showDegree(0);
-            }
-        } else {
-            // Show selected function as a program
-            Map<String, system.core.model.Program> functions = ((system.core.EmulatorEngineImpl) engine).getFunctions();
-            system.core.model.Program selectedFunc = functions.get(currentSelectedProgram);
 
-            if (selectedFunc != null && instructionTableController != null) {
-                // Convert function to ProgramView and display
-                ProgramView funcView = system.core.exec.FunctionEnv.with(
-                        new system.core.exec.FunctionEnv(functions),
-                        () -> system.core.io.ProgramMapper.toView(selectedFunc)
-                );
-                instructionTableController.showProgramView(funcView);
-            }
-        }
+    private void showSelectedProgram() {
+        showSelectedProgramAtDegree(currDegree.get());
     }
 
     private void updateMaxDegreeForSelectedProgram() {
@@ -393,10 +384,43 @@ public class CenterController implements EngineInjector {
             // Use main program's max degree
             maxDegree.set(engine.getMaxDegree());
         } else {
-            // Functions typically don't have expansions, so max degree is 0
-            maxDegree.set(0);
+            // Calculate actual max degree for the selected function
+            Map<String, system.core.model.Program> functions = ((system.core.EmulatorEngineImpl) engine).getFunctions();
+            system.core.model.Program selectedFunc = functions.get(currentSelectedProgram);
+
+            if (selectedFunc != null) {
+                // Use the same logic as the main getMaxDegree() but for this specific function
+                int functionMaxDegree = calculateMaxDegreeForFunction(selectedFunc);
+                maxDegree.set(functionMaxDegree);
+            } else {
+                maxDegree.set(0);
+            }
         }
     }
+
+    private int calculateMaxDegreeForFunction(system.core.model.Program function) {
+        return system.core.exec.FunctionEnv.with(
+                new system.core.exec.FunctionEnv(((system.core.EmulatorEngineImpl) engine).getFunctions()),
+                () -> {
+                    final int CAP = 1000; // safety cap (same as main engine)
+                    int d = 0;
+                    system.core.model.Program cur = function;
+                    while (d < CAP && containsSynthetic(cur)) {
+                        cur = new system.core.expand.ExpanderImpl().expandToDegree(cur, 1);
+                        d++;
+                    }
+                    return d;
+                }
+        );
+    }
+
+    private static boolean containsSynthetic(system.core.model.Program p) {
+        for (system.core.model.Instruction ins : p.instructions()) {
+            if (!ins.isBasic()) return true;
+        }
+        return false;
+    }
+
 
 
     public void onActionExpansion() {
@@ -405,10 +429,43 @@ public class CenterController implements EngineInjector {
         }
 
         currDegree.set(currDegree.get() + 1);
-        instructionTableController.showDegree(currDegree.get());
+
+        // Show the expanded version of the currently selected program
+        showSelectedProgramAtDegree(currDegree.get());
+
         refreshVariableChoices();
         updateSummary();
     }
+
+    private void showSelectedProgramAtDegree(int degree) {
+        if (currentSelectedProgram == null) {
+            // Main program - use existing logic
+            if (instructionTableController != null) {
+                instructionTableController.showDegree(degree);
+            }
+        } else {
+            // Function program - expand the function itself
+            Map<String, Program> functions = ((EmulatorEngineImpl) engine).getFunctions();
+            system.core.model.Program selectedFunc = functions.get(currentSelectedProgram);
+
+            if (selectedFunc != null && instructionTableController != null) {
+                ProgramView expandedFuncView = system.core.exec.FunctionEnv.with(
+                        new system.core.exec.FunctionEnv(functions),
+                        () -> {
+                            if (degree == 0) {
+                                return system.core.io.ProgramMapper.toView(selectedFunc);
+                            } else {
+                                Program expanded = new ExpanderImpl()
+                                        .expandToDegree(selectedFunc, degree);
+                                return system.core.io.ProgramMapper.toView(expanded);
+                            }
+                        }
+                );
+                instructionTableController.showProgramView(expandedFuncView);
+            }
+        }
+    }
+
 
     public void onActionCollapse() {
         if (currDegree.get() > 0) {
@@ -417,7 +474,7 @@ public class CenterController implements EngineInjector {
             }
 
             currDegree.set(currDegree.get() - 1);
-            instructionTableController.showDegree(currDegree.get());
+            showSelectedProgramAtDegree(currDegree.get());
             refreshVariableChoices();
             updateSummary();
         }
@@ -465,7 +522,7 @@ public class CenterController implements EngineInjector {
                     // Update current degree and refresh the instruction table
                     currDegree.set(selectedDegree);
                     if (instructionTableController != null) {
-                        instructionTableController.showDegree(selectedDegree);
+                        showSelectedProgramAtDegree(selectedDegree);
                     }
                     refreshVariableChoices();
                     updateSummary();
@@ -662,51 +719,84 @@ public class CenterController implements EngineInjector {
     public void onActionStart(){
         if (engine == null) return;
 
-        // Ensure a program is loaded & degree is current
         final int degree = currDegree.get();
-        ProgramView pv = (degree == 0) ? engine.getProgramView()
-                : engine.getExpandedProgramView(degree);
         inDebug.set(false);
-        if (pv == null) {
-
-            return;
-
-        }
 
         var inputs = (inputTableController == null) ? java.util.List.<Long>of()
                 : inputTableController.readValues();
 
+        if (currentSelectedProgram == null) {
+            // Main program - use normal engine.run()
+            var result = engine.run(degree, inputs);
+            if (result == null) return;
 
-        var result = engine.run(degree, inputs);
-        if (result == null) return;
+            if (varTableController != null) {
+                varTableController.showSnapshot(result.variablesOrdered());
+            }
 
-        if (result.executedProgram() != null && instructionTableController != null) {
-            instructionTableController.showProgramView(result.executedProgram());
+            if (cyclesLbl != null) {
+                Animations.countTo(cyclesLbl, result.cycles());
+            }
+
+            if (result != null && runHistoryTableController != null) {
+                int runNo = runHistoryTableController.getEntries().size() + 1;
+                long y = result.y();
+                long cycles = result.cycles();
+                Map<String, Long> finalVars = result.variablesOrdered();
+                system.api.HistoryEntry entry = new system.api.HistoryEntry(runNo, degree, inputs, y, cycles, finalVars);
+                runHistoryTableController.addEntry(entry);
+            }
+        } else {
+            // Function program - run the function directly
+            Map<String, system.core.model.Program> functions = ((system.core.EmulatorEngineImpl) engine).getFunctions();
+            system.core.model.Program selectedFunc = functions.get(currentSelectedProgram);
+
+            if (selectedFunc != null) {
+                system.api.RunResult result = system.core.exec.FunctionEnv.with(
+                        new system.core.exec.FunctionEnv(functions),
+                        () -> {
+                            system.core.model.Program toRun = (degree == 0) ? selectedFunc
+                                    : new system.core.expand.ExpanderImpl().expandToDegree(selectedFunc, degree);
+
+                            var exec = new system.core.exec.Executor();
+                            var st = exec.run(toRun, inputs);
+
+                            var vars = new java.util.LinkedHashMap<String, Long>();
+                            vars.put("y", st.y());
+                            var xs = new java.util.TreeMap<>(st.snapshotX());
+                            var zs = new java.util.TreeMap<>(st.snapshotZ());
+                            xs.forEach((i, v) -> vars.put("x" + i, v));
+                            zs.forEach((i, v) -> vars.put("z" + i, v));
+
+                            return new system.api.RunResult(st.y(), st.cycles(), null, vars);
+                        }
+                );
+
+                if (result != null) {
+                    if (varTableController != null) {
+                        varTableController.showSnapshot(result.variablesOrdered());
+                    }
+
+                    if (cyclesLbl != null) {
+                        Animations.countTo(cyclesLbl, result.cycles());
+                    }
+
+                    if (runHistoryTableController != null) {
+                        int runNo = runHistoryTableController.getEntries().size() + 1;
+                        long y = result.y();
+                        long cycles = result.cycles();
+                        Map<String, Long> finalVars = result.variablesOrdered();
+                        system.api.HistoryEntry entry = new system.api.HistoryEntry(runNo, degree, inputs, y, cycles, finalVars);
+                        runHistoryTableController.addEntry(entry);
+                    }
+                }
+            }
         }
 
-        if (result.executedProgram() != null && instructionTableController != null) {
-            instructionTableController.showProgramView(result.executedProgram());
-        }
-
-
-        if (varTableController != null) {
-            varTableController.showSnapshot(result.variablesOrdered());
-
-        }
-
-        if (cyclesLbl != null) {
-            Animations.countTo(cyclesLbl,result.cycles());
-        }
-
-        if (result != null && runHistoryTableController != null) {
-            int runNo = runHistoryTableController.getEntries().size() + 1;
-            long y = result.y();
-            long cycles = result.cycles();
-            Map<String, Long> finalVars = result.variablesOrdered(); // Get final variables
-            system.api.HistoryEntry entry = new system.api.HistoryEntry(runNo, degree, inputs, y, cycles, finalVars);
-            runHistoryTableController.addEntry(entry);
-        }
+        // Always restore the selected program view after execution
+        showSelectedProgram();
     }
+
 
     public void lineSelected(int line, CommandView selected) {
         List<CommandView> rows = buildAncestryRows(selected);
@@ -813,42 +903,50 @@ public class CenterController implements EngineInjector {
     }
 
     // all of the choice box methods
-    private void refreshVariableChoices() {
-        if (chooseVarBtn == null) return;
+        private void refreshVariableChoices() {
+            if (chooseVarBtn == null) return;
 
-        ProgramView pv = null;
+            ProgramView pv = null;
 
-        if (currentSelectedProgram == null) {
-            // Main program
-            pv = (currDegree.get() == 0) ? engine.getProgramView()
-                    : engine.getExpandedProgramView(currDegree.get());
-        } else {
-            // Function program - get the actual function's view
-            Map<String, system.core.model.Program> functions = ((system.core.EmulatorEngineImpl) engine).getFunctions();
-            system.core.model.Program selectedFunc = functions.get(currentSelectedProgram);
+            if (currentSelectedProgram == null) {
+                // Main program
+                pv = (currDegree.get() == 0) ? engine.getProgramView()
+                        : engine.getExpandedProgramView(currDegree.get());
+            } else {
+                // Function program - get the expanded view at current degree
+                Map<String, system.core.model.Program> functions = ((system.core.EmulatorEngineImpl) engine).getFunctions();
+                system.core.model.Program selectedFunc = functions.get(currentSelectedProgram);
 
-            if (selectedFunc != null) {
-                // Convert the function Program to ProgramView using the same approach as showSelectedProgram()
-                pv = system.core.exec.FunctionEnv.with(
-                        new system.core.exec.FunctionEnv(functions),
-                        () -> system.core.io.ProgramMapper.toView(selectedFunc)
-                );
+                if (selectedFunc != null) {
+                    pv = system.core.exec.FunctionEnv.with(
+                            new system.core.exec.FunctionEnv(functions),
+                            () -> {
+                                if (currDegree.get() == 0) {
+                                    return system.core.io.ProgramMapper.toView(selectedFunc);
+                                } else {
+                                    system.core.model.Program expanded = new system.core.expand.ExpanderImpl()
+                                            .expandToDegree(selectedFunc, currDegree.get());
+                                    return system.core.io.ProgramMapper.toView(expanded);
+                                }
+                            }
+                    );
+                }
             }
-        }
 
-        if (pv == null) {
-            chooseVarBtn.getItems().clear();
+            if (pv == null) {
+                chooseVarBtn.getItems().clear();
+                if (instructionTableController != null) instructionTableController.setHighlightVar("");
+                return;
+            }
+
+            List<String> vars = computeVars(pv);
+            chooseVarBtn.getItems().setAll(vars);
+            chooseVarBtn.getSelectionModel().clearSelection();
             if (instructionTableController != null) instructionTableController.setHighlightVar("");
-            return;
         }
 
-        List<String> vars = computeVars(pv);
-        chooseVarBtn.getItems().setAll(vars);
-        chooseVarBtn.getSelectionModel().clearSelection();
-        if (instructionTableController != null) instructionTableController.setHighlightVar("");
-    }
 
-    private static List<String> computeVars(ProgramView pv) {
+        private static List<String> computeVars(ProgramView pv) {
         Set<String> out = new LinkedHashSet<>();
         // declared inputs (x#)
         if (pv.inputsUsed() != null) out.addAll(pv.inputsUsed());

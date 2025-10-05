@@ -42,7 +42,7 @@ public class HeaderController implements EngineInjector {
 
     private SimpleStringProperty loadFileLblProp = new SimpleStringProperty("No File Loaded");
     private SimpleBooleanProperty isLoadedProp = new SimpleBooleanProperty(false);
-    private boolean animationsEnabled = true;
+    private boolean animationsEnabled = false;
     private EmulatorEngine engine;
 
 
@@ -56,11 +56,49 @@ public class HeaderController implements EngineInjector {
         loadFileLbl.prefHeightProperty().bind(loadFileBtn.heightProperty());
 
         if (animToggleBtn != null) {
-            animToggleBtn.setSelected(AnimationSettings.isEnabled());
+            // Force default state to false (OFF) on startup
+            AnimationSettings.setEnabled(false);
+            animationsEnabled = false;
+
+            // Set initial button state
+            animToggleBtn.setSelected(false);
+
+            // Apply initial styling and text BEFORE binding
+            updateToggleButtonStyle();
+            updateToggleButtonText();
+
+            // Bind to AnimationSettings
             AnimationSettings.enabledProperty().bindBidirectional(animToggleBtn.selectedProperty());
+
+            // Listen for changes to update local state and styling
+            animToggleBtn.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                animationsEnabled = newVal;
+                updateToggleButtonStyle();
+                updateToggleButtonText();
+            });
         }
-        updateToggleButtonText();
     }
+
+    private void updateToggleButtonStyle() {
+        if (animToggleBtn == null) return;
+
+        // Clear all style classes first to avoid conflicts
+        animToggleBtn.getStyleClass().removeAll("off", "on");
+
+        if (animationsEnabled) {
+            animToggleBtn.getStyleClass().add("on");
+        } else {
+            animToggleBtn.getStyleClass().add("off");
+        }
+    }
+
+
+    private void updateToggleButtonText() {
+        if (animToggleBtn != null) {
+            animToggleBtn.setText(animationsEnabled ? "Animations: ON" : "Animations: OFF");
+        }
+    }
+
 
 
     @FXML
@@ -174,25 +212,6 @@ public class HeaderController implements EngineInjector {
     }
 
 
-    @FXML
-    private void onToggleAnimations() {
-        animationsEnabled = !animationsEnabled;
 
-        if (animationsEnabled) {
-            // Remove "off" class to return to default orange/red style
-            animToggleBtn.getStyleClass().remove("off");
-        } else {
-            // Add "off" class to switch to green style
-            animToggleBtn.getStyleClass().add("off");
-        }
 
-        updateToggleButtonText();
-
-        // Apply the animation setting
-        AnimationSettings.setEnabled(animationsEnabled);
-    }
-
-    private void updateToggleButtonText() {
-        animToggleBtn.setText(animationsEnabled ? "Animations: ON" : "Animations: OFF");
-    }
 }

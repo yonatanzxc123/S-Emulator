@@ -18,7 +18,7 @@
          <children>
             <Button fx:id="loadFileBtn" maxHeight="Infinity" minHeight="-Infinity" mnemonicParsing="false" onAction="#onActionLoadFile" text="Load File" />
 
-            <ToggleButton fx:id="animToggleBtn" onAction="#onToggleAnimations" selected="true" text="Animations">
+            <ToggleButton fx:id="animToggleBtn" selected="true" text="Animations">
                <Insets />
                <HBox.margin>
                   <Insets />
