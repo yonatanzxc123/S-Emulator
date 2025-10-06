@@ -3,11 +3,13 @@
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.AnchorPane?>
 
-<SplitPane dividerPositions="0.6219919786096255" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1">
+<SplitPane dividerPositions="0.65" minHeight="30.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1">
   <items>
-    <AnchorPane>
+    <AnchorPane minWidth="30.0">
         <fx:include source="../center_left/centerleft.fxml" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
     </AnchorPane>
-    <AnchorPane />
+    <AnchorPane minWidth="30.0">
+      <fx:include source="../center_right/center_right.fxml" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+    </AnchorPane>
   </items>
 </SplitPane>
