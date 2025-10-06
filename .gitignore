@@ -20,7 +20,7 @@ client/sources.txt
 
 # IntelliJ
 .idea/
-*.iml
+
 *.ipr
 *.iws
 
