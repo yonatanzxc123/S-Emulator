@@ -9,7 +9,7 @@
    <children>
       <Label fx:id="userNameLbl" text="User Name">
          <HBox.margin>
-            <Insets left="10.0" />
+            <Insets left="15.0" />
          </HBox.margin></Label>
        <Region HBox.hgrow="ALWAYS" />
       <Label fx:id="titleLbl" text="S-Emulator - " />

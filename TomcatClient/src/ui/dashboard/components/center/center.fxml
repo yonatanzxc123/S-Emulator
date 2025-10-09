@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane prefHeight="800" prefWidth="1000" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1">
+    <top>
+        <fx:include source="../file_line/file_line.fxml" BorderPane.alignment="TOP_LEFT" />
+    </top>
+    <center>
+        <VBox>
+            <Region prefHeight="10">
+            <VBox.margin>
+               <Insets bottom="10.0" />
+            </VBox.margin></Region>   <!-- spacer -->
+            <fx:include source="../inner_center/inner_center.fxml" />
+        </VBox>
+    </center>
+</BorderPane>

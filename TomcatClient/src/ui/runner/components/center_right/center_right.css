@@ -1,0 +1,21 @@
+#cyclesLbl{
+    -fx-border-color:blue;
+    -fx-border-width:0.7;
+    -fx-background-color: #BF1FD1FF;
+}
+#varTable{
+    -fx-border-color:blue;
+    -fx-border-width:0.7;
+    -fx-background-color: #BF1FD1FF;
+}
+#inputTable{
+    -fx-border-color:blue;
+    -fx-border-width:0.7;
+    -fx-background-color: #5A64F6FF;
+}
+#dashboardBtn{
+    -fx-background-color: #62ad61;
+}
+#architectureChoiceBox{
+    -fx-background-color:#5A64F6FF ;
+}

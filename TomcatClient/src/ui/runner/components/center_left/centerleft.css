@@ -6,7 +6,7 @@
     -fx-text-fill: white;
     -fx-font-weight: bold;
 }
-.button:pressed{
+#expandBtn:pressed{
     -fx-background-color: #388E3C;
 }
 #currDegreeLbl{
