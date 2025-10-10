@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+
+<HBox alignment="CENTER_LEFT" minHeight="30.0" minWidth="50.0" stylesheets="@header.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1">
+   <children>
+      <Label fx:id="userNameLbl" text="User Name">
+         <HBox.margin>
+            <Insets left="15.0" />
+         </HBox.margin></Label>
+       <Region HBox.hgrow="ALWAYS" />
+      <Label fx:id="titleLbl" text="S-Emulator - " />
+       <Region HBox.hgrow="ALWAYS">
+         <HBox.margin>
+            <Insets />
+         </HBox.margin></Region>
+      <Label fx:id="creditsLbl" text="Credits: ">
+         <HBox.margin>
+            <Insets right="30.0" />
+         </HBox.margin></Label>
+   </children>
+</HBox>
