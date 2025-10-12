@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
 
-<GridPane hgap="10" maxWidth="Infinity" minHeight="32" prefHeight="32" prefWidth="800" stylesheets="@file_line.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1">
+<GridPane hgap="10" maxWidth="Infinity" minHeight="32" prefHeight="32" prefWidth="800" stylesheets="@file_line.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.dashboard.components.file_line.FileLineController">
    <columnConstraints>
       <ColumnConstraints prefWidth="164" />
       <ColumnConstraints hgrow="ALWAYS" prefWidth="394" />
@@ -19,7 +19,7 @@
    </rowConstraints>
 
    <children>
-      <Button maxWidth="Infinity" text="Load File Button" />
+      <Button fx:id="loadButton" maxWidth="Infinity" onAction="#onLoadFile" text="Load File Button" />
 
       <Label id="statusLabel" fx:id="status" maxHeight="1.7976931348623157E308" maxWidth="Infinity" text=" No File Loaded" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" />
 
