@@ -163,6 +163,19 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
         }
     }
 
+    public LoadOutcome loadProgramFromString(String xml) {
+        var outcome = new ProgramLoaderJaxb().loadFromString(xml);
+        if (!outcome.ok()) {
+            return new LoadOutcome(false, outcome.errors());
+        }
+        this.current = outcome.program();
+        this.functions = outcome.functions();
+        this.version++;
+        this.history.clear();
+        return new LoadOutcome(true, List.of());
+    }
+
+
     private static Path addExt(Path p, String ext) {
         String s = p.toString();
         return s.endsWith(ext) ? p : Paths.get(s + ext);

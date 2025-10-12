@@ -1,4 +1,4 @@
-// java
+// BaseApiServlet.java
 package server_core;
 
 import jakarta.servlet.http.HttpServlet;
@@ -10,27 +10,16 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 abstract class BaseApiServlet extends HttpServlet {
-    // Shared in\-memory state
+    // Shared in-memory state
     protected static final Map<String, User> USERS = new ConcurrentHashMap<>();
     protected static final AtomicLong VERSION = new AtomicLong(1);
+    protected static final java.util.Map<String, ProgramMeta> PROGRAMS = new java.util.concurrent.ConcurrentHashMap<>();
+    protected static final java.util.Map<String, FunctionMeta> FUNCTIONS = new java.util.concurrent.ConcurrentHashMap<>();
 
-    // Simple user model kept in memory
-    protected static final class User {
-        final String name;
-        final AtomicLong credits = new AtomicLong(0);
-        final AtomicLong creditsSpent = new AtomicLong(0);
-        final AtomicInteger runsCount = new AtomicInteger(0);
-        final AtomicInteger helperContrib = new AtomicInteger(0);
-        final AtomicInteger mainUploaded = new AtomicInteger(0);
-        volatile long lastSeenMs = System.currentTimeMillis();
-        User(String name) { this.name = name; }
-    }
-
-    // Helpers
+    // -------- Helpers --------
     protected static String subPath(HttpServletRequest req) {
         String p = req.getPathInfo();
         return (p == null || p.isEmpty()) ? "/" : p;
@@ -92,4 +81,18 @@ abstract class BaseApiServlet extends HttpServlet {
         if (s == e) return null;
         try { return Long.parseLong(json.substring(s, e)); } catch (NumberFormatException ex) { return null; }
     }
+
+    protected static String toJsonArray(java.util.Collection<String> items) {
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (String s : items) {
+            if (!first) sb.append(',');
+            first = false;
+            sb.append('"').append(esc(s)).append('"');
+        }
+        sb.append(']');
+        return sb.toString();
+    }
+
+
 }

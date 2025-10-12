@@ -18,6 +18,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
+
+import javax.xml.transform.stream.StreamSource;
+import java.io.StringReader;
+
 public final class ProgramLoaderJaxb implements ProgramLoader {
 
     @Override
@@ -102,6 +106,13 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
             return LoadOutcome.error(errs);
         }
     }
+
+
+
+
+
+
+
 
     private static Program mapProgramFrom(SInstructions block, String name, String userString, List<String> errs) {
         Program p = new Program(name);
@@ -252,4 +263,80 @@ public final class ProgramLoaderJaxb implements ProgramLoader {
         } catch (Exception ignore) {}
         return null;
     }
+
+
+    /** New: load directly from XML text (no files) */
+    public LoadOutcome loadFromString(String xml) {
+        var errs = new ArrayList<String>();
+        try {
+            if (xml == null || xml.isBlank()) {
+                return LoadOutcome.error(List.of("Empty XML"));
+            }
+            JAXBContext ctx = JAXBContext.newInstance(ObjectFactory.class);
+            Unmarshaller u = ctx.createUnmarshaller();
+
+            // Optional: try to attach schema like load(Path) does (you can skip it if you want)
+            Schema schema = tryLoadSchema(null);
+            List<String> schemaErrs = new ArrayList<>();
+            if (schema != null) {
+                u.setSchema(schema);
+                u.setEventHandler(event -> {  // same as in load(Path)
+                    ValidationEventLocator loc = event.getLocator();
+                    String pos = (loc != null) ? (" line " + loc.getLineNumber() + ", col " + loc.getColumnNumber()) : "";
+                    String sev = switch (event.getSeverity()) {
+                        case ValidationEvent.WARNING -> "Warning";
+                        case ValidationEvent.ERROR -> "Error";
+                        case ValidationEvent.FATAL_ERROR -> "Fatal";
+                        default -> "Unknown";
+                    };
+                    schemaErrs.add(sev + pos + ": " + event.getMessage());
+                    return true;
+                });
+            }
+
+            // Unmarshal from memory
+            SProgram root = (SProgram) u.unmarshal(new StreamSource(new StringReader(xml)));
+            if (!schemaErrs.isEmpty()) return LoadOutcome.error(schemaErrs);
+
+            if (root == null || root.getSInstructions() == null || root.getSInstructions().getSInstruction() == null) {
+                return LoadOutcome.error(List.of("Empty or invalid <S-Program>."));
+            }
+
+            // Everything else is the SAME logic you already have:
+            Program program = mapProgramFrom(
+                    root.getSInstructions(),
+                    (root.getName() == null ? "Unnamed" : root.getName()),
+                    "",
+                    errs
+            );
+
+            Map<String, Program> functions = new LinkedHashMap<>();
+            if (root.getSFunctions() != null && root.getSFunctions().getSFunction() != null) {
+                for (SFunction f : root.getSFunctions().getSFunction()) {
+                    String formalName = safe(f.getName());
+                    String userString = safe(f.getUserString());
+                    if (formalName.isBlank()) { errs.add("Function with empty 'name' attribute."); continue; }
+                    if (functions.containsKey(formalName)) { errs.add("Duplicate function name: " + formalName); continue; }
+                    if (f.getSInstructions() == null || f.getSInstructions().getSInstruction() == null) {
+                        errs.add("Function '" + formalName + "' has no <S-Instructions>.");
+                        continue;
+                    }
+                    Program body = mapProgramFrom(f.getSInstructions(),
+                            userString.isBlank() ? formalName : userString,"",
+                            errs);
+                    functions.put(formalName, body);
+                }
+            }
+
+            labelSanity(program, errs);
+            if (!errs.isEmpty()) return LoadOutcome.error(errs);
+            return LoadOutcome.ok(program, functions);
+
+        } catch (Exception e) {
+            errs.add("Parse error: " + e.getMessage());
+            return LoadOutcome.error(errs);
+        }
+    }
+
+
 }
