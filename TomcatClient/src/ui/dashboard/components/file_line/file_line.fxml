@@ -2,6 +2,7 @@
 
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
@@ -23,7 +24,6 @@
       <Label id="statusLabel" fx:id="status" maxHeight="1.7976931348623157E308" maxWidth="Infinity" text=" No File Loaded" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" />
 
       <Button text="Charge Credits" GridPane.columnIndex="2" />
-
-      <Label id="creditsLabel" fx:id="credits" alignment="CENTER_LEFT" maxHeight="1.7976931348623157E308" maxWidth="Infinity" text=" Credits:" GridPane.columnIndex="3" />
+      <TextField fx:id="creditsTextBox" alignment="CENTER" maxHeight="1.7976931348623157E308" promptText="Enter Credits" GridPane.columnIndex="3" GridPane.hgrow="ALWAYS" />
    </children>
 </GridPane>

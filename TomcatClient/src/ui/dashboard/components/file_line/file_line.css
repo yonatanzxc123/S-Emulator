@@ -15,3 +15,9 @@
     -fx-border-width: 1;
     -fx-background-color: #FEF3C4;
 }
+.text-field{
+    -fx-border-color: black;
+    -fx-border-width: 1;
+    -fx-background-color: #FEF3C4;
+    -fx-text-fill: black;
+}

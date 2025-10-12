@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox alignment="CENTER" prefHeight="220" prefWidth="420" spacing="10" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.components.login.LoginScreenController">
+    <padding><Insets bottom="20" left="20" right="20" top="20" /></padding>
+    <Label text="Login" />
+    <TextField fx:id="usernameField" onAction="#onLogin" promptText="Enter username" />
+    <Button fx:id="loginButton" onAction="#onLogin" text="Login" />
+    <Label fx:id="errorLabel" textFill="red" />
+</VBox>
