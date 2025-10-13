@@ -21,12 +21,15 @@ public class ClientApp extends Application {
         System.out.println("API base = " + base);
         this.ctx = new AppContext(new ApiClient(base, true));
 
-        if (!ctx.api().health()) {
-            System.err.println("Health check failed at: " + base + "/api/health");
-        }
-
         showLogin();
         stage.show();
+    }
+
+    @Override
+    public void stop() {
+        try {
+        } catch (Exception ignored) {
+        }
     }
 
     private void showLogin() throws Exception {

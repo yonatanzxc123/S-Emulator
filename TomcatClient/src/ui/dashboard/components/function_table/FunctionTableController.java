@@ -1,3 +1,4 @@
+// java
 package ui.dashboard.components.function_table;
 
 import javafx.collections.FXCollections;
@@ -6,6 +7,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
+import ui.net.ApiClient;
 
 import java.util.Collection;
 
@@ -28,10 +30,10 @@ public class FunctionTableController {
         if (degreeCol != null) degreeCol.setCellValueFactory(new PropertyValueFactory<>("maxDegree"));
     }
 
-    public void addFunctions(String programName, String owner, int instrDeg0, int maxDegree, Collection<String> functions) {
+    public void addFunctions(String programName, String owner, Collection<ApiClient.FunctionInfo> functions) {
         if (functions == null) return;
-        for (String fn : functions) {
-            items.add(new FunctionRow(programName, fn, owner, instrDeg0, maxDegree));
+        for (ApiClient.FunctionInfo f : functions) {
+            items.add(new FunctionRow(programName, f.name, owner, f.instr, f.maxDegree));
         }
     }
 }

@@ -1,3 +1,4 @@
+// java
 package ui.dashboard.components.program_table;
 
 import javafx.collections.FXCollections;
@@ -14,21 +15,21 @@ public class ProgramTableController {
     @FXML private TableColumn<ProgramRow, Number> instrCol;
     @FXML private TableColumn<ProgramRow, Number> degreeCol;
     @FXML private TableColumn<ProgramRow, Number> runsCol;
-    @FXML private TableColumn<ProgramRow, Number> costCol;
+    @FXML private TableColumn<ProgramRow, Number> creditsCol;
 
     private final ObservableList<ProgramRow> items = FXCollections.observableArrayList();
 
     public void init() {
         if (table != null) table.setItems(items);
         if (nameCol != null) nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
-        if (uploaderCol != null) uploaderCol.setCellValueFactory(new PropertyValueFactory<>("uploaderName"));
+        if (uploaderCol != null) uploaderCol.setCellValueFactory(new PropertyValueFactory<>("uploader"));
         if (instrCol != null) instrCol.setCellValueFactory(new PropertyValueFactory<>("instrCount"));
         if (degreeCol != null) degreeCol.setCellValueFactory(new PropertyValueFactory<>("maxDegree"));
         if (runsCol != null) runsCol.setCellValueFactory(new PropertyValueFactory<>("timesRun"));
-        if (costCol != null) costCol.setCellValueFactory(new PropertyValueFactory<>("creditsCost"));
+        if (creditsCol != null) creditsCol.setCellValueFactory(new PropertyValueFactory<>("creditsCost"));
     }
 
-    public void addProgram(String name, String uploader, int instrDeg0, int maxDegree) {
-        items.add(new ProgramRow(name, uploader, instrDeg0, maxDegree, 0, 0));
+    public void addProgram(String name, String uploader, int instrCount, int maxDegree) {
+        items.add(new ProgramRow(name, uploader, instrCount, maxDegree, 0, 0));
     }
 }

@@ -32,6 +32,8 @@ public class FileLineController {
         this.ctx = ctx;
         this.programTable = programTable;
         this.functionTable = functionTable;
+        if (status != null) status.setText("No file loaded");
+        if (loadButton != null) loadButton.setText("Load File");
     }
 
     @FXML
@@ -50,7 +52,7 @@ public class FileLineController {
         try {
             xml = Files.readString(file.toPath(), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            showError("Failed reading file: " + e.getMessage());
+            showError("Read failed", e.getMessage());
             return;
         }
 
@@ -59,40 +61,32 @@ public class FileLineController {
 
         Thread t = new Thread(() -> {
             try {
-                var api = ApiClient.get();
-                var res = api.uploadProgram(xml);
+                ApiClient.ProgramInfo res = ctx.api().uploadProgram(xml);
                 Platform.runLater(() -> {
-                    if (res.ok) {
-                        if (programTable != null) {
-                            programTable.addProgram(res.programName, res.owner, res.instrDeg0, res.maxDegree);
-                        }
-                        if (functionTable != null) {
-                            functionTable.addFunctions(res.programName, res.owner, res.instrDeg0, res.maxDegree, res.functions);
-                        }
-                        if (status != null) status.setText("Uploaded: " + res.programName + " (" + res.functions.size() + " functions)");
-                    } else {
-                        showError(res.error != null ? res.error : "Upload failed");
-                        if (status != null) status.setText("Upload failed");
+                    if (programTable != null) {
+                        programTable.addProgram(res.name, res.owner, res.instrDeg0, res.maxDegree);
                     }
-                    if (loadButton != null) loadButton.setDisable(false);
+                    if (functionTable != null && res.functions != null && !res.functions.isEmpty()) {
+                        functionTable.addFunctions(res.name, res.owner, res.functions);
+                    }
+                    if (status != null) status.setText("Uploaded " + res.name + " by " + res.owner);
                 });
-            } catch (Exception ex) {
-                Platform.runLater(() -> {
-                    showError("Network error: " + ex.getMessage());
-                    if (status != null) status.setText("Upload failed");
-                    if (loadButton != null) loadButton.setDisable(false);
-                });
+            } catch (Exception e) {
+                Platform.runLater(() -> showError("Upload failed", e.getMessage()));
+            } finally {
+                Platform.runLater(() -> { if (loadButton != null) loadButton.setDisable(false); });
             }
-        }, "upload-xml");
+        }, "upload-program");
         t.setDaemon(true);
         t.start();
     }
 
-    private void showError(String msg) {
+    private void showError(String header, String msg) {
+        if (status != null) status.setText("Error: " + header);
         Alert a = new Alert(Alert.AlertType.ERROR);
-        a.setTitle("Upload failed");
-        a.setHeaderText(null);
-        a.setContentText(msg);
-        a.show();
+        a.setTitle("Error");
+        a.setHeaderText(header);
+        a.setContentText(msg == null ? "" : msg);
+        a.showAndWait();
     }
 }

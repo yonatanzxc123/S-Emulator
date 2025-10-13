@@ -5,12 +5,14 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import ui.AppContext;
 import ui.net.ApiClient;
 
 public class LoginScreenController {
     @FXML private TextField usernameField;
+    @FXML private PasswordField passwordField;
     @FXML private Label errorLabel;
     @FXML private Button loginButton;
 
@@ -24,35 +26,55 @@ public class LoginScreenController {
 
     @FXML
     private void onLogin() {
-        String username = usernameField.getText() == null ? "" : usernameField.getText().trim();
-        errorLabel.setText("");
+        String username = (usernameField == null || usernameField.getText() == null)
+                ? "" : usernameField.getText().trim();
+        String password = (passwordField == null || passwordField.getText() == null)
+                ? "" : passwordField.getText();
+
+        if (errorLabel != null) errorLabel.setText("");
         if (username.isBlank()) {
-            errorLabel.setText("Username is required");
+            if (errorLabel != null) errorLabel.setText("Enter username");
             return;
         }
+
         setBusy(true);
+
         Task<ApiClient.LoginResult> task = new Task<>() {
-            @Override protected ApiClient.LoginResult call() { return ctx.api().login(username); }
+            @Override
+            protected ApiClient.LoginResult call() throws Exception {
+                return ctx.api().login(username, password);
+            }
         };
-        task.setOnSucceeded(e -> {
+
+        task.setOnSucceeded(ev -> {
             setBusy(false);
-            ApiClient.LoginResult r = task.getValue();
-            if (r.success) {
-                ctx.setUsername(username);
-                onSuccess.run();
+            ApiClient.LoginResult res = task.getValue();
+            if (res != null && res.success) {
+                if (onSuccess != null) onSuccess.run();
             } else {
-                errorLabel.setText(r.error != null ? r.error : "Login failed");
+                if (errorLabel != null) {
+                    errorLabel.setText((res == null || res.error == null || res.error.isBlank())
+                            ? "Login failed" : res.error);
+                }
             }
         });
-        task.setOnFailed(e -> {
+
+        task.setOnFailed(ev -> {
             setBusy(false);
-            errorLabel.setText("Unexpected error");
+            if (errorLabel != null) {
+                Throwable ex = task.getException();
+                errorLabel.setText(ex == null ? "Login failed" : ex.getMessage());
+            }
         });
-        new Thread(task, "login-thread").start();
+
+        Thread t = new Thread(task, "login");
+        t.setDaemon(true);
+        t.start();
     }
 
     private void setBusy(boolean busy) {
         if (loginButton != null) loginButton.setDisable(busy);
         if (usernameField != null) usernameField.setDisable(busy);
+        if (passwordField != null) passwordField.setDisable(busy);
     }
 }

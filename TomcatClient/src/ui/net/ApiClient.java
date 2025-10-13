@@ -8,7 +8,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,233 +19,323 @@ public class ApiClient {
     private final HttpClient client;
     private final boolean debug;
 
+    // remember logged-in user (if any); session cookies are inside HttpClient's CookieManager
+    private volatile String loggedInUser = null;
+
     public ApiClient(String baseUrl) { this(baseUrl, false); }
 
     public ApiClient(String baseUrl, boolean debug) {
-        String b = (baseUrl == null || baseUrl.isBlank())
-                ? System.getProperty("api.base")
-                : baseUrl;
-        if (b == null || b.isBlank()) b = "http://localhost:8080/server_Web_exploded";
-        this.base = trimRightSlash(b);
+        this.base = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.debug = debug;
-
-        var cm = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
+        CookieManager cm = new CookieManager();
+        cm.setCookiePolicy(CookiePolicy.ACCEPT_ALL);
         this.client = HttpClient.newBuilder()
-                .cookieHandler(cm)
                 .connectTimeout(Duration.ofSeconds(10))
+                .cookieHandler(cm)
                 .build();
-
-        if (debug) System.out.println("[ApiClient] base = " + this.base);
+        INSTANCE = this;
     }
 
     public static ApiClient get() {
-        ApiClient inst = INSTANCE;
-        if (inst == null) {
-            synchronized (ApiClient.class) {
-                inst = INSTANCE;
-                if (inst == null) INSTANCE = inst = new ApiClient(System.getProperty("api.base"), true);
-            }
-        }
-        return inst;
+        ApiClient x = INSTANCE;
+        if (x == null) throw new IllegalStateException("ApiClient not initialized");
+        return x;
     }
 
-    private static String trimRightSlash(String s) {
-        int e = s.length();
-        while (e > 0 && s.charAt(e - 1) == '/') e--;
-        return s.substring(0, e);
-    }
-
-    private URI url(String path) {
-        String p = (path == null) ? "" : path.strip();
-        if (!p.startsWith("/")) p = "/" + p;
-        String full = base + p;
-        if (debug) System.out.println("[ApiClient] HTTP " + full);
-        return URI.create(full);
-    }
-
-    private HttpResponse<String> send(HttpRequest req) throws IOException, InterruptedException {
-        return client.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-    }
-
-    // ---- Auth ----
+    // ---------- Login ----------
 
     public static final class LoginResult {
         public final boolean success;
-        public final String username;
-        public final long credits;
         public final String error;
+        public final String username;
 
-        public LoginResult(boolean success, String username, long credits, String error) {
+        public LoginResult(boolean success, String error, String username) {
             this.success = success;
-            this.username = username;
-            this.credits = credits;
             this.error = error;
+            this.username = username;
         }
     }
 
-    public LoginResult login(String username) {
-        try {
-            String body = "{\"username\":\"" + esc(username == null ? "" : username.trim()) + "\"}";
-            var req = HttpRequest.newBuilder(url("/api/login"))
-                    .header("Content-Type", "application/json; charset=UTF-8")
-                    .timeout(Duration.ofSeconds(10))
-                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+    public LoginResult login(String username, String password) throws IOException, InterruptedException {
+        // Try a real auth endpoint first; fall back to /api/health if auth is not present
+        String body = "{\"username\":\"" + jsonEsc(username) + "\",\"password\":\"" + jsonEsc(password) + "\"}";
+
+        HttpRequest req = HttpRequest.newBuilder(url("/api/auth/login"))
+                .timeout(Duration.ofSeconds(10))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        String s = resp.body() == null ? "" : resp.body();
+
+        if (resp.statusCode() == 404) {
+            // fallback: treat server as dev mode; ping health and accept any username
+            if (debug) System.out.println("[ApiClient] /api/auth/login not found; falling back to /api/health");
+            HttpRequest health = HttpRequest.newBuilder(url("/api/health"))
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
                     .build();
-            var resp = send(req);
-            int code = resp.statusCode();
-            String s = resp.body();
-            if (debug) System.out.println("[ApiClient] /api/login -> " + code + " " + s);
-
-            if (code == 200) {
-                String u = pickStr(s, "username");
-                long credits = pickLong(s, "credits", 0L);
-                return new LoginResult(true, u, credits, null);
+            HttpResponse<String> h = client.send(health, HttpResponse.BodyHandlers.ofString());
+            boolean ok = (h.statusCode() == 200) && jBool(h.body(), "ok", false);
+            if (ok) {
+                this.loggedInUser = username;
+                return new LoginResult(true, null, username);
             }
-            String errCode = pickStr(s, "error");
-            String msg = humanizeLoginError(errCode);
-            return new LoginResult(false, null, 0L, msg != null ? msg : ("HTTP " + code));
-        } catch (Exception e) {
-            return new LoginResult(false, null, 0L, "Network error");
+            return new LoginResult(false, "Server is unavailable", null);
+        }
+
+        if (resp.statusCode() != 200) {
+            String err = jStr(s, "error");
+            String det = jStr(s, "details");
+            if (det != null && !det.isBlank()) {
+                err = (err == null || err.isBlank()) ? det : err + " (" + det + ")";
+            }
+            return new LoginResult(false, (err == null || err.isBlank()) ? ("HTTP " + resp.statusCode()) : err, null);
+        }
+
+        boolean ok = jBool(s, "ok", false);
+        if (ok) {
+            this.loggedInUser = username;
+            return new LoginResult(true, null, username);
+        }
+        String err = jStr(s, "error");
+        return new LoginResult(false, (err == null || err.isBlank()) ? "Login failed" : err, null);
+    }
+
+    public String currentUser() { return loggedInUser; }
+
+    // ---------- Catalog / Programs ----------
+
+    public static final class FunctionInfo {
+        public final String name;
+        public final int instr;
+        public final int maxDegree;
+        public FunctionInfo(String name, int instr, int maxDegree) {
+            this.name = name;
+            this.instr = instr;
+            this.maxDegree = maxDegree;
         }
     }
 
-    private static String humanizeLoginError(String err) {
-        if (err == null) return null;
-        return switch (err) {
-            case "missing_username" -> "Username is required";
-            case "username_taken" -> "Username is already in use";
-            default -> err;
-        };
-    }
-
-    // ---- Programs ----
-
-    public static final class UploadResult {
-        public final boolean ok;
-        public final String programName;
+    public static final class ProgramInfo {
+        public final String name;
         public final String owner;
         public final int instrDeg0;
         public final int maxDegree;
-        public final List<String> functions;
-        public final String error;
-
-        public UploadResult(boolean ok, String programName, String owner, int instrDeg0, int maxDegree, List<String> functions, String error) {
-            this.ok = ok; this.programName = programName; this.owner = owner;
-            this.instrDeg0 = instrDeg0; this.maxDegree = maxDegree; this.functions = functions; this.error = error;
+        public final List<FunctionInfo> functions;
+        public ProgramInfo(String name, String owner, int instrDeg0, int maxDegree, List<FunctionInfo> functions) {
+            this.name = name;
+            this.owner = owner;
+            this.instrDeg0 = instrDeg0;
+            this.maxDegree = maxDegree;
+            this.functions = functions;
         }
     }
 
-    public UploadResult uploadProgram(String xml) throws IOException, InterruptedException {
-        String body = "{\"xml\":\"" + esc(xml == null ? "" : xml) + "\"}";
-        var req = HttpRequest.newBuilder(url("/api/programs/upload"))
-                .header("Content-Type", "application/json; charset=UTF-8")
-                .timeout(Duration.ofSeconds(20))
-                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+    public List<ProgramInfo> listPrograms() throws IOException, InterruptedException {
+        var req = HttpRequest.newBuilder(url("/api/programs"))
+                .timeout(Duration.ofSeconds(10))
+                .GET()
                 .build();
-        var resp = send(req);
-        int code = resp.statusCode();
+        var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) return List.of();
         String s = resp.body();
-        if (debug) System.out.println("[ApiClient] /api/programs/upload -> " + code + " " + s);
+        List<ProgramInfo> out = new ArrayList<>();
 
-        if (code == 200) {
-            String programName = pickNestedStr(s, "addedProgram", "name");
-            String owner = pickNestedStr(s, "addedProgram", "owner");
-            int instr = pickInt(s, "instrDeg0", 0);
-            int maxDeg = pickInt(s, "maxDegree", 0);
-            List<String> functions = pickArrayOfStrings(s, "provides");
-            return new UploadResult(true, programName, owner, instr, maxDeg, functions, null);
+        String k = "\"programs\"";
+        int i = s.indexOf(k); if (i < 0) return out;
+        int c = s.indexOf(':', i + k.length()); if (c < 0) return out;
+        int a1 = s.indexOf('[', c + 1); if (a1 < 0) return out;
+        int a2 = matchBracket(s, a1); if (a2 < 0) return out;
+        String arr = s.substring(a1 + 1, a2);
+
+        int pos = 0;
+        while (pos < arr.length()) {
+            int o1 = arr.indexOf('{', pos);
+            if (o1 < 0) break;
+            int o2 = matchBrace(arr, o1);
+            if (o2 < 0) break;
+            String obj = arr.substring(o1 + 1, o2);
+
+            String name = jStr(obj, "name");
+            String owner = jStr(obj, "owner");
+            int instr0 = jInt(obj, "instrDeg0", 0);
+            int maxDeg = jInt(obj, "maxDegree", 0);
+
+            List<FunctionInfo> flist = new ArrayList<>();
+            String fk = "\"functions\"";
+            int fi = obj.indexOf(fk);
+            if (fi >= 0) {
+                int fc = obj.indexOf(':', fi + fk.length());
+                int fa1 = obj.indexOf('[', fc + 1);
+                if (fa1 >= 0) {
+                    int fa2 = matchBracket(obj, fa1);
+                    if (fa2 > fa1) {
+                        String farr = obj.substring(fa1 + 1, fa2);
+                        int fpos = 0;
+                        while (fpos < farr.length()) {
+                            int fo1 = farr.indexOf('{', fpos);
+                            if (fo1 < 0) break;
+                            int fo2 = matchBrace(farr, fo1);
+                            if (fo2 < 0) break;
+                            String fobj = farr.substring(fo1 + 1, fo2);
+
+                            String fn = jStr(fobj, "name");
+                            int finstr = jInt(fobj, "instr", 0);
+                            int fdeg = jInt(fobj, "maxDegree", 0);
+                            if (!fn.isEmpty()) {
+                                flist.add(new FunctionInfo(fn, finstr, fdeg));
+                            }
+                            fpos = fo2 + 1;
+                        }
+                    }
+                }
+            }
+
+            out.add(new ProgramInfo(name, owner, instr0, maxDeg, flist));
+            pos = o2 + 1;
         }
-        String err = pickStr(s, "error");
-        return new UploadResult(false, null, null, 0, 0, List.of(), err != null ? err : ("HTTP " + code));
+        return out;
     }
 
-    // ---- Optional health check ----
-    public boolean health() {
-        try {
-            var req = HttpRequest.newBuilder(url("/api/health"))
-                    .GET()
-                    .header("Accept", "application/json")
-                    .timeout(Duration.ofSeconds(5))
-                    .build();
-            var resp = send(req);
-            if (resp.statusCode() != 200) return false;
-            String body = resp.body();
-            return body != null && body.contains("\"ok\":true");
-        } catch (Exception e) {
-            return false;
+    // Upload program XML and parse detailed functions
+    public ProgramInfo uploadProgram(String xml) throws IOException, InterruptedException {
+        String body = "{\"xml\":\"" + jsonEsc(xml) + "\"}";
+        var req = HttpRequest.newBuilder(url("/api/programs/upload"))
+                .timeout(Duration.ofSeconds(20))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        String s = resp.body() == null ? "" : resp.body();
+
+        if (resp.statusCode() != 200) {
+            String err = jStr(s, "error");
+            String det = jStr(s, "details");
+            if (det != null && !det.isBlank()) {
+                err = (err == null || err.isBlank()) ? det : err + " (" + det + ")";
+            }
+            throw new IOException(err == null || err.isBlank() ? ("HTTP " + resp.statusCode()) : err);
         }
-    }
 
-    // ---- JSON helpers ----
+        String programName = jStr(s, "programName");
+        String owner = jStr(s, "owner");
+        int instr0 = jInt(s, "instrDeg0", 0);
+        int maxDeg = jInt(s, "maxDegree", 0);
 
-    private static String esc(String s) {
-        return s.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r");
-    }
+        List<FunctionInfo> flist = new ArrayList<>();
+        String fk = "\"functionsDetailed\"";
+        int fi = s.indexOf(fk);
+        if (fi >= 0) {
+            int fc = s.indexOf(':', fi + fk.length());
+            int fa1 = s.indexOf('[', fc + 1);
+            if (fa1 >= 0) {
+                int fa2 = matchBracket(s, fa1);
+                if (fa2 > fa1) {
+                    String farr = s.substring(fa1 + 1, fa2);
+                    int fpos = 0;
+                    while (fpos < farr.length()) {
+                        int fo1 = farr.indexOf('{', fpos);
+                        if (fo1 < 0) break;
+                        int fo2 = matchBrace(farr, fo1);
+                        if (fo2 < 0) break;
+                        String fobj = farr.substring(fo1 + 1, fo2);
 
-    private static String pickNestedStr(String json, String objKey, String innerKey) {
-        if (json == null) return null;
-        String ok = "\"" + objKey + "\"";
-        int oi = json.indexOf(ok); if (oi < 0) return null;
-        int oc = json.indexOf('{', oi); if (oc < 0) return null;
-        int depth = 0, end = -1;
-        for (int i = oc; i < json.length(); i++) {
-            char c = json.charAt(i);
-            if (c == '{') depth++;
-            else if (c == '}') { depth--; if (depth == 0) { end = i; break; } }
+                        String fn = jStr(fobj, "name");
+                        int finstr = jInt(fobj, "instr", 0);
+                        int fdeg = jInt(fobj, "maxDegree", 0);
+                        if (!fn.isEmpty()) {
+                            flist.add(new FunctionInfo(fn, finstr, fdeg));
+                        }
+                        fpos = fo2 + 1;
+                    }
+                }
+            }
         }
-        if (end < 0) return null;
-        String sub = json.substring(oc, end + 1);
-        return pickStr(sub, innerKey);
+        return new ProgramInfo(programName, owner, instr0, maxDeg, flist);
     }
 
-    private static String pickStr(String json, String key) {
-        if (json == null) return null;
+    // --- tiny helpers for naive JSON parsing (flat keys) ---
+    private static int matchBracket(String s, int openIdx) {
+        int depth = 0;
+        for (int i = openIdx; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            if (ch == '[') depth++;
+            else if (ch == ']') {
+                depth--;
+                if (depth == 0) return i;
+            }
+        }
+        return -1;
+    }
+
+    private static int matchBrace(String s, int openIdx) {
+        int depth = 0;
+        for (int i = openIdx; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            if (ch == '{') depth++;
+            else if (ch == '}') {
+                depth--;
+                if (depth == 0) return i;
+            }
+        }
+        return -1;
+    }
+
+    private static String jStr(String json, String key) {
         String k = "\"" + key + "\"";
-        int i = json.indexOf(k); if (i < 0) return null;
-        int c = json.indexOf(':', i + k.length()); if (c < 0) return null;
-        int q1 = json.indexOf('"', c + 1); if (q1 < 0) return null;
-        int q2 = json.indexOf('"', q1 + 1); if (q2 < 0) return null;
+        int i = json.indexOf(k); if (i < 0) return "";
+        int c = json.indexOf(':', i + k.length()); if (c < 0) return "";
+        int q1 = json.indexOf('"', c + 1); if (q1 < 0) return "";
+        int q2 = json.indexOf('"', q1 + 1); if (q2 < 0) return "";
         return json.substring(q1 + 1, q2);
     }
 
-    private static int pickInt(String json, String key, int defVal) {
-        long v = pickLong(json, key, defVal);
-        return (int) v;
-    }
-
-    private static long pickLong(String json, String key, long defVal) {
-        if (json == null) return defVal;
+    private static int jInt(String json, String key, int def) {
         String k = "\"" + key + "\"";
-        int i = json.indexOf(k); if (i < 0) return defVal;
-        int c = json.indexOf(':', i + k.length()); if (c < 0) return defVal;
-        int s = c + 1;
-        while (s < json.length() && Character.isWhitespace(json.charAt(s))) s++;
-        int e = s;
+        int i = json.indexOf(k); if (i < 0) return def;
+        int c = json.indexOf(':', i + k.length()); if (c < 0) return def;
+        int e = c + 1;
+        while (e < json.length() && Character.isWhitespace(json.charAt(e))) e++;
+        int s = e;
         while (e < json.length() && "-0123456789".indexOf(json.charAt(e)) >= 0) e++;
-        if (s == e) return defVal;
-        try { return Long.parseLong(json.substring(s, e)); } catch (Exception ignored) { return defVal; }
+        try { return Integer.parseInt(json.substring(s, e)); } catch (Exception ignore) { return def; }
     }
 
-    private static List<String> pickArrayOfStrings(String json, String key) {
-        List<String> out = new ArrayList<>();
-        if (json == null) return out;
+    private static boolean jBool(String json, String key, boolean def) {
         String k = "\"" + key + "\"";
-        int i = json.indexOf(k); if (i < 0) return out;
-        int c = json.indexOf(':', i + k.length()); if (c < 0) return out;
-        int a1 = json.indexOf('[', c + 1); if (a1 < 0) return out;
-        int a2 = json.indexOf(']', a1 + 1); if (a2 < 0) return out;
-        String arr = json.substring(a1 + 1, a2);
-        for (String part : arr.split(",")) {
-            part = part.trim();
-            if (part.startsWith("\"") && part.endsWith("\"") && part.length() >= 2) {
-                out.add(part.substring(1, part.length() - 1)
-                        .replace("\\\"", "\"")
-                        .replace("\\\\", "\\"));
+        int i = json.indexOf(k); if (i < 0) return def;
+        int c = json.indexOf(':', i + k.length()); if (c < 0) return def;
+        int e = c + 1;
+        while (e < json.length() && Character.isWhitespace(json.charAt(e))) e++;
+        if (json.regionMatches(true, e, "true", 0, 4)) return true;
+        if (json.regionMatches(true, e, "false", 0, 5)) return false;
+        return def;
+    }
+
+    private static String jsonEsc(String s) {
+        if (s == null) return "";
+        StringBuilder sb = new StringBuilder(s.length() + 32);
+        for (int i = 0; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            switch (ch) {
+                case '\\' -> sb.append("\\\\");
+                case '"'  -> sb.append("\\\"");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\t' -> sb.append("\\t");
+                default -> {
+                    if (ch < 0x20) sb.append(String.format("\\u%04x", (int) ch));
+                    else sb.append(ch);
+                }
             }
         }
-        return out;
+        return sb.toString();
+    }
+
+    private URI url(String path) {
+        if (!path.startsWith("/")) path = "/" + path;
+        return URI.create(base + path);
     }
 }

@@ -1,4 +1,4 @@
-// BaseApiServlet.java
+// java
 package server_core;
 
 import jakarta.servlet.http.HttpServlet;
@@ -43,10 +43,27 @@ abstract class BaseApiServlet extends HttpServlet {
         return s.replace("\\","\\\\").replace("\"","\\\"").replace("\n","\\n");
     }
 
+    // Look up the logged-in user from the session.
+    // Prefer the "user" attribute (set by AuthServlet), with a legacy fallback to "username".
     protected static User optUser(HttpServletRequest req) {
         var ses = req.getSession(false);
-        Object o = (ses == null) ? null : ses.getAttribute("username");
-        return (o == null) ? null : USERS.get(o.toString());
+        if (ses == null) return null;
+
+        Object uAttr = ses.getAttribute("user");
+        if (uAttr instanceof User u) {
+            return u;
+        }
+
+        // Backward-compatible: if only username is present, materialize a User and cache it
+        Object nameAttr = ses.getAttribute("username");
+        if (nameAttr != null) {
+            String name = String.valueOf(nameAttr);
+            User u = USERS.computeIfAbsent(name, User::new);
+            ses.setAttribute("user", u); // migrate to the canonical attribute
+            return u;
+        }
+
+        return null;
     }
 
     protected static User requireUser(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -62,13 +79,63 @@ abstract class BaseApiServlet extends HttpServlet {
     // Naive JSON pickers (flat JSON only)
     protected static String jStr(String json, String key) {
         if (json == null) return null;
-        String n = "\"" + key + "\"";
-        int i = json.indexOf(n); if (i < 0) return null;
-        int c = json.indexOf(':', i + n.length()); if (c < 0) return null;
-        int q1 = json.indexOf('"', c + 1); if (q1 < 0) return null;
-        int q2 = json.indexOf('"', q1 + 1); if (q2 < 0) return null;
-        return json.substring(q1 + 1, q2);
+        String k = "\"" + key + "\"";
+        int i = json.indexOf(k);
+        if (i < 0) return null;
+        int c = json.indexOf(':', i + k.length());
+        if (c < 0) return null;
+
+        int p = c + 1, n = json.length();
+        while (p < n && Character.isWhitespace(json.charAt(p))) p++;
+        if (p >= n || json.charAt(p) != '"') return null;
+
+        StringBuilder out = new StringBuilder(json.length() - p);
+        boolean esc = false;
+        for (int q = p + 1; q < n; q++) {
+            char ch = json.charAt(q);
+            if (esc) {
+                switch (ch) {
+                    case '"': out.append('"'); break;
+                    case '\\': out.append('\\'); break;
+                    case '/': out.append('/'); break;
+                    case 'b': out.append('\b'); break;
+                    case 'f': out.append('\f'); break;
+                    case 'n': out.append('\n'); break;
+                    case 'r': out.append('\r'); break;
+                    case 't': out.append('\t'); break;
+                    case 'u':
+                        if (q + 4 < n) {
+                            int h = (hex(json.charAt(q + 1)) << 12)
+                                    | (hex(json.charAt(q + 2)) << 8)
+                                    | (hex(json.charAt(q + 3)) << 4)
+                                    | (hex(json.charAt(q + 4)));
+                            out.append((char) h);
+                            q += 4;
+                        }
+                        break;
+                    default:
+                        out.append(ch);
+                        break;
+                }
+                esc = false;
+            } else if (ch == '\\') {
+                esc = true;
+            } else if (ch == '"') {
+                return out.toString();
+            } else {
+                out.append(ch);
+            }
+        }
+        return null;
     }
+
+    private static int hex(char c) {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+        if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
+        return 0;
+    }
+
     protected static Long jLong(String json, String key) {
         if (json == null) return null;
         String n = "\"" + key + "\"";
@@ -93,6 +160,4 @@ abstract class BaseApiServlet extends HttpServlet {
         sb.append(']');
         return sb.toString();
     }
-
-
 }

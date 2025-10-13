@@ -4,31 +4,65 @@ package server_core;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 
-@WebServlet(name = "AuthServlet", urlPatterns = {"/api/login"}, loadOnStartup = 1)
+@WebServlet(name = "AuthServlet", urlPatterns = {"/api/auth/*"}, loadOnStartup = 1)
 public class AuthServlet extends BaseApiServlet {
+
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String sp = subPath(req);
+        if (sp == null) sp = "";
+        switch (sp) {
+            case "/login" -> handleLogin(req, resp);
+            case "/logout" -> handleLogout(req, resp);
+            default -> json(resp, 404, "{\"error\":\"not_found\"}");
+        }
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String sp = subPath(req);
+        if (sp == null) sp = "";
+        switch (sp) {
+            case "/me" -> handleMe(req, resp);
+            default -> json(resp, 404, "{\"error\":\"not_found\"}");
+        }
+    }
+
+    private void handleLogin(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String body = readBody(req);
         String username = jStr(body, "username");
+        // In dev mode accept any password; add real checks here if needed
         if (username == null || username.isBlank()) {
             json(resp, 400, "{\"error\":\"missing_username\"}");
             return;
         }
-        username = username.trim();
 
-        if (USERS.containsKey(username)) {
-            json(resp, 409, "{\"error\":\"username_taken\"}");
-            return;
-        }
+        HttpSession session = req.getSession(true); // ensures Set-Cookie: JSESSIONID
+        // Store a User so ProgramsServlet.usernameOf(u) can read name()
+        session.setAttribute("user", new User(username));
 
-        User u = new User(username);
-        USERS.put(username, u);
-        req.getSession(true).setAttribute("username", username);
-        VERSION.incrementAndGet();
+        json(resp, 200, "{\"ok\":true,\"username\":\"" + esc(username) + "\"}");
+    }
 
-        json(resp, 200, "{\"ok\":true,\"username\":\"" + esc(username) + "\",\"credits\":" + u.credits.get() + "}");
+    private void handleLogout(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        HttpSession ses = req.getSession(false);
+        if (ses != null) ses.invalidate();
+        json(resp, 200, "{\"ok\":true}");
+    }
+
+    private void handleMe(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        Object u = requireUser(req, resp);
+        if (u == null) return; // requireUser already wrote 401
+        String name = "unknown";
+        try {
+            var m = u.getClass().getMethod("name");
+            Object v = m.invoke(u);
+            name = v == null ? "unknown" : String.valueOf(v);
+        } catch (Exception ignored) {}
+        json(resp, 200, "{\"ok\":true,\"username\":\"" + esc(name) + "\"}");
     }
 }

@@ -14,4 +14,6 @@ public final class User {
     volatile long lastSeenMs = System.currentTimeMillis();
 
     User(String name) { this.name = name; }
+
+    public String name() { return name; }
 }
