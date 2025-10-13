@@ -35,20 +35,29 @@ public class AuthServlet extends BaseApiServlet {
     private void handleLogin(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String body = readBody(req);
         String username = jStr(body, "username");
-        // In dev mode accept any password; add real checks here if needed
         if (username == null || username.isBlank()) {
             json(resp, 400, "{\"error\":\"missing_username\"}");
             return;
         }
 
+        // Reserve the username for the lifetime of this server process.
+        // If it was ever used before, reject as taken.
+        User newUser = new User(username);
+        User existing = USERS.putIfAbsent(username, newUser);
+        if (existing != null) {
+            json(resp, 409, "{\"error\":\"username_taken\"}");
+            return;
+        }
+
+        // Create session and bind the reserved user
         HttpSession session = req.getSession(true); // ensures Set-Cookie: JSESSIONID
-        // Store a User so ProgramsServlet.usernameOf(u) can read name()
-        session.setAttribute("user", new User(username));
+        session.setAttribute("user", newUser);
 
         json(resp, 200, "{\"ok\":true,\"username\":\"" + esc(username) + "\"}");
     }
 
     private void handleLogout(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        // Do NOT remove from USERS; keep the name reserved until server restart.
         HttpSession ses = req.getSession(false);
         if (ses != null) ses.invalidate();
         json(resp, 200, "{\"ok\":true}");

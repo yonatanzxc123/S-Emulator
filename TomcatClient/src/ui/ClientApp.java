@@ -28,6 +28,10 @@ public class ClientApp extends Application {
     @Override
     public void stop() {
         try {
+            if (ctx != null && ctx.api() != null) {
+                // Invalidate server session but keep the remembered username locally
+                ctx.api().logout(true);
+            }
         } catch (Exception ignored) {
         }
     }
