@@ -17,7 +17,7 @@ public class ClientApp extends Application {
     public void start(Stage primaryStage) throws Exception {
         this.stage = primaryStage;
 
-        String base = System.getProperty("api.base", "http://localhost:8080/server");
+        String base = System.getProperty("api.base", "http://localhost:8080/server_Web_exploded");
         System.out.println("API base = " + base);
         this.ctx = new AppContext(new ApiClient(base, true));
 

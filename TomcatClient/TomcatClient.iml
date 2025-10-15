@@ -7,18 +7,15 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="JavaFX" level="project" />
+    <orderEntry type="library" exported="" name="lib" level="project" />
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="file://$USER_HOME$/Downloads/jaxb-ri-4.0.5/jaxb-ri-4.0.5/mod" />
+          <root url="file://$USER_HOME$/JavaProjExtraFiles/javafx-sdk-22.0.2/lib" />
         </CLASSES>
         <JAVADOC />
-        <SOURCES>
-          <root url="file://$USER_HOME$/Downloads/jaxb-ri-4.0.5/jaxb-ri-4.0.5/mod" />
-        </SOURCES>
-        <jarDirectory url="file://$USER_HOME$/Downloads/jaxb-ri-4.0.5/jaxb-ri-4.0.5/mod" recursive="false" />
-        <jarDirectory url="file://$USER_HOME$/Downloads/jaxb-ri-4.0.5/jaxb-ri-4.0.5/mod" recursive="false" type="SOURCES" />
+        <SOURCES />
+        <jarDirectory url="file://$USER_HOME$/JavaProjExtraFiles/javafx-sdk-22.0.2/lib" recursive="false" />
       </library>
     </orderEntry>
   </component>
