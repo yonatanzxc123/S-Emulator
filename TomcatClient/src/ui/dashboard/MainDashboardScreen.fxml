@@ -1,16 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.layout.BorderPane?>
 
-<BorderPane fx:id="mainDashboardScreen" stylesheets="@mainDashboardScreen.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1">
+<BorderPane fx:id="mainDashboardScreen"
+            xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="ui.dashboard.MainDashboardScreenController">
    <top>
-      <fx:include source="../components/header/header.fxml" BorderPane.alignment="TOP_CENTER" />
+      <fx:include fx:id="header" source="../components/header/header.fxml" BorderPane.alignment="TOP_CENTER" />
    </top>
    <center>
-      <fx:include source="components/center/center.fxml" />
+      <fx:include fx:id="center" source="components/center/center.fxml" />
    </center>
-   <padding>
-      <Insets bottom="15" left="15" right="15" />
-   </padding>
 </BorderPane>

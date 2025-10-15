@@ -7,24 +7,18 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="JavaFX" level="project" />
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="file://$USER_HOME$/Downloads/okHttp" />
+          <root url="file://$USER_HOME$/Downloads/jaxb-ri-4.0.5/jaxb-ri-4.0.5/mod" />
         </CLASSES>
         <JAVADOC />
-        <SOURCES />
-        <jarDirectory url="file://$USER_HOME$/Downloads/okHttp" recursive="false" />
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library">
-      <library>
-        <CLASSES>
-          <root url="file://$USER_HOME$/Downloads/openjfx-22.0.2_windows-x64_bin-sdk/javafx-sdk-22.0.2/lib" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-        <jarDirectory url="file://$USER_HOME$/Downloads/openjfx-22.0.2_windows-x64_bin-sdk/javafx-sdk-22.0.2/lib" recursive="false" />
+        <SOURCES>
+          <root url="file://$USER_HOME$/Downloads/jaxb-ri-4.0.5/jaxb-ri-4.0.5/mod" />
+        </SOURCES>
+        <jarDirectory url="file://$USER_HOME$/Downloads/jaxb-ri-4.0.5/jaxb-ri-4.0.5/mod" recursive="false" />
+        <jarDirectory url="file://$USER_HOME$/Downloads/jaxb-ri-4.0.5/jaxb-ri-4.0.5/mod" recursive="false" type="SOURCES" />
       </library>
     </orderEntry>
   </component>
