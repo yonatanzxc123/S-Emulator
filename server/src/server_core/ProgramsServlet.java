@@ -37,13 +37,6 @@ public class ProgramsServlet extends BaseApiServlet {
             return;
         }
 
-        // ✅ Serve: /api/programs/{name}/body
-        if (sp.startsWith("/") && sp.endsWith("/body") && sp.length() > "/body".length() + 1) {
-            String programName = sp.substring(1, sp.length() - "/body".length());
-            serveProgramBody(programName, resp);
-            return;
-        }
-
         json(resp, 404, "{\"error\":\"not_found\"}");
     }
 
