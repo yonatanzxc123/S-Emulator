@@ -53,7 +53,7 @@ public class AuthServlet extends BaseApiServlet {
         HttpSession session = req.getSession(true); // ensures Set-Cookie: JSESSIONID
         session.setAttribute("user", newUser);
 
-        json(resp, 200, "{\"ok\":true,\"username\":\"" + esc(username) + "\"}");
+        json(resp, 200, "{\"ok\":true,\"username\":\"" + esc(username) + "\"," + "\"credits\":" + newUser.credits.get()+ "}");
     }
 
     private void handleLogout(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -64,14 +64,9 @@ public class AuthServlet extends BaseApiServlet {
     }
 
     private void handleMe(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        Object u = requireUser(req, resp);
+        User u = requireUser(req, resp);
         if (u == null) return; // requireUser already wrote 401
-        String name = "unknown";
-        try {
-            var m = u.getClass().getMethod("name");
-            Object v = m.invoke(u);
-            name = v == null ? "unknown" : String.valueOf(v);
-        } catch (Exception ignored) {}
-        json(resp, 200, "{\"ok\":true,\"username\":\"" + esc(name) + "\"}");
-    }
+        String name = u.name();
+
+        json(resp, 200, "{" + "\"ok\":true," + "\"username\":\"" + esc(name) + "\"," + "\"credits\":" + u.credits.get() + "}");    }
 }

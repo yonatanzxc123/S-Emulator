@@ -4,14 +4,18 @@ import system.api.EmulatorEngine;
 import system.api.HistoryEntry;
 import system.api.RunResult;
 import system.api.view.ProgramView;
+import system.api.view.ArchSummary;
+import system.api.view.IngestReport;
 import system.core.exec.*;
 import system.core.exec.debugg.Debugger;
 import system.core.expand.Expander;
 import system.core.expand.ExpanderImpl;
 import system.core.io.ProgramLoaderJaxb;
 import system.core.io.ProgramMapper;
+import system.core.io.ArchTierMap;
 import system.core.model.Instruction;
 import system.core.model.Program;
+
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -181,6 +185,12 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
         return s.endsWith(ext) ? p : Paths.get(s + ext);
     }
 
+    public void setFunctions(Map<String,Program> fns) {
+        this.functions = Map.copyOf(fns);
+        this.version++;
+    }
+
+
     // ---- helper ----
     private static boolean containsSynthetic(Program p) {
         for (Instruction ins : p.instructions()) {
@@ -188,6 +198,91 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
         }
         return false;
     }
+
+    // Public API: compute cumulative coverage for the requested degree
+    public ArchSummary getArchSummary(int degree) {
+        if (current == null) return new ArchSummary(0, 0, 0, 0, 0);
+
+        return FunctionEnv.with(new FunctionEnv(functions), () -> {
+            int max = getMaxDegree();
+            int use = Math.max(0, Math.min(degree, max));
+            final system.core.model.Program p = (use == 0)
+                    ? current
+                    : new ExpanderImpl().expandToDegree(current, use);
+
+            int total = p.instructions().size();
+            int cI = 0, cII = 0, cIII = 0, cIV = 0;
+
+            for (Instruction ins : p.instructions()) {
+                int t = ArchTierMap.tierOf(ins.getClass());
+                if (t <= 1) cI++;
+                if (t <= 2) cII++;
+                if (t <= 3) cIII++;
+                cIV++;
+            }
+            return new ArchSummary(total, cI, cII, cIII, cIV);
+        });
+    }
+
+    /**
+     * Parse + wire functions + validate resolvability + compute degrees,
+     * and return a summary report. No duplication of expansion logic:
+     * uses getMaxDegree() for main and per-function by temporarily
+     * switching 'current'.
+     */
+    public IngestReport ingestFromXml(String xml, Map<String, Program> globalFunctions) {
+        // 1) Parse the XML into current + provided map
+        var load = loadProgramFromString(xml);
+        if (!load.ok()) {
+            throw new IllegalArgumentException("parse_failed: " + String.join("; ", load.errors()));
+        }
+
+        // 2) Merge global functions with the newly provided ones
+        Map<String, Program> provided = getFunctions();
+        Map<String, Program> merged = new java.util.LinkedHashMap<>(globalFunctions);
+        merged.putAll(provided);
+        setFunctions(merged); // make merged available to expansion
+
+        // 3) Validate resolvability and compute main max degree
+        //    (If QUOTE/calls can’t be resolved, getMaxDegree() will error out)
+        int mainInstr0 = current.instructions().size();
+        int mainMaxDeg = getMaxDegree();
+
+        // 4) Compute per-function stats by temporarily swapping 'current'
+        var fnInstr0 = new LinkedHashMap<String, Integer>();
+        var fnMaxDeg = new LinkedHashMap<String, Integer>();
+
+        Program prev = this.current;
+        try {
+            for (var e : provided.entrySet()) {
+                String fn = e.getKey();
+                Program body = e.getValue();
+                this.current = body;                 // reuse same getMaxDegree() logic
+                fnInstr0.put(fn, body.instructions().size());
+                fnMaxDeg.put(fn, getMaxDegree());
+            }
+        } finally {
+            this.current = prev;
+        }
+
+        return new IngestReport(
+                current.name(),
+                current,
+                provided,
+                fnInstr0,
+                fnMaxDeg,
+                mainInstr0,
+                mainMaxDeg
+        );
+    }
+
+
+
+
+
+
+
+
 
     // ---- Debugger ----
     @Override

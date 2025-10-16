@@ -1,4 +1,3 @@
-// java
 package server_core;
 
 import jakarta.servlet.annotation.WebServlet;

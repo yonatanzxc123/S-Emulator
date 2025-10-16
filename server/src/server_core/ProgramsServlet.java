@@ -1,32 +1,19 @@
-// java
 package server_core;
 
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import system.core.exec.FunctionEnv;
-import system.core.expand.ExpanderImpl;
-import system.core.model.Instruction;
+import system.api.view.IngestReport;
+import system.core.EmulatorEngineImpl;
 import system.core.model.Program;
-import system.core.io.ProgramLoaderJaxb;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 @WebServlet(name = "ProgramsServlet", urlPatterns = {"/api/programs/*"}, loadOnStartup = 1)
 public class ProgramsServlet extends BaseApiServlet {
-
-    // In‑memory catalog (keep ProgramMeta untouched elsewhere)
-    private static final Map<String, String> PROGRAM_OWNER = new LinkedHashMap<>(); // programName -> owner
-    private static final Map<String, Stats> STATS = new LinkedHashMap<>();          // programName -> stats
-    private static final Map<String, FunctionMeta> FUNCTIONS = new LinkedHashMap<>();// functionName -> meta
-
-    // minimal per‑program stats needed by the client
-    private record Stats(int instrDeg0, int maxDegree) {}
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -48,169 +35,101 @@ public class ProgramsServlet extends BaseApiServlet {
         }
     }
 
+    // --- POST /api/programs/upload ---
     private void handleProgramUpload(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        Object u = requireUser(req, resp);
+        User u = requireUser(req, resp);
         if (u == null) return;
-        String owner = usernameOf(u);
+        final String owner = u.name();
 
-        String body = readBody(req);
-        String xml  = jStr(body, "xml");
+        final String body = readBody(req);
+        final String xml  = jStr(body, "xml");
         if (xml == null || xml.isBlank()) {
             json(resp, 400, "{\"error\":\"missing_xml\"}");
             return;
         }
 
-        var loader = new ProgramLoaderJaxb();
-        var outcome = loader.loadFromString(xml);
-        if (!outcome.ok()) {
-            json(resp, 400, "{\"error\":\"parse_failed\",\"details\":\"" + esc(String.join("; ", outcome.errors())) + "\"}");
+        // Let the ENGINE do the heavy work (parse, merge functions, validate, compute degrees)
+        final EmulatorEngineImpl engine = new EmulatorEngineImpl();
+        final IngestReport report;
+        try {
+            // Pass a snapshot of the current global helper functions
+            report = engine.ingestFromXml(xml, new LinkedHashMap<>(FUNCTION_BODIES));
+        } catch (IllegalArgumentException ex) {
+            json(resp, 400, "{\"error\":\"" + esc(ex.getMessage()) + "\"}");
             return;
         }
 
-        Program main = outcome.program();
-        Map<String, Program> providedFns = outcome.functions();
-
-        String programName = main.name();
-        if (PROGRAM_OWNER.containsKey(programName)) {
-            json(resp, 409, "{\"error\":\"program_exists\",\"name\":\"" + esc(programName) + "\"}");
+        // API-level uniqueness checks (pure validation; still no persistence)
+        final String programName = report.programName();
+        if (PROGRAMS.containsKey(programName)) {
+            json(resp, 409, "{\"error\":\"duplicate_program\",\"name\":\"" + esc(programName) + "\"}");
             return;
         }
-        for (String fn : providedFns.keySet()) {
+        for (String fn : report.providedFunctions().keySet()) {
             if (FUNCTIONS.containsKey(fn)) {
-                json(resp, 409, "{\"error\":\"function_redefinition\",\"name\":\"" + esc(fn) + "\"}");
+                json(resp, 409, "{\"error\":\"duplicate_function\",\"name\":\"" + esc(fn) + "\"}");
                 return;
             }
         }
 
-        // Compute stats within a FunctionEnv so synthetic/function calls expand correctly
-        int programInstr0 = main.instructions().size();
-        int programMaxDeg = FunctionEnv.with(new FunctionEnv(providedFns), () -> computeMaxDegree(main));
+        // Persist program meta (functions snapshot is the engine's merged view)
+        PROGRAMS.put(programName, new ProgramMeta(
+                programName,
+                owner,
+                engine.getFunctions().keySet(),
+                report.mainProgram(),
+                report.mainInstrDeg0(),
+                report.mainMaxDegree(),
+                engine
+        ));
 
-        // Persist program owner + stats (keep your ProgramMeta unchanged)
-        PROGRAM_OWNER.put(programName, owner);
-        STATS.put(programName, new Stats(programInstr0, programMaxDeg));
-
-        // Persist function metas
-        List<String> fnNames = new ArrayList<>();
-        StringBuilder fjson = new StringBuilder("[");
-        boolean first = true;
-        for (Map.Entry<String, Program> e : providedFns.entrySet()) {
-            String fnName = e.getKey();
-            Program Pbody = e.getValue();
-            int instr = Pbody.instructions().size();
-            int maxDeg = FunctionEnv.with(new FunctionEnv(providedFns), () -> computeMaxDegree(Pbody));
-
-            FunctionMeta meta = new FunctionMeta(fnName, programName, owner, instr, maxDeg);
-            FUNCTIONS.put(fnName, meta);
-            fnNames.add(fnName);
-
-            if (!first) fjson.append(',');
-            first = false;
-            fjson.append("{\"name\":\"").append(esc(fnName)).append("\",")
-                    .append("\"instr\":").append(instr).append(',')
-                    .append("\"maxDegree\":").append(maxDeg).append('}');
+        // Persist the newly provided functions: both body and summarized meta
+        for (Map.Entry<String, Program> e : report.providedFunctions().entrySet()) {
+            final String fn = e.getKey();
+            FUNCTION_BODIES.put(fn, e.getValue());
+            FUNCTIONS.put(fn, new FunctionMeta(
+                    fn,
+                    programName,
+                    owner,
+                    report.functionInstrDeg0().getOrDefault(fn, 0),
+                    report.functionMaxDegree().getOrDefault(fn, 0)
+            ));
         }
-        fjson.append(']');
 
-        StringBuilder ok = new StringBuilder();
-        ok.append('{')
-                .append("\"ok\":true,")
-                .append("\"programName\":\"").append(esc(programName)).append("\",")
-                .append("\"owner\":\"").append(esc(owner)).append("\",")
-                .append("\"instrDeg0\":").append(programInstr0).append(',')
-                .append("\"maxDegree\":").append(programMaxDeg).append(',')
-                .append("\"functions\":").append(asJsonArrayOfStrings(fnNames)).append(',')
-                .append("\"functionsDetailed\":").append(fjson)
-                .append('}');
-        json(resp, 200, ok.toString());
+        // Stats + version bump
+        u.mainUploaded.incrementAndGet();
+        u.helperContrib.addAndGet(report.providedFunctions().size());
+        VERSION.incrementAndGet();
+
+        // Response
+        final String res = "{"
+                + "\"ok\":true,"
+                + "\"program\":\"" + esc(programName) + "\","
+                + "\"owner\":\"" + esc(owner) + "\","
+                + "\"instrDeg0\":" + report.mainInstrDeg0() + ","
+                + "\"maxDegree\":" + report.mainMaxDegree() + ","
+                + "\"functions\":" + toJsonArray(report.providedFunctions().keySet())
+                + "}";
+        json(resp, 200, res);
     }
 
+    // --- GET /api/programs ---
     private void listPrograms(HttpServletResponse resp) throws IOException {
-        StringBuilder sb = new StringBuilder().append("{\"programs\":[");
-        boolean firstP = true;
-
-        for (Map.Entry<String, String> e : PROGRAM_OWNER.entrySet()) {
-            String programName = e.getKey();
-            String owner = e.getValue();
-            Stats s = STATS.getOrDefault(programName, new Stats(0, 0));
-
-            if (!firstP) sb.append(',');
-            firstP = false;
-
-            // Collect functions that belong to this program
-            List<FunctionMeta> fns = new ArrayList<>();
-            for (FunctionMeta fm : FUNCTIONS.values()) {
-                if (programName.equals(fm.definedInProgram())) {
-                    fns.add(fm);
-                }
-            }
-
-            sb.append("{\"name\":\"").append(esc(programName)).append("\",")
-                    .append("\"owner\":\"").append(esc(owner)).append("\",")
-                    .append("\"instrDeg0\":").append(s.instrDeg0()).append(',')
-                    .append("\"maxDegree\":").append(s.maxDegree()).append(',')
-                    .append("\"functions\":[");
-
-            boolean firstF = true;
-            for (FunctionMeta fm : fns) {
-                if (!firstF) sb.append(',');
-                firstF = false;
-                sb.append("{\"name\":\"").append(esc(fm.name())).append("\",")
-                        .append("\"instr\":").append(fm.instrCount()).append(',')
-                        .append("\"maxDegree\":").append(fm.maxDegree()).append('}');
-            }
-            sb.append("]}");
-        }
-
-        sb.append("]}");
-        json(resp, 200, sb.toString());
-    }
-
-    // --- helpers ---
-
-    private static int computeMaxDegree(Program p) {
-        final int CAP = 1000;
-        var expander = new ExpanderImpl();
-        int d = 0;
-        Program cur = p;
-        while (d < CAP && containsSynthetic(cur)) {
-            cur = expander.expandToDegree(cur, 1);
-            d++;
-        }
-        return d;
-    }
-
-    private static boolean containsSynthetic(Program p) {
-        for (Instruction ins : p.instructions()) {
-            if (!ins.isBasic()) return true;
-        }
-        return false;
-    }
-
-    private static String asJsonArrayOfStrings(List<String> items) {
-        StringBuilder sb = new StringBuilder("[");
+        StringBuilder sb = new StringBuilder("{\"programs\":[");
         boolean first = true;
-        for (String s : items) {
+        for (ProgramMeta pm : PROGRAMS.values()) {
             if (!first) sb.append(',');
             first = false;
-            sb.append("\"").append(esc(s)).append("\"");
+            sb.append("{")
+                    .append("\"name\":\"").append(esc(pm.name)).append("\",")
+                    .append("\"owner\":\"").append(esc(pm.ownerUser)).append("\",")
+                    .append("\"instrDeg0\":").append(pm.instrCountDeg0).append(',')
+                    .append("\"maxDegree\":").append(pm.maxDegree).append(',')
+                    .append("\"timesRun\":").append(pm.runsCount.get()).append(',')
+                    .append("\"avgCredits\":").append(Math.round(pm.avgCreditsCost))
+                    .append("}");
         }
-        sb.append(']');
-        return sb.toString();
-    }
-
-    private static String usernameOf(Object u) {
-        if (u == null) return "unknown";
-        try {
-            var m = u.getClass().getMethod("username");
-            Object v = m.invoke(u);
-            return v == null ? "unknown" : String.valueOf(v);
-        } catch (Exception ignore) { }
-        try {
-            var m = u.getClass().getMethod("name");
-            Object v = m.invoke(u);
-            return v == null ? "unknown" : String.valueOf(v);
-        } catch (Exception ignore) { }
-        return "unknown";
+        sb.append("]}");
+        json(resp, 200, sb.toString());
     }
 }

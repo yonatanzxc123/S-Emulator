@@ -70,7 +70,7 @@ public class RunServlet extends BaseApiServlet {
         if (available < cycles) {
             u.credits.addAndGet(-available);
             u.creditsSpent.addAndGet(archFixed + available);
-            json(resp, 402, "{\"error\":\"credit_exhausted\",\"charged\":" + (archFixed + available) + "}");
+            json(resp, 409, "{\"error\":\"credit_exhausted\",\"charged\":" + (archFixed + available) + "}");
             return;
         } else {
             u.credits.addAndGet(-cycles);

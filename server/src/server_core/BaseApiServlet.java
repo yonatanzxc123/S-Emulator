@@ -1,9 +1,9 @@
-// java
 package server_core;
 
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import system.core.model.Program;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -16,8 +16,9 @@ abstract class BaseApiServlet extends HttpServlet {
     // Shared in-memory state
     protected static final Map<String, User> USERS = new ConcurrentHashMap<>();
     protected static final AtomicLong VERSION = new AtomicLong(1);
-    protected static final java.util.Map<String, ProgramMeta> PROGRAMS = new java.util.concurrent.ConcurrentHashMap<>();
-    protected static final java.util.Map<String, FunctionMeta> FUNCTIONS = new java.util.concurrent.ConcurrentHashMap<>();
+    protected static final Map<String, ProgramMeta> PROGRAMS = new ConcurrentHashMap<>();
+    protected static final Map<String, FunctionMeta> FUNCTIONS = new ConcurrentHashMap<>();
+    protected static final Map<String, Program> FUNCTION_BODIES =new ConcurrentHashMap<>();
 
     // -------- Helpers --------
     protected static String subPath(HttpServletRequest req) {
