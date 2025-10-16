@@ -7,26 +7,25 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import system.core.exec.FunctionEnv;
 import system.core.expand.ExpanderImpl;
+import system.core.io.ProgramLoaderJaxb;
 import system.core.model.Instruction;
 import system.core.model.Program;
-import system.core.io.ProgramLoaderJaxb;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
+/**
+ * Lists programs, handles upload, and serves /api/programs/{name}/body
+ * so the JavaFX client can populate the instruction table.
+ */
 @WebServlet(name = "ProgramsServlet", urlPatterns = {"/api/programs/*"}, loadOnStartup = 1)
 public class ProgramsServlet extends BaseApiServlet {
 
-    // In‑memory catalog (keep ProgramMeta untouched elsewhere)
-    private static final Map<String, String> PROGRAM_OWNER = new LinkedHashMap<>(); // programName -> owner
-    private static final Map<String, Stats> STATS = new LinkedHashMap<>();          // programName -> stats
-    private static final Map<String, FunctionMeta> FUNCTIONS = new LinkedHashMap<>();// functionName -> meta
+    private static final Map<String, String> PROGRAM_OWNER = new LinkedHashMap<>();
+    private static final Map<String, Stats>  STATS         = new LinkedHashMap<>();
+    private static final Map<String, FunctionMeta> FUNCTIONS = new LinkedHashMap<>();
 
-    // minimal per‑program stats needed by the client
-    private record Stats(int instrDeg0, int maxDegree) {}
+    static record Stats(int instrDeg0, int maxDegree) {}
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -43,15 +42,23 @@ public class ProgramsServlet extends BaseApiServlet {
         String sp = subPath(req);
         if (sp == null || sp.isBlank() || "/".equals(sp)) {
             listPrograms(resp);
-        } else {
-            json(resp, 404, "{\"error\":\"not_found\"}");
+            return;
         }
+
+        // ✅ Serve: /api/programs/{name}/body
+        if (sp.startsWith("/") && sp.endsWith("/body") && sp.length() > "/body".length() + 1) {
+            String programName = sp.substring(1, sp.length() - "/body".length());
+            serveProgramBody(programName, resp);
+            return;
+        }
+
+        json(resp, 404, "{\"error\":\"not_found\"}");
     }
 
     private void handleProgramUpload(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        Object u = requireUser(req, resp);
-        if (u == null) return;
-        String owner = usernameOf(u);
+        Object uAny = requireUser(req, resp);
+        if (uAny == null) return;
+        String owner = usernameOf(uAny);
 
         String body = readBody(req);
         String xml  = jStr(body, "xml");
@@ -60,7 +67,7 @@ public class ProgramsServlet extends BaseApiServlet {
             return;
         }
 
-        var loader = new ProgramLoaderJaxb();
+        var loader  = new ProgramLoaderJaxb();
         var outcome = loader.loadFromString(xml);
         if (!outcome.ok()) {
             json(resp, 400, "{\"error\":\"parse_failed\",\"details\":\"" + esc(String.join("; ", outcome.errors())) + "\"}");
@@ -82,15 +89,13 @@ public class ProgramsServlet extends BaseApiServlet {
             }
         }
 
-        // Compute stats within a FunctionEnv so synthetic/function calls expand correctly
         int programInstr0 = main.instructions().size();
         int programMaxDeg = FunctionEnv.with(new FunctionEnv(providedFns), () -> computeMaxDegree(main));
 
-        // Persist program owner + stats (keep your ProgramMeta unchanged)
         PROGRAM_OWNER.put(programName, owner);
         STATS.put(programName, new Stats(programInstr0, programMaxDeg));
 
-        // Persist function metas
+        // persist per-function metadata
         List<String> fnNames = new ArrayList<>();
         StringBuilder fjson = new StringBuilder("[");
         boolean first = true;
@@ -111,6 +116,27 @@ public class ProgramsServlet extends BaseApiServlet {
                     .append("\"maxDegree\":").append(maxDeg).append('}');
         }
         fjson.append(']');
+
+        // ✅ Register in ProgramRegistry so /{name}/body can serve later
+        ProgramMeta pmeta = new ProgramMeta(
+                programName,
+                owner,
+                providedFns.keySet(),   // Set<String>
+                main,                   // Program
+                programInstr0,
+                programMaxDeg,
+                null                    // EmulatorEngineImpl engine (not needed for body endpoint)
+        );
+        ProgramRegistry.register(programName, pmeta);
+
+        // Increment per-user counters so the Users table reflects uploads
+        User me = optUser(req);
+        if (me != null) {
+            me.mainUploaded.incrementAndGet();
+            me.helperContrib.addAndGet(providedFns.size());
+            me.lastSeenMs = System.currentTimeMillis();
+            VERSION.incrementAndGet();
+        }
 
         StringBuilder ok = new StringBuilder();
         ok.append('{')
@@ -137,7 +163,6 @@ public class ProgramsServlet extends BaseApiServlet {
             if (!firstP) sb.append(',');
             firstP = false;
 
-            // Collect functions that belong to this program
             List<FunctionMeta> fns = new ArrayList<>();
             for (FunctionMeta fm : FUNCTIONS.values()) {
                 if (programName.equals(fm.definedInProgram())) {
@@ -150,7 +175,6 @@ public class ProgramsServlet extends BaseApiServlet {
                     .append("\"instrDeg0\":").append(s.instrDeg0()).append(',')
                     .append("\"maxDegree\":").append(s.maxDegree()).append(',')
                     .append("\"functions\":[");
-
             boolean firstF = true;
             for (FunctionMeta fm : fns) {
                 if (!firstF) sb.append(',');
@@ -166,7 +190,114 @@ public class ProgramsServlet extends BaseApiServlet {
         json(resp, 200, sb.toString());
     }
 
-    // --- helpers ---
+    // /api/programs/{name}/body =========
+    private void serveProgramBody(String programName, HttpServletResponse resp) throws IOException {
+        Program P = ProgramRegistry.getMainProgram(programName);
+        if (P == null) {
+            json(resp, 404, "{\"error\":\"program_not_found\"}");
+            return;
+        }
+
+        StringBuilder sb = new StringBuilder(4096);
+        sb.append("{\"program\":\"").append(esc(programName)).append("\",\"instructions\":[");
+        boolean first = true;
+        int idx = 0;
+        for (Instruction ins : P.instructions()) {
+            if (!first) sb.append(',');
+            first = false;
+
+            String op    = instrTextOf(ins);              // <-- use asText()/text() instead of toString/opcode
+            String label = labelOf(ins);                  // keep your label if available
+            String level = ins.isBasic() ? "I" : "E";     // architecture-level (keep as you had)
+            String bs    = ins.isBasic() ? "B" : "S";     // B/S
+            int cycles   = cyclesOf(ins);                 // <-- reflect real cycles
+
+            sb.append('{')
+                    .append("\"index\":").append(idx).append(',')
+                    .append("\"op\":\"").append(esc(op)).append("\",")
+                    .append("\"level\":\"").append(esc(level)).append("\",")
+                    .append("\"bs\":\"").append(esc(bs)).append("\",")
+                    .append("\"label\":\"").append(esc(label)).append("\",")
+                    .append("\"cycles\":").append(cycles)
+                    .append('}');
+            idx++;
+        }
+        sb.append("]}");
+        json(resp, 200, sb.toString());
+    }
+
+
+    // ---------- helpers ----------
+
+    private static String opcodeOf(Instruction ins) {
+        try {
+            var m = ins.getClass().getMethod("opcode");
+            Object v = m.invoke(ins);
+            return v == null ? String.valueOf(ins) : String.valueOf(v);
+        } catch (Exception ignore) {
+            return String.valueOf(ins);
+        }
+    }
+    private static String instrTextOf(Instruction ins) {
+        // try asText()
+        try {
+            var m = ins.getClass().getMethod("asText");
+            Object v = m.invoke(ins);
+            if (v != null) return String.valueOf(v);
+        } catch (Exception ignore) {}
+        // try text()
+        try {
+            var m = ins.getClass().getMethod("text");
+            Object v = m.invoke(ins);
+            if (v != null) return String.valueOf(v);
+        } catch (Exception ignore) {}
+        // try opcode(), if you want to keep it as a fallback
+        try {
+            var m = ins.getClass().getMethod("opcode");
+            Object v = m.invoke(ins);
+            if (v != null) return String.valueOf(v);
+        } catch (Exception ignore) {}
+        // final fallback
+        return String.valueOf(ins);
+    }
+
+    // Get cycles from the instruction if the engine exposes it
+    private static int cyclesOf(Instruction ins) {
+        // try cycles()
+        try {
+            var m = ins.getClass().getMethod("cycles");
+            Object v = m.invoke(ins);
+            if (v instanceof Number n) return n.intValue();
+        } catch (Exception ignore) {}
+        // try getCycles()
+        try {
+            var m = ins.getClass().getMethod("getCycles");
+            Object v = m.invoke(ins);
+            if (v instanceof Number n) return n.intValue();
+        } catch (Exception ignore) {}
+        // try cost()/getCost() if that’s the engine’s name
+        try {
+            var m = ins.getClass().getMethod("cost");
+            Object v = m.invoke(ins);
+            if (v instanceof Number n) return n.intValue();
+        } catch (Exception ignore) {}
+        try {
+            var m = ins.getClass().getMethod("getCost");
+            Object v = m.invoke(ins);
+            if (v instanceof Number n) return n.intValue();
+        } catch (Exception ignore) {}
+        return 0;
+    }
+
+    private static String labelOf(Instruction ins) {
+        try {
+            var m = ins.getClass().getMethod("label");
+            Object v = m.invoke(ins);
+            return v == null ? "" : String.valueOf(v);
+        } catch (Exception ignore) {
+            return "";
+        }
+    }
 
     private static int computeMaxDegree(Program p) {
         final int CAP = 1000;

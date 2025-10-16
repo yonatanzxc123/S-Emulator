@@ -2,6 +2,7 @@
 package ui;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -61,6 +62,10 @@ public class ClientApp extends Application {
             catch (Exception e) { throw new RuntimeException(e); }
         });
         stage.setScene(new Scene(fxml.load()));
+        stage.sizeToScene();
+        stage.setHeight(800);
+        stage.setWidth(1000);
+        Platform.runLater(stage::centerOnScreen);
         stage.setTitle("Dashboard");
     }
 }

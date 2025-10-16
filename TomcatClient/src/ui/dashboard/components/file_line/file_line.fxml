@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
 
-<GridPane hgap="10" maxWidth="Infinity" minHeight="32" prefHeight="32" prefWidth="800" stylesheets="@file_line.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.dashboard.components.file_line.FileLineController">
+<GridPane hgap="10" minHeight="32" stylesheets="@file_line.css" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.dashboard.components.file_line.FileLineController">
    <columnConstraints>
       <ColumnConstraints prefWidth="164" />
       <ColumnConstraints hgrow="ALWAYS" prefWidth="394" />

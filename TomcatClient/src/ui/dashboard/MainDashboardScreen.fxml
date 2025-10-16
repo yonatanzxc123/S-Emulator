@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.BorderPane?>
 
-<BorderPane fx:id="mainDashboardScreen"
-            xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="ui.dashboard.MainDashboardScreenController">
-   <top>
-      <fx:include fx:id="header" source="../components/header/header.fxml" BorderPane.alignment="TOP_CENTER" />
-   </top>
-   <center>
-      <fx:include fx:id="center" source="components/center/center.fxml" />
-   </center>
-</BorderPane>
+
+<ScrollPane fitToHeight="true" fitToWidth="true" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.dashboard.MainDashboardScreenController">
+   <content>
+      <BorderPane fx:id="mainDashboardScreen">
+         <top>
+            <fx:include fx:id="header" source="../components/header/header.fxml" BorderPane.alignment="TOP_CENTER" />
+         </top>
+         <center>
+            <fx:include fx:id="center" source="components/center/center.fxml" />
+         </center>
+      </BorderPane>
+   </content>
+</ScrollPane>

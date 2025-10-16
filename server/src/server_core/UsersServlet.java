@@ -10,6 +10,8 @@ import java.io.IOException;
 @WebServlet(name = "UsersServlet", urlPatterns = {"/api/users/*"}, loadOnStartup = 1)
 public class UsersServlet extends BaseApiServlet {
 
+    private static final long ACTIVE_TTL_MS = 4000L;
+
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         switch (subPath(req)) {
@@ -42,13 +44,15 @@ public class UsersServlet extends BaseApiServlet {
     }
 
     private void handleUsersOnline(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        long now = System.currentTimeMillis();
         User me = optUser(req);
-        if (me != null) me.lastSeenMs = System.currentTimeMillis();
+        if (me != null) me.lastSeenMs = now;
 
         StringBuilder sb = new StringBuilder();
         sb.append("{\"users\":[");
         boolean first = true;
         for (User u : USERS.values()) {
+            if (now - u.lastSeenMs > ACTIVE_TTL_MS) continue; // only active users
             if (!first) sb.append(',');
             first = false;
             sb.append("{\"name\":\"").append(esc(u.name)).append("\",")
