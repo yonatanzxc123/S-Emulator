@@ -1,4 +1,3 @@
-// java
 package ui.dashboard.components.file_line;
 
 import javafx.application.Platform;
@@ -22,6 +21,7 @@ import java.nio.file.Files;
 public class FileLineController {
     @FXML private Button loadButton;
     @FXML private Label status;
+    @FXML private Button chargeCreditsBtn;
     @FXML private TextField creditsTextBox;
 
     private AppContext ctx;
@@ -52,7 +52,7 @@ public class FileLineController {
         try {
             xml = Files.readString(file.toPath(), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            showError("Read failed", e.getMessage());
+            showError("Read Error", "Could not read file: " + e.getMessage());
             return;
         }
 
@@ -61,22 +61,62 @@ public class FileLineController {
 
         Thread t = new Thread(() -> {
             try {
-                ApiClient.ProgramInfo res = ctx.api().uploadProgram(xml);
+                ApiClient.ProgramInfo p = ctx.api().uploadProgram(xml);
                 Platform.runLater(() -> {
-                    if (programTable != null) {
-                        programTable.addProgram(res.name, res.owner, res.instrDeg0, res.maxDegree);
+                    if (status != null) status.setText("Loaded " + file.getName());
+                    if (loadButton != null) loadButton.setDisable(false);
+                    if (programTable != null) programTable.addProgram(p.name, p.owner, p.instrDeg0, p.maxDegree);
+                    if (functionTable != null && p.functions != null && !p.functions.isEmpty()) {
+                        functionTable.addFunctions(p.name, p.owner, p.functions);
                     }
-                    if (functionTable != null && res.functions != null && !res.functions.isEmpty()) {
-                        functionTable.addFunctions(res.name, res.owner, res.functions);
-                    }
-                    if (status != null) status.setText("Uploaded " + res.name + " by " + res.owner);
                 });
             } catch (Exception e) {
-                Platform.runLater(() -> showError("Upload failed", e.getMessage()));
-            } finally {
-                Platform.runLater(() -> { if (loadButton != null) loadButton.setDisable(false); });
+                Platform.runLater(() -> {
+                    if (loadButton != null) loadButton.setDisable(false);
+                    showError("Upload failed", e.getMessage());
+                });
             }
         }, "upload-program");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    @FXML
+    private void onChargeCredits() {
+        String text = creditsTextBox.getText();
+        if (text == null || text.isBlank()) {
+            showError("Invalid Amount", "Please enter a number of credits to add.");
+            return;
+        }
+        long amount;
+        try {
+            amount = Long.parseLong(text);
+        } catch (NumberFormatException e) {
+            showError("Invalid Amount", "Please enter a valid number.");
+            return;
+        }
+
+        if (amount <= 0) {
+            showError("Invalid Amount", "Amount must be positive.");
+            return;
+        }
+
+        chargeCreditsBtn.setDisable(true);
+        Thread t = new Thread(() -> {
+            try {
+                long newTotal = ctx.api().addCredits(amount);
+                Platform.runLater(() -> {
+                    ctx.setCredits(newTotal);
+                    creditsTextBox.clear();
+                    chargeCreditsBtn.setDisable(false);
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    showError("Failed to add credits", e.getMessage());
+                    chargeCreditsBtn.setDisable(false);
+                });
+            }
+        }, "add-credits");
         t.setDaemon(true);
         t.start();
     }
