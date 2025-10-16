@@ -17,7 +17,7 @@
          <HBox.margin>
             <Insets />
          </HBox.margin></Region>
-      <Label fx:id="creditsLbl" text="Credits: ">
+      <Label fx:id="creditsLbl" text="Credits: 0">
          <HBox.margin>
             <Insets right="30.0" />
          </HBox.margin></Label>
