@@ -61,20 +61,19 @@ public class ProgramTableController {
         Row sel = (table == null) ? null : table.getSelectionModel().getSelectedItem();
         if (sel == null) return;
 
-        // 1) remember selected program for the run screen
+        // 1) Save selected program name
         SelectedProgram.set(sel.getName());
 
-        // 2) navigate to the run screen
+        // 2) Load and show the RunScreen
         try {
-            var url = ProgramTableController.class.getResource("/ui/runner/MainRunScreen.fxml");
-            if (url == null) return;
-            var loader = new FXMLLoader(url);
-            var scene = new Scene(loader.load());
-            Stage stage = (Stage) table.getScene().getWindow();
-            stage.setScene(scene);
-            stage.show();
-        } catch (Exception ignore) {
-            // optionally log
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/runner/MainRunScreen.fxml"));
+            Scene scene = new Scene(loader.load());
+
+            Stage currentStage = (Stage) table.getScene().getWindow();
+            currentStage.setScene(scene);
+            currentStage.show();
+        } catch (Exception e) {
+            e.printStackTrace(); // ✅ See the error in console
         }
     }
 

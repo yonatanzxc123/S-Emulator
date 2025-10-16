@@ -1,3 +1,4 @@
+// java
 package server_core;
 
 import jakarta.servlet.annotation.WebServlet;
@@ -21,8 +22,8 @@ public class ProgramBodyServlet extends BaseApiServlet {
         String[] parts = path.split("/");
         String name = null;
         for (int i = 0; i < parts.length - 1; i++) {
-            if ("programs".equals(parts[i]) && i+1 < parts.length && !"body".equals(parts[i+1])) {
-                name = parts[i+1];
+            if ("programs".equals(parts[i]) && i + 1 < parts.length && !"body".equals(parts[i + 1])) {
+                name = parts[i + 1];
                 break;
             }
         }
@@ -32,7 +33,6 @@ public class ProgramBodyServlet extends BaseApiServlet {
             return;
         }
 
-        // Get program instructions
         ProgramMeta meta = PROGRAMS.get(name);
         if (meta == null || meta.mainProgram == null) {
             json(resp, 404, "{\"error\":\"program_not_found\"}");
@@ -41,19 +41,17 @@ public class ProgramBodyServlet extends BaseApiServlet {
 
         List<Instruction> list = meta.mainProgram.instructions();
 
-        // Build JSON response
         StringBuilder sb = new StringBuilder();
         sb.append("{\"instructions\":[");
         boolean first = true;
         for (int i = 0; i < list.size(); i++) {
             Instruction ins = list.get(i);
 
-            // Use engine user-facing text and canonical level mapping
-            String op = EngineUtil.opText(ins);          // e.g. "y <- x1", "IF z1 != 0 GOTO L1"
-            String level = EngineUtil.levelOf(ins);      // "I"/"II"/"III"/"IV"
-            String bs = ins.isBasic() ? "B" : "S";       // Basic/Synthetic
-            String label = tryLabel(ins);                // may be empty
-            int cycles = cyclesOf(level);                // deterministic per-level cost
+            String op = EngineUtil.opText(ins);
+            String level = EngineUtil.levelOf(ins);
+            String bs = ins.isBasic() ? "B" : "S";
+            String label = tryLabel(ins);
+            int cycles = cyclesOf(level);
 
             if (!first) sb.append(',');
             first = false;

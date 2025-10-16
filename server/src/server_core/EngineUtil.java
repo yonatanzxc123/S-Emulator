@@ -31,12 +31,11 @@ final class EngineUtil {
         if (ins instanceof ZeroVariable || ins instanceof ConstantAssignment || ins instanceof GotoLabel) return "II";
         if (ins instanceof Assignment || ins instanceof JumpZero || ins instanceof JumpEqualConstant || ins instanceof JumpEqualVariable) return "III";
         if (ins instanceof Quote || ins instanceof JumpEqualFunction) return "IV";
-        // Fallback: respect engine basic/synthetic split if new types appear
         return ins.isBasic() ? "I" : "III";
     }
 
     static String opText(Instruction ins) {
-        String s = String.valueOf(ins); // engine instructions render user-facing text
+        String s = String.valueOf(ins);
         return s == null ? "" : s;
     }
 

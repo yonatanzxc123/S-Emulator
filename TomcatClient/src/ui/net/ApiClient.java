@@ -116,7 +116,14 @@ public class ApiClient {
             this.label = label;
             this.cycles = cycles;
         }
+        public int getIndex()   { return index; }
+        public String getOp()   { return op; }
+        public String getLevel(){ return level; }
+        public String getBs()   { return bs; }
+        public String getLabel(){ return label; }
+        public int getCycles()  { return cycles; }
     }
+
 
     public List<ProgramInstruction> programBody(String programName) throws IOException, InterruptedException {
         HttpRequest req = HttpRequest.newBuilder(url("/api/programs/" + programName + "/body"))

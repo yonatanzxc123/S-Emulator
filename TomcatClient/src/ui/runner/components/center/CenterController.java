@@ -1,20 +1,22 @@
-// java
 package ui.runner.components.center;
 
 import javafx.fxml.FXML;
+import ui.runner.SelectedProgram;
 import ui.runner.components.instruction_table.InstructionTableController;
 
 public class CenterController {
+
     @FXML private InstructionTableController instructionTopController;
     @FXML private InstructionTableController instructionBottomController;
 
     @FXML
     private void initialize() {
-        if (instructionTopController != null) {
-            instructionTopController.init(true);   // load selected program here
+        String selected = SelectedProgram.get();  // fetch currently selected program name
+        if (instructionTopController != null && selected != null) {
+
         }
         if (instructionBottomController != null) {
-            instructionBottomController.init(false); // keep bottom table empty
+            // leave empty (no instructions loaded)
         }
     }
 }
