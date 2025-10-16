@@ -12,6 +12,10 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Lists programs, handles upload, and serves /api/programs/{name}/body
+ * so the JavaFX client can populate the instruction table.
+ */
 @WebServlet(name = "ProgramsServlet", urlPatterns = {"/api/programs/*"}, loadOnStartup = 1)
 public class ProgramsServlet extends BaseApiServlet {
 
@@ -30,9 +34,17 @@ public class ProgramsServlet extends BaseApiServlet {
         String sp = subPath(req);
         if (sp == null || sp.isBlank() || "/".equals(sp)) {
             listPrograms(resp);
-        } else {
-            json(resp, 404, "{\"error\":\"not_found\"}");
+            return;
         }
+
+        // ✅ Serve: /api/programs/{name}/body
+        if (sp.startsWith("/") && sp.endsWith("/body") && sp.length() > "/body".length() + 1) {
+            String programName = sp.substring(1, sp.length() - "/body".length());
+            serveProgramBody(programName, resp);
+            return;
+        }
+
+        json(resp, 404, "{\"error\":\"not_found\"}");
     }
 
     // --- POST /api/programs/upload ---

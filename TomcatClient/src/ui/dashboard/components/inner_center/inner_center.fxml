@@ -3,21 +3,19 @@
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.AnchorPane?>
 
-<SplitPane dividerPositions="0.4278557114228457"
-           maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
-           minHeight="-Infinity" minWidth="-Infinity" prefHeight="800.0" prefWidth="1000.0"
+<SplitPane dividerPositions="0.43"
            xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="ui.dashboard.components.inner_center.InnerCenterController">
-  <items>
-    <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0">
-      <fx:include source="../inner_center_left/inner_center_left.fxml"
-                  AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-                  AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
-    </AnchorPane>
-    <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0">
-      <fx:include fx:id="innerCenterRight" source="../inner_center_right/inner_center_right.fxml"
-                  AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-                  AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
-    </AnchorPane>
-  </items>
+    <items>
+        <AnchorPane minHeight="0.0" minWidth="0.0">
+            <fx:include source="../inner_center_left/inner_center_left.fxml"
+                        AnchorPane.topAnchor="0.0" AnchorPane.rightAnchor="0.0"
+                        AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"/>
+        </AnchorPane>
+        <AnchorPane minHeight="0.0" minWidth="0.0">
+            <fx:include fx:id="innerCenterRight" source="../inner_center_right/inner_center_right.fxml"
+                        AnchorPane.topAnchor="0.0" AnchorPane.rightAnchor="0.0"
+                        AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"/>
+        </AnchorPane>
+    </items>
 </SplitPane>

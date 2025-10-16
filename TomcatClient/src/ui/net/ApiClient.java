@@ -42,6 +42,140 @@ public class ApiClient {
 
         INSTANCE = this;
     }
+    public static final class UserOnline {
+        public final String name;
+        public final long mainUploaded;
+        public final long helperContrib;
+        public final long credits;
+        public final long creditsSpent;
+        public final long runsCount;
+
+        public UserOnline(String name, long mainUploaded, long helperContrib,
+                          long credits, long creditsSpent, long runsCount) {
+            this.name = name;
+            this.mainUploaded = mainUploaded;
+            this.helperContrib = helperContrib;
+            this.credits = credits;
+            this.creditsSpent = creditsSpent;
+            this.runsCount = runsCount;
+        }
+    }
+
+    public java.util.List<UserOnline> usersOnline() throws java.io.IOException, InterruptedException {
+        HttpRequest req = HttpRequest.newBuilder(url("/api/users/online"))
+                .timeout(java.time.Duration.ofSeconds(10))
+                .GET()
+                .build();
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) return java.util.List.of();
+        String s = resp.body() == null ? "" : resp.body();
+
+        java.util.List<UserOnline> out = new java.util.ArrayList<>();
+        String k = "\"users\"";
+        int i = s.indexOf(k); if (i < 0) return out;
+        int c = s.indexOf(':', i + k.length()); if (c < 0) return out;
+        int a1 = s.indexOf('[', c + 1); if (a1 < 0) return out;
+        int a2 = matchBracket(s, a1); if (a2 < 0) return out;
+        String arr = s.substring(a1 + 1, a2);
+
+        int pos = 0;
+        while (pos < arr.length()) {
+            int o1 = arr.indexOf('{', pos);
+            if (o1 < 0) break;
+            int o2 = matchBrace(arr, o1);
+            if (o2 < 0) break;
+            String obj = arr.substring(o1 + 1, o2);
+
+            String name = jStr(obj, "name");
+            long mainUploaded = jLong(obj, "mainUploaded", 0L);
+            long helperContrib = jLong(obj, "helperContrib", 0L);
+            long credits = jLong(obj, "credits", 0L);
+            long creditsSpent = jLong(obj, "creditsSpent", 0L);
+            long runsCount = jLong(obj, "runsCount", 0L);
+
+            if (name != null) {
+                out.add(new UserOnline(name, mainUploaded, helperContrib, credits, creditsSpent, runsCount));
+            }
+            pos = o2 + 1;
+        }
+        return out;
+    }
+    public static final class ProgramInstruction {
+        public final int index;
+        public final String op;
+        public final String level;
+        public final String bs;
+        public final String label;
+        public final int cycles;
+
+        public ProgramInstruction(int index, String op, String level, String bs, String label, int cycles) {
+            this.index = index;
+            this.op = op;
+            this.level = level;
+            this.bs = bs;
+            this.label = label;
+            this.cycles = cycles;
+        }
+        public int getIndex()   { return index; }
+        public String getOp()   { return op; }
+        public String getLevel(){ return level; }
+        public String getBs()   { return bs; }
+        public String getLabel(){ return label; }
+        public int getCycles()  { return cycles; }
+    }
+
+
+    public List<ProgramInstruction> programBody(String programName) throws IOException, InterruptedException {
+        HttpRequest req = HttpRequest.newBuilder(url("/api/programs/" + programName + "/body"))
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
+
+        var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) return List.of();
+        String s = resp.body() == null ? "" : resp.body();
+
+        List<ProgramInstruction> out = new ArrayList<>();
+        String key = "\"instructions\"";
+        int i = s.indexOf(key); if (i < 0) return out;
+        int c = s.indexOf(':', i + key.length()); if (c < 0) return out;
+        int a1 = s.indexOf('[', c + 1); if (a1 < 0) return out;
+        int a2 = matchBracket(s, a1); if (a2 < 0) return out;
+        String arr = s.substring(a1 + 1, a2);
+
+        int pos = 0;
+        while (pos < arr.length()) {
+            int o1 = arr.indexOf('{', pos); if (o1 < 0) break;
+            int o2 = matchBrace(arr, o1); if (o2 < 0) break;
+            String obj = arr.substring(o1 + 1, o2);
+
+            int idx = jInt(obj, "index", -1);
+            String op  = jStr(obj, "op");
+            String lvl = jStr(obj, "level");
+            String bs  = jStr(obj, "bs");
+            String lbl = jStr(obj, "label");
+            int cyc     = jInt(obj, "cycles", 0);
+
+            if (bs == null || bs.isBlank()) bs = ("I".equals(lvl) ? "B" : "S");
+            if (idx >= 0 && op != null) out.add(new ProgramInstruction(idx, op, (lvl == null ? "" : lvl), bs, (lbl == null ? "" : lbl), Math.max(0, cyc)));
+            pos = o2 + 1;
+        }
+        return out;
+    }
+
+    // POST /api/users/credits/add
+    public long addCredits(long amount) throws java.io.IOException, InterruptedException {
+        String body = "{\"amount\":" + amount + "}";
+        HttpRequest req = HttpRequest.newBuilder(url("/api/users/credits/add"))
+                .timeout(java.time.Duration.ofSeconds(10))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        String s = resp.body() == null ? "" : resp.body();
+        if (resp.statusCode() != 200) throw new java.io.IOException("HTTP " + resp.statusCode());
+        return jLong(s, "credits", 0L);
+    }
 
     public static ApiClient get() {
         ApiClient x = INSTANCE;
@@ -351,6 +485,17 @@ public class ApiClient {
             }
         }
         return sb.toString();
+    }
+
+    private static long jLong(String json, String key, long def) {
+        String k = "\"" + key + "\"";
+        int i = json.indexOf(k); if (i < 0) return def;
+        int c = json.indexOf(':', i + k.length()); if (c < 0) return def;
+        int e = c + 1;
+        while (e < json.length() && Character.isWhitespace(json.charAt(e))) e++;
+        int s = e;
+        while (e < json.length() && "-0123456789".indexOf(json.charAt(e)) >= 0) e++;
+        try { return Long.parseLong(json.substring(s, e)); } catch (Exception ignore) { return def; }
     }
 
     private URI url(String path) {
