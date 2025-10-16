@@ -14,7 +14,7 @@
                 <TableColumn fx:id="labelColumn" prefWidth="10.0" text="Label" />
                 <TableColumn fx:id="instructionColumn" minWidth="75.0" prefWidth="-1.0" text="Instruction" />
                 <TableColumn fx:id="cyclesColumn" prefWidth="15.0" text="Cycles" />
-                <TableColumn fx:id="Architecturecolumn" prefWidth="15.0" text="Architecture" />
+                <TableColumn fx:id="ArchitectureColumn" prefWidth="15.0" text="Architecture" />
             </columns>
             <columnResizePolicy>
                 <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />

@@ -23,7 +23,6 @@ public class CenterController {
         ProgramTableController program = right.programTableController();
         FunctionTableController functions = right.functionTableController();
 
-        if (program != null) program.init();
         if (functions != null) functions.init();
         if (fileLineController != null) fileLineController.init(ctx, program, functions);
 

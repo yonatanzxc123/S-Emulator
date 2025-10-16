@@ -2,6 +2,7 @@
 package ui;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -17,7 +18,7 @@ public class ClientApp extends Application {
     public void start(Stage primaryStage) throws Exception {
         this.stage = primaryStage;
 
-        String base = System.getProperty("api.base", "http://localhost:8080/server");
+        String base = System.getProperty("api.base", "http://localhost:8080/server_Web_exploded");
         System.out.println("API base = " + base);
         this.ctx = new AppContext(new ApiClient(base, true));
 
@@ -61,6 +62,10 @@ public class ClientApp extends Application {
             catch (Exception e) { throw new RuntimeException(e); }
         });
         stage.setScene(new Scene(fxml.load()));
+        stage.sizeToScene();
+        stage.setHeight(800);
+        stage.setWidth(1000);
+        Platform.runLater(stage::centerOnScreen);
         stage.setTitle("Dashboard");
     }
 }

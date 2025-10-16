@@ -20,13 +20,11 @@ import java.util.Map;
 @WebServlet(name = "ProgramsServlet", urlPatterns = {"/api/programs/*"}, loadOnStartup = 1)
 public class ProgramsServlet extends BaseApiServlet {
 
-    // In‑memory catalog (keep ProgramMeta untouched elsewhere)
-    private static final Map<String, String> PROGRAM_OWNER = new LinkedHashMap<>(); // programName -> owner
-    private static final Map<String, Stats> STATS = new LinkedHashMap<>();          // programName -> stats
-    private static final Map<String, FunctionMeta> FUNCTIONS = new LinkedHashMap<>();// functionName -> meta
+    private static final Map<String, String> PROGRAM_OWNER = new LinkedHashMap<>();
+    private static final Map<String, Stats> STATS = new LinkedHashMap<>();
+    private static final Map<String, FunctionMeta> FUNCTIONS = new LinkedHashMap<>();
 
-    // minimal per‑program stats needed by the client
-    private record Stats(int instrDeg0, int maxDegree) {}
+    static record Stats(int instrDeg0, int maxDegree) {}
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -49,9 +47,9 @@ public class ProgramsServlet extends BaseApiServlet {
     }
 
     private void handleProgramUpload(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        Object u = requireUser(req, resp);
-        if (u == null) return;
-        String owner = usernameOf(u);
+        Object uAny = requireUser(req, resp);
+        if (uAny == null) return;
+        String owner = usernameOf(uAny);
 
         String body = readBody(req);
         String xml  = jStr(body, "xml");
@@ -82,15 +80,12 @@ public class ProgramsServlet extends BaseApiServlet {
             }
         }
 
-        // Compute stats within a FunctionEnv so synthetic/function calls expand correctly
         int programInstr0 = main.instructions().size();
         int programMaxDeg = FunctionEnv.with(new FunctionEnv(providedFns), () -> computeMaxDegree(main));
 
-        // Persist program owner + stats (keep your ProgramMeta unchanged)
         PROGRAM_OWNER.put(programName, owner);
         STATS.put(programName, new Stats(programInstr0, programMaxDeg));
 
-        // Persist function metas
         List<String> fnNames = new ArrayList<>();
         StringBuilder fjson = new StringBuilder("[");
         boolean first = true;
@@ -111,6 +106,15 @@ public class ProgramsServlet extends BaseApiServlet {
                     .append("\"maxDegree\":").append(maxDeg).append('}');
         }
         fjson.append(']');
+
+        // Increment per-user counters so the Users table reflects uploads
+        User me = optUser(req);
+        if (me != null) {
+            me.mainUploaded.incrementAndGet();
+            me.helperContrib.addAndGet(providedFns.size());
+            me.lastSeenMs = System.currentTimeMillis();
+            VERSION.incrementAndGet();
+        }
 
         StringBuilder ok = new StringBuilder();
         ok.append('{')
@@ -137,7 +141,6 @@ public class ProgramsServlet extends BaseApiServlet {
             if (!firstP) sb.append(',');
             firstP = false;
 
-            // Collect functions that belong to this program
             List<FunctionMeta> fns = new ArrayList<>();
             for (FunctionMeta fm : FUNCTIONS.values()) {
                 if (programName.equals(fm.definedInProgram())) {
@@ -150,7 +153,6 @@ public class ProgramsServlet extends BaseApiServlet {
                     .append("\"instrDeg0\":").append(s.instrDeg0()).append(',')
                     .append("\"maxDegree\":").append(s.maxDegree()).append(',')
                     .append("\"functions\":[");
-
             boolean firstF = true;
             for (FunctionMeta fm : fns) {
                 if (!firstF) sb.append(',');
@@ -165,8 +167,6 @@ public class ProgramsServlet extends BaseApiServlet {
         sb.append("]}");
         json(resp, 200, sb.toString());
     }
-
-    // --- helpers ---
 
     private static int computeMaxDegree(Program p) {
         final int CAP = 1000;
