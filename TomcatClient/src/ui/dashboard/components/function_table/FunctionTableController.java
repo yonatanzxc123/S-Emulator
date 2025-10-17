@@ -5,10 +5,15 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.stage.Stage;
 import ui.net.ApiClient;
+import ui.runner.SelectedProgram;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -21,20 +26,40 @@ public class FunctionTableController {
     @FXML private TableColumn<FunctionRow, String> userCol;
     @FXML private TableColumn<FunctionRow, Number> instrCol;
     @FXML private TableColumn<FunctionRow, Number> degreeCol;
+    @FXML private Button executeFunctionBtn;
 
     private final ObservableList<FunctionRow> items = FXCollections.observableArrayList();
 
-    public void init() {
-        // Bind columns to FunctionRow getters/properties
-        programCol.setCellValueFactory(new PropertyValueFactory<>("programName"));
-        functionCol.setCellValueFactory(new PropertyValueFactory<>("functionName"));
-        userCol.setCellValueFactory(new PropertyValueFactory<>("userName"));
-        instrCol.setCellValueFactory(new PropertyValueFactory<>("instrCount"));
-        degreeCol.setCellValueFactory(new PropertyValueFactory<>("maxDegree"));
 
-        // Bind items to table
-        table.setItems(items);
+    @FXML public void initialize() {
+        if (programCol != null) programCol.setCellValueFactory(new PropertyValueFactory<>("programName"));
+        if (functionCol != null) functionCol.setCellValueFactory(new PropertyValueFactory<>("functionName"));
+        if (userCol != null)    userCol.setCellValueFactory(new PropertyValueFactory<>("userName"));
+        if (instrCol != null)   instrCol.setCellValueFactory(new PropertyValueFactory<>("instrCount"));
+        if (degreeCol != null)  degreeCol.setCellValueFactory(new PropertyValueFactory<>("maxDegree"));
+
+        if (table != null) table.setItems(items);
+
+        if (executeFunctionBtn != null && table != null) {
+            executeFunctionBtn.disableProperty().bind(
+                    table.getSelectionModel().selectedItemProperty().isNull()
+            );
+        }
+        new Thread(() -> {
+            try {
+                var list = ApiClient.get().listAllFunctions();
+                Platform.runLater(() -> {
+                    items.clear();
+                    for (ApiClient.FunctionSummary f : list) {
+                        items.add(new FunctionRow(f.program, f.name, f.owner, f.instr, f.maxDegree));
+                    }
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }, "functions-load").start();
     }
+
 
     public void addFunctions(String programName, String owner, Collection<ApiClient.FunctionInfo> functions) {
         if (functions == null || functions.isEmpty()) return;
@@ -49,6 +74,25 @@ public class FunctionTableController {
             items.addAll(rows);
         } else {
             Platform.runLater(() -> items.addAll(rows));
+        }
+    }
+
+    @FXML
+    private void onExecute() {
+        if (table == null) return;
+        FunctionRow sel = table.getSelectionModel().getSelectedItem();
+        if (sel == null) return;
+
+        // Select the parent program and navigate to the Run screen
+        SelectedProgram.set(sel.getProgramName());
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/runner/MainRunScreen.fxml"));
+            Scene scene = new Scene(loader.load());
+            Stage currentStage = (Stage) table.getScene().getWindow();
+            currentStage.setScene(scene);
+            currentStage.show();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

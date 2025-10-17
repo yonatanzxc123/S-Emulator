@@ -6,7 +6,7 @@
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.layout.StackPane?>
 
-<StackPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.dashboard.components.function_table.FunctionTableController">
+<StackPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.dashboard.components.function_table.FunctionTableController">
     <children>
         <TableView fx:id="table">
             <columns>
@@ -20,7 +20,7 @@
                 <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
             </columnResizePolicy>
         </TableView>
-        <Button mnemonicParsing="false" text="Execute Program" StackPane.alignment="BOTTOM_RIGHT">
+        <Button fx:id="executeFunctionBtn" mnemonicParsing="false" onAction="#onExecute" text="Execute Program" StackPane.alignment="BOTTOM_RIGHT">
             <StackPane.margin>
                 <Insets bottom="15.0" right="15.0" />
             </StackPane.margin>

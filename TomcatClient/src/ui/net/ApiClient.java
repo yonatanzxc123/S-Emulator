@@ -61,16 +61,16 @@ public class ApiClient {
         }
     }
 
-    public java.util.List<UserOnline> usersOnline() throws java.io.IOException, InterruptedException {
+    public List<UserOnline> usersOnline() throws java.io.IOException, InterruptedException {
         HttpRequest req = HttpRequest.newBuilder(url("/api/users/online"))
                 .timeout(java.time.Duration.ofSeconds(10))
                 .GET()
                 .build();
         HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-        if (resp.statusCode() != 200) return java.util.List.of();
+        if (resp.statusCode() != 200) return List.of();
         String s = resp.body() == null ? "" : resp.body();
 
-        java.util.List<UserOnline> out = new java.util.ArrayList<>();
+        List<UserOnline> out = new ArrayList<>();
         String k = "\"users\"";
         int i = s.indexOf(k); if (i < 0) return out;
         int c = s.indexOf(':', i + k.length()); if (c < 0) return out;
@@ -158,6 +158,59 @@ public class ApiClient {
 
             if (bs == null || bs.isBlank()) bs = ("I".equals(lvl) ? "B" : "S");
             if (idx >= 0 && op != null) out.add(new ProgramInstruction(idx, op, (lvl == null ? "" : lvl), bs, (lbl == null ? "" : lbl), Math.max(0, cyc)));
+            pos = o2 + 1;
+        }
+        return out;
+    }
+
+    public static final class FunctionSummary {
+        public final String name;
+        public final String program;
+        public final String owner;
+        public final int instr;
+        public final int maxDegree;
+
+        public FunctionSummary(String name, String program, String owner, int instr, int maxDegree) {
+            this.name = name;
+            this.program = program;
+            this.owner = owner;
+            this.instr = instr;
+            this.maxDegree = maxDegree;
+        }
+    }
+
+    public List<FunctionSummary> listAllFunctions() throws java.io.IOException, InterruptedException {
+        var req = HttpRequest.newBuilder(url("/api/functions"))
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
+        var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) return List.of();
+        String s = resp.body() == null ? "" : resp.body();
+
+        List<FunctionSummary> out = new ArrayList<>();
+        String k = "\"functions\"";
+        int i = s.indexOf(k); if (i < 0) return out;
+        int c = s.indexOf(':', i + k.length()); if (c < 0) return out;
+        int a1 = s.indexOf('[', c + 1); if (a1 < 0) return out;
+        int a2 = matchBracket(s, a1); if (a2 < 0) return out;
+        String arr = s.substring(a1 + 1, a2);
+
+        int pos = 0;
+        while (pos < arr.length()) {
+            int o1 = arr.indexOf('{', pos); if (o1 < 0) break;
+            int o2 = matchBrace(arr, o1); if (o2 < 0) break;
+            String obj = arr.substring(o1 + 1, o2);
+
+            String name = jStr(obj, "name");
+            String program = jStr(obj, "program");
+            String owner = jStr(obj, "owner");
+            int instr = jInt(obj, "instr", 0);
+            int maxDeg = jInt(obj, "maxDegree", 0);
+
+            if (name != null && program != null) {
+                out.add(new FunctionSummary(name, program, owner == null ? "" : owner, instr, maxDeg));
+            }
             pos = o2 + 1;
         }
         return out;
