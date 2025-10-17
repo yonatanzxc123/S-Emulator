@@ -32,12 +32,12 @@ public class ProgramsServlet extends BaseApiServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String sp = subPath(req);
-        if (sp == null || sp.isBlank() || "/".equals(sp)) {
-            listPrograms(resp);
-            return;
+        if (sp == null) sp = "/";
+        switch (sp) {
+            case "/", "" -> { listPrograms(resp); return; }
+            case "/functions" -> { listFunctions(resp); return; }
+            default -> json(resp, 404, "{\"error\":\"not_found\"}");
         }
-
-        json(resp, 404, "{\"error\":\"not_found\"}");
     }
 
     // --- POST /api/programs/upload ---
@@ -106,16 +106,32 @@ public class ProgramsServlet extends BaseApiServlet {
         u.helperContrib.addAndGet(report.providedFunctions().size());
         VERSION.incrementAndGet();
 
-        // Response
+        // Build functionsDetailed array for client
+        StringBuilder fd = new StringBuilder("[");
+        boolean first = true;
+        for (String fn : report.providedFunctions().keySet()) {
+            if (!first) fd.append(',');
+            first = false;
+            int instr0 = report.functionInstrDeg0().getOrDefault(fn, 0);
+            int maxDeg = report.functionMaxDegree().getOrDefault(fn, 0);
+            fd.append("{\"name\":\"").append(esc(fn)).append("\",")
+                    .append("\"instr\":").append(instr0).append(',')
+                    .append("\"maxDegree\":").append(maxDeg).append('}');
+        }
+        fd.append(']');
+
+        // Response aligned with ApiClient.uploadProgram()
         final String res = "{"
                 + "\"ok\":true,"
-                + "\"program\":\"" + esc(programName) + "\","
+                + "\"programName\":\"" + esc(programName) + "\","
                 + "\"owner\":\"" + esc(owner) + "\","
                 + "\"instrDeg0\":" + report.mainInstrDeg0() + ","
                 + "\"maxDegree\":" + report.mainMaxDegree() + ","
-                + "\"functions\":" + toJsonArray(report.providedFunctions().keySet())
+                + "\"functions\":" + toJsonArray(report.providedFunctions().keySet()) + ","
+                + "\"functionsDetailed\":" + fd
                 + "}";
         json(resp, 200, res);
+
     }
 
     // --- GET /api/programs ---
@@ -132,6 +148,25 @@ public class ProgramsServlet extends BaseApiServlet {
                     .append("\"maxDegree\":").append(pm.maxDegree).append(',')
                     .append("\"timesRun\":").append(pm.runsCount.get()).append(',')
                     .append("\"avgCredits\":").append(Math.round(pm.avgCreditsCost))
+                    .append("}");
+        }
+        sb.append("]}");
+        json(resp, 200, sb.toString());
+    }
+
+    // --- GET /api/programs/functions ---
+    private void listFunctions(HttpServletResponse resp) throws IOException {
+        StringBuilder sb = new StringBuilder("{\"functions\":[");
+        boolean first = true;
+        for (FunctionMeta fm : FUNCTIONS.values()) {
+            if (!first) sb.append(',');
+            first = false;
+            sb.append("{")
+                    .append("\"name\":\"").append(esc(fm.name())).append("\",")
+                    .append("\"definedInProgram\":\"").append(esc(fm.definedInProgram())).append("\",")
+                    .append("\"owner\":\"").append(esc(fm.ownerUser())).append("\",")
+                    .append("\"instr\":").append(fm.instrCount()).append(',')
+                    .append("\"maxDegree\":").append(fm.maxDegree())
                     .append("}");
         }
         sb.append("]}");
