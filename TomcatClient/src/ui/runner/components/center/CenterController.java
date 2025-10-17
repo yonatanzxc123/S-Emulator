@@ -13,7 +13,7 @@ public class CenterController {
     private void initialize() {
         String selected = SelectedProgram.get();  // fetch currently selected program name
         if (instructionTopController != null && selected != null) {
-
+            instructionTopController.loadInstructions(selected);
         }
         if (instructionBottomController != null) {
             // leave empty (no instructions loaded)

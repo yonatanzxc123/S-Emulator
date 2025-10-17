@@ -6,10 +6,14 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import system.api.view.IngestReport;
 import system.core.EmulatorEngineImpl;
+import system.core.io.ArchTierMap;
+import system.core.io.ProgramMapper;
+import system.core.model.Instruction;
 import system.core.model.Program;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -32,12 +36,71 @@ public class ProgramsServlet extends BaseApiServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String sp = subPath(req);
-        if (sp == null) sp = "/";
         switch (sp) {
-            case "/", "" -> { listPrograms(resp); return; }
-            case "/functions" -> { listFunctions(resp); return; }
-            default -> json(resp, 404, "{\"error\":\"not_found\"}");
+            case "/" -> listPrograms(resp);
+            case "/functions" -> listFunctions(resp);
+            default -> {
+                if (sp.endsWith("/body") && sp.length() > "/body".length() + 1) {
+                    String name = sp.substring(1, sp.length() - "/body".length());
+                    programBody(resp, name);
+                } else {
+                    json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(sp) + "\"}");
+                }
+            }
         }
+    }
+
+    // GET /api/programs/{name}/body
+    private void programBody(jakarta.servlet.http.HttpServletResponse resp, String programName) throws java.io.IOException {
+        var meta = PROGRAMS.get(programName);
+        if (meta == null) {
+            json(resp, 404, "{\"error\":\"program_not_found\",\"name\":\"" + esc(programName) + "\"}");
+            return;
+        }
+
+        // Use the public field from ProgramMeta
+        Program p = meta.mainProgram;
+
+        // Build a view to obtain per-instruction cycles and labels
+        var view = ProgramMapper.toView(p);
+        var cmds = view.commands(); // List<system.api.view.CommandView>
+
+        StringBuilder sb = new StringBuilder(128 + 64 * p.instructions().size());
+        sb.append("{\"instructions\":[");
+        boolean first = true;
+
+        for (int i = 0; i < p.instructions().size(); i++) {
+            var ins = p.instructions().get(i);
+            var cv = cmds.get(i); // aligned: 1-based number == i+1
+
+            String op = ins.asText();                      // real text
+            String bs = ins.isBasic() ? "B" : "S";         // B/S
+            String lvl = toRoman(ArchTierMap.tierOf(ins.getClass())); // I/II/III/IV
+            String lbl = cv.labelOrEmpty() == null ? "" : cv.labelOrEmpty();
+            int cyc = Math.max(0, cv.cycles());            // cycles
+
+            if (!first) sb.append(',');
+            first = false;
+            sb.append("{\"index\":").append(i + 1)
+                    .append(",\"op\":\"").append(esc(op)).append('"')
+                    .append(",\"level\":\"").append(lvl).append('"')
+                    .append(",\"bs\":\"").append(bs).append('"')
+                    .append(",\"label\":\"").append(esc(lbl)).append('"')
+                    .append(",\"cycles\":").append(cyc)
+                    .append('}');
+        }
+        sb.append("]}");
+        json(resp, 200, sb.toString());
+    }
+
+    // tiny helper for I/II/III/IV
+    private static String toRoman(int t) {
+        return switch (t) {
+            case 1 -> "I";
+            case 2 -> "II";
+            case 3 -> "III";
+            default -> "IV";
+        };
     }
 
     // --- POST /api/programs/upload ---
