@@ -56,9 +56,24 @@ public class ProgramsServlet extends BaseApiServlet {
     // GET /api/programs/{name}/body[?degree=N]
     private void programBody(HttpServletRequest req, HttpServletResponse resp, String programName) throws IOException {
         var meta = PROGRAMS.get(programName);
+        Program base;
+        int maxDegree;
+        boolean isFunction = false;
+
         if (meta == null) {
-            json(resp, 404, "{\"error\":\"program_not_found\",\"name\":\"" + esc(programName) + "\"}");
-            return;
+            // Try as function
+            var fnBody = FUNCTION_BODIES.get(programName);
+            var fnMeta = FUNCTIONS.get(programName);
+            if (fnBody == null || fnMeta == null) {
+                json(resp, 404, "{\"error\":\"program_not_found\",\"name\":\"" + esc(programName) + "\"}");
+                return;
+            }
+            base = fnBody;
+            maxDegree = fnMeta.maxDegree();
+            isFunction = true;
+        } else {
+            base = meta.mainProgram;
+            maxDegree = meta.maxDegree;
         }
 
         int degree = 0;
@@ -67,17 +82,19 @@ public class ProgramsServlet extends BaseApiServlet {
             if (q != null) degree = Integer.parseInt(q);
         } catch (NumberFormatException ignore) { /* keep 0 */ }
         if (degree < 0) degree = 0;
-        if (degree > meta.maxDegree) degree = meta.maxDegree;
+        if (degree > maxDegree) degree = maxDegree;
 
-        final int useDegree = degree; // make captured value effectively final
-        final Program base = meta.mainProgram;
-
+        final int useDegree = degree;
         final Object[] pair;
         try {
-            pair = FunctionEnv.with(new FunctionEnv(meta.engine.getFunctions()), () -> {
-                Program pr = (useDegree == 0) ? base : new ExpanderImpl().expandToDegree(base, useDegree);
-                return new Object[]{pr, ProgramMapper.toView(pr)};
-            });
+            // Use correct function set for expansion
+            pair = FunctionEnv.with(
+                    new FunctionEnv(isFunction ? FUNCTION_BODIES : (meta != null ? meta.engine.getFunctions() : Map.of())),
+                    () -> {
+                        Program pr = (useDegree == 0) ? base : new ExpanderImpl().expandToDegree(base, useDegree);
+                        return new Object[]{pr, ProgramMapper.toView(pr)};
+                    }
+            );
         } catch (Exception e) {
             json(resp, 500, "{\"error\":\"expand_failed\",\"degree\":" + useDegree + "}");
             return;
@@ -89,7 +106,7 @@ public class ProgramsServlet extends BaseApiServlet {
 
         StringBuilder sb = new StringBuilder(128 + 64 * p.instructions().size());
         sb.append("{\"degree\":").append(useDegree)
-                .append(",\"maxDegree\":").append(meta.maxDegree)
+                .append(",\"maxDegree\":").append(maxDegree)
                 .append(",\"instructions\":[");
         boolean first = true;
 

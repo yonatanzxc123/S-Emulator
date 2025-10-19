@@ -1,11 +1,10 @@
 // java
 package ui.runner.components.center_left;
 
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.ChoiceBox;
-import javafx.scene.control.ChoiceDialog;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
+import ui.net.ApiClient;
 import ui.runner.components.instruction_table.InstructionTableController;
 
 import java.util.ArrayList;
@@ -25,6 +24,8 @@ public class CenterLeftController {
     private int maxDegree = 0;
     private int currDegree = 0;
 
+    private List<String> allVarsAndLabels = new ArrayList<>();
+
     @FXML
     private void initialize() {
         updateDegreeLabel();
@@ -41,6 +42,91 @@ public class CenterLeftController {
         if (instructionTableController != null && programName != null && !programName.isBlank()) {
             instructionTableController.loadInstructions(programName, currDegree);
         }
+
+        ObservableList<ApiClient.ProgramInstruction> items = instructionTableController.getTable().getItems();
+        allVarsAndLabels.clear();
+        var vars = new java.util.TreeSet<String>();
+        var labels = new java.util.TreeSet<String>();
+        for (ApiClient.ProgramInstruction pi : items) {
+            // Find xN/zN in op string
+            String op = pi.getOp();
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\b([xz]\\d+)\\b").matcher(op);
+            while (m.find()) vars.add(m.group(1));
+            // Find label
+            String lbl = pi.getLabel();
+            if (lbl != null && !lbl.isBlank()) labels.add(lbl);
+        }
+        allVarsAndLabels.addAll(vars);
+        allVarsAndLabels.addAll(labels);
+        chooseVarBox.getItems().setAll(allVarsAndLabels);
+        chooseVarBox.setValue(null);
+
+        // Add listener for highlighting
+        chooseVarBox.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> {
+            highlightRows(sel);
+        });
+    }
+
+    // Highlight rows in the instruction table containing the selected var/label
+    private void highlightRows(String sel) {
+        if (sel == null || sel.isBlank()) {
+            instructionTableController.getTable().setRowFactory(tv -> new TableRow<>());
+        } else {
+            // Use regex to match exact variable/label
+            final String regex = "\\b" + java.util.regex.Pattern.quote(sel) + "\\b";
+            final java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(regex);
+            instructionTableController.getTable().setRowFactory(tv -> new TableRow<>() {
+                @Override
+                protected void updateItem(ApiClient.ProgramInstruction item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setStyle("");
+                    } else {
+                        boolean match = false;
+                        if (item.getOp() != null && pattern.matcher(item.getOp()).find()) match = true;
+                        if (item.getLabel() != null && item.getLabel().equals(sel)) match = true;
+                        setStyle(match ? "-fx-background-color: yellow;" : "");
+                    }
+                }
+            });
+        }
+        instructionTableController.getTable().refresh();
+    }
+
+    private void loadInstructionsAsync(String programName, int degree) {
+        new Thread(() -> {
+            List<ApiClient.ProgramInstruction> result;
+            try {
+                result = ui.net.ApiClient.get().programBody(programName, degree);
+            } catch (Exception e) {
+                result = List.of();
+            }
+            final List<ApiClient.ProgramInstruction> finalResult = result;
+            javafx.application.Platform.runLater(() -> updateInstructionsUI(finalResult));
+        }, "load-instructions-bg").start();
+    }
+
+    private void updateInstructionsUI(List<ApiClient.ProgramInstruction> loaded) {
+        instructionTableController.setInstructions(loaded);
+
+        // Recompute vars and labels
+        allVarsAndLabels.clear();
+        var vars = new java.util.TreeSet<String>();
+        var labels = new java.util.TreeSet<String>();
+        for (ApiClient.ProgramInstruction pi : loaded) {
+            String op = pi.getOp();
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\b([xz]\\d+)\\b").matcher(op);
+            while (m.find()) vars.add(m.group(1));
+            String lbl = pi.getLabel();
+            if (lbl != null && !lbl.isBlank()) labels.add(lbl);
+        }
+        allVarsAndLabels.addAll(vars);
+        allVarsAndLabels.addAll(labels);
+        chooseVarBox.getItems().setAll(allVarsAndLabels);
+
+        // Clear highlights
+        chooseVarBox.setValue(null);
+        highlightRows(null);
     }
 
     @FXML
@@ -66,12 +152,9 @@ public class CenterLeftController {
                 updateDegreeLabel();
 
                 if (instructionTableController != null) {
-                    instructionTableController.loadInstructions(programName, currDegree);
+                    loadInstructionsAsync(programName, currDegree);
                 }
-                // ancestryTableController can be populated similarly if/when ancestry data exists
-            } catch (NumberFormatException ignore) {
-                // ignore invalid selection
-            }
+            } catch (NumberFormatException ignore) {}
         });
     }
 

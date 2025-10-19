@@ -26,6 +26,8 @@ public class InstructionTableController {
     private final ObservableList<ProgramInstruction> items = FXCollections.observableArrayList();
     private static final AtomicBoolean AUTOLOAD_ONCE = new AtomicBoolean(true);
 
+
+    public TableView<ApiClient.ProgramInstruction> getTable() { return table; }
     @FXML
     private void initialize() {
         lineCol.setCellValueFactory(new PropertyValueFactory<>("index"));

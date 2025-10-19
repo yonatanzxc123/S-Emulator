@@ -83,8 +83,9 @@ public class FunctionTableController {
         FunctionRow sel = table.getSelectionModel().getSelectedItem();
         if (sel == null) return;
 
-        // Select the parent program and navigate to the Run screen
-        SelectedProgram.set(sel.getProgramName());
+        // Use the FUNCTION name (not the program) so the run screen loads the function body
+        SelectedProgram.set(sel.getFunctionName());
+
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/runner/MainRunScreen.fxml"));
             Scene scene = new Scene(loader.load());
