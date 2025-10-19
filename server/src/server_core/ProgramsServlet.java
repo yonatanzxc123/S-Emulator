@@ -5,7 +5,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import system.api.view.IngestReport;
+import system.api.view.ProgramView;
 import system.core.EmulatorEngineImpl;
+import system.core.exec.FunctionEnv;
+import system.core.expand.ExpanderImpl;
 import system.core.io.ArchTierMap;
 import system.core.io.ProgramMapper;
 import system.core.model.Instruction;
@@ -42,7 +45,7 @@ public class ProgramsServlet extends BaseApiServlet {
             default -> {
                 if (sp.endsWith("/body") && sp.length() > "/body".length() + 1) {
                     String name = sp.substring(1, sp.length() - "/body".length());
-                    programBody(resp, name);
+                    programBody(req,resp, name);
                 } else {
                     json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(sp) + "\"}");
                 }
@@ -50,34 +53,56 @@ public class ProgramsServlet extends BaseApiServlet {
         }
     }
 
-    // GET /api/programs/{name}/body
-    private void programBody(jakarta.servlet.http.HttpServletResponse resp, String programName) throws java.io.IOException {
+    // GET /api/programs/{name}/body[?degree=N]
+    private void programBody(HttpServletRequest req, HttpServletResponse resp, String programName) throws IOException {
         var meta = PROGRAMS.get(programName);
         if (meta == null) {
             json(resp, 404, "{\"error\":\"program_not_found\",\"name\":\"" + esc(programName) + "\"}");
             return;
         }
 
-        // Use the public field from ProgramMeta
-        Program p = meta.mainProgram;
+        int degree = 0;
+        try {
+            String q = req.getParameter("degree");
+            if (q != null) degree = Integer.parseInt(q);
+        } catch (NumberFormatException ignore) { /* keep 0 */ }
+        if (degree < 0) degree = 0;
+        if (degree > meta.maxDegree) degree = meta.maxDegree;
 
-        // Build a view to obtain per-instruction cycles and labels
-        var view = ProgramMapper.toView(p);
-        var cmds = view.commands(); // List<system.api.view.CommandView>
+        final int useDegree = degree; // make captured value effectively final
+        final Program base = meta.mainProgram;
+
+        final Object[] pair;
+        try {
+            pair = FunctionEnv.with(new FunctionEnv(meta.engine.getFunctions()), () -> {
+                Program pr = (useDegree == 0) ? base : new ExpanderImpl().expandToDegree(base, useDegree);
+                return new Object[]{pr, ProgramMapper.toView(pr)};
+            });
+        } catch (Exception e) {
+            json(resp, 500, "{\"error\":\"expand_failed\",\"degree\":" + useDegree + "}");
+            return;
+        }
+
+        final Program p = (Program) pair[0];
+        final ProgramView view = (ProgramView) pair[1];
+        final var cmds = view.commands();
 
         StringBuilder sb = new StringBuilder(128 + 64 * p.instructions().size());
-        sb.append("{\"instructions\":[");
+        sb.append("{\"degree\":").append(useDegree)
+                .append(",\"maxDegree\":").append(meta.maxDegree)
+                .append(",\"instructions\":[");
         boolean first = true;
 
-        for (int i = 0; i < p.instructions().size(); i++) {
-            var ins = p.instructions().get(i);
-            var cv = cmds.get(i); // aligned: 1-based number == i+1
+        List<Instruction> insns = p.instructions();
+        for (int i = 0; i < insns.size(); i++) {
+            var ins = insns.get(i);
+            var cv = cmds.get(i);
 
-            String op = ins.asText();                      // real text
-            String bs = ins.isBasic() ? "B" : "S";         // B/S
-            String lvl = toRoman(ArchTierMap.tierOf(ins.getClass())); // I/II/III/IV
+            String op = ins.asText();
+            String bs = ins.isBasic() ? "B" : "S";
+            String lvl = toRoman(ArchTierMap.tierOf(ins.getClass()));
             String lbl = cv.labelOrEmpty() == null ? "" : cv.labelOrEmpty();
-            int cyc = Math.max(0, cv.cycles());            // cycles
+            int cyc = Math.max(0, cv.cycles());
 
             if (!first) sb.append(',');
             first = false;

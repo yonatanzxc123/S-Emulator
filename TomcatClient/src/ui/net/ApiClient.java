@@ -5,9 +5,11 @@ import java.io.IOException;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -124,15 +126,25 @@ public class ApiClient {
         public int getCycles()  { return cycles; }
     }
 
+    private static String encSeg(String s) {
+        if (s == null) return "null";
+        String q = URLEncoder.encode(s, StandardCharsets.UTF_8);
+        return q.replace("+", "%20");
+    }
+
 
     public List<ProgramInstruction> programBody(String programName) throws IOException, InterruptedException {
-        HttpRequest req = HttpRequest.newBuilder(url("/api/programs/" + programName + "/body"))
+        String path = "/api/programs/" + encSeg(programName) + "/body";
+        HttpRequest req = HttpRequest.newBuilder(url(path))
                 .timeout(Duration.ofSeconds(10))
                 .GET()
                 .build();
 
         var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-        if (resp.statusCode() != 200) return List.of();
+        if (resp.statusCode() != 200) {
+            if (debug) System.err.println("GET " + path + " -> " + resp.statusCode());
+            return List.of();
+        }
         String s = resp.body() == null ? "" : resp.body();
 
         List<ProgramInstruction> out = new ArrayList<>();
@@ -154,13 +166,70 @@ public class ApiClient {
             String lvl = jStr(obj, "level");
             String bs  = jStr(obj, "bs");
             String lbl = jStr(obj, "label");
-            int cyc     = jInt(obj, "cycles", 0);
+            int cyc    = jInt(obj, "cycles", 0);
 
             if (bs == null || bs.isBlank()) bs = ("I".equals(lvl) ? "B" : "S");
             if (idx >= 0 && op != null) out.add(new ProgramInstruction(idx, op, (lvl == null ? "" : lvl), bs, (lbl == null ? "" : lbl), Math.max(0, cyc)));
             pos = o2 + 1;
         }
         return out;
+    }
+
+    public List<ProgramInstruction> programBody(String programName, int degree) throws IOException, InterruptedException {
+        String path = "/api/programs/" + encSeg(programName) + "/body?degree=" + Math.max(0, degree);
+        HttpRequest req = HttpRequest.newBuilder(url(path))
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
+
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) {
+            if (debug) System.err.println("GET " + path + " -> " + resp.statusCode());
+            return List.of();
+        }
+        String s = resp.body() == null ? "" : resp.body();
+
+        List<ProgramInstruction> out = new ArrayList<>();
+        String key = "\"instructions\"";
+        int i = s.indexOf(key); if (i < 0) return out;
+        int c = s.indexOf(':', i + key.length()); if (c < 0) return out;
+        int a1 = s.indexOf('[', c + 1); if (a1 < 0) return out;
+        int a2 = matchBracket(s, a1); if (a2 < 0) return out;
+        String arr = s.substring(a1 + 1, a2);
+
+        int pos = 0;
+        while (pos < arr.length()) {
+            int o1 = arr.indexOf('{', pos); if (o1 < 0) break;
+            int o2 = matchBrace(arr, o1); if (o2 < 0) break;
+            String obj = arr.substring(o1 + 1, o2);
+
+            int idx = jInt(obj, "index", -1);
+            String op  = jStr(obj, "op");
+            String lvl = jStr(obj, "level");
+            String bs  = jStr(obj, "bs");
+            String lbl = jStr(obj, "label");
+            int cyc    = jInt(obj, "cycles", 0);
+
+            if (bs == null || bs.isBlank()) bs = ("I".equals(lvl) ? "B" : "S");
+            if (idx >= 0 && op != null) out.add(new ProgramInstruction(idx, op, (lvl == null ? "" : lvl), bs, (lbl == null ? "" : lbl), Math.max(0, cyc)));
+            pos = o2 + 1;
+        }
+        return out;
+    }
+
+    public int programMaxDegree(String programName) throws IOException, InterruptedException {
+        String path = "/api/programs/" + encSeg(programName) + "/body";
+        HttpRequest req = HttpRequest.newBuilder(url(path))
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) {
+            if (debug) System.err.println("GET " + path + " -> " + resp.statusCode());
+            return 0;
+        }
+        String s = resp.body() == null ? "" : resp.body();
+        return jInt(s, "maxDegree", 0);
     }
 
     public static final class FunctionSummary {

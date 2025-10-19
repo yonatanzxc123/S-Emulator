@@ -1,3 +1,4 @@
+// java
 package ui.runner.components.instruction_table;
 
 import javafx.collections.FXCollections;
@@ -14,7 +15,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class InstructionTableController {
-
     @FXML private TableView<ProgramInstruction> table;
     @FXML private TableColumn<ProgramInstruction, Integer> lineCol;
     @FXML private TableColumn<ProgramInstruction, String>  labelCol;
@@ -37,7 +37,6 @@ public class InstructionTableController {
 
         table.setItems(items);
 
-        // Only the first included table (top one) will autoload.
         if (AUTOLOAD_ONCE.getAndSet(false)) {
             String program = SelectedProgram.get();
             if (program != null && !program.isEmpty()) {
@@ -46,6 +45,7 @@ public class InstructionTableController {
         }
     }
 
+    // Keep existing sync loaders (used at startup / simple calls)
     public void loadInstructions(String programName) {
         try {
             items.clear();
@@ -54,5 +54,21 @@ public class InstructionTableController {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public void loadInstructions(String programName, int degree) {
+        try {
+            items.clear();
+            List<ProgramInstruction> list = ApiClient.get().programBody(programName, Math.max(0, degree));
+            if (list != null) items.addAll(list);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // New: UI-thread update helper, used by CenterLeftController after background fetch
+    public void setInstructions(List<ProgramInstruction> list) {
+        items.clear();
+        if (list != null) items.addAll(list);
     }
 }
