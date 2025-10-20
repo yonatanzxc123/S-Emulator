@@ -4,6 +4,7 @@ package ui.dashboard.components.center;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import ui.AppContext;
+import ui.ClientApp;
 import ui.dashboard.components.file_line.FileLineController;
 import ui.dashboard.components.inner_center.InnerCenterController;
 import ui.dashboard.components.inner_center_right.InnerCenterRightController;
@@ -14,6 +15,18 @@ public class CenterController {
     @FXML private FileLineController fileLineController;
     @FXML private InnerCenterController innerCenterController;
 
+
+    public void setAppContext(AppContext ctx) {
+        if (innerCenterController != null) {
+            innerCenterController.setAppContext(ctx);
+        }
+    }
+
+    public void setClientApp(ClientApp app) {
+        if (innerCenterController != null) {
+            innerCenterController.setClientApp(app);
+        }
+    }
     public void init(AppContext ctx) {
         if (innerCenterController == null) return;
 

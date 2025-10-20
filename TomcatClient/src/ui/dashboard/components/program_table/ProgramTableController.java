@@ -12,6 +12,8 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
+import ui.AppContext;
+import ui.ClientApp;
 import ui.runner.SelectedProgram;
 
 public class ProgramTableController {
@@ -26,6 +28,12 @@ public class ProgramTableController {
     @FXML private Button executeBtn;
 
     private final ObservableList<Row> items = FXCollections.observableArrayList();
+
+    private AppContext ctx;
+    public void setAppContext(AppContext ctx) { this.ctx = ctx; }
+
+    private ClientApp app;
+    public void setClientApp(ClientApp app) { this.app = app; }
 
     @FXML
     private void initialize() {
@@ -59,21 +67,13 @@ public class ProgramTableController {
     @FXML
     private void onExecute() {
         Row sel = (table == null) ? null : table.getSelectionModel().getSelectedItem();
-        if (sel == null) return;
+        if (sel == null || ctx == null || app == null) return;
 
-        // 1) Save selected program name
         SelectedProgram.set(sel.getName());
-
-        // 2) Load and show the RunScreen
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/runner/MainRunScreen.fxml"));
-            Scene scene = new Scene(loader.load());
-
-            Stage currentStage = (Stage) table.getScene().getWindow();
-            currentStage.setScene(scene);
-            currentStage.show();
+            app.showRunScreen();
         } catch (Exception e) {
-            e.printStackTrace(); // ✅ See the error in console
+            e.printStackTrace();
         }
     }
 
@@ -101,5 +101,7 @@ public class ProgramTableController {
         public String getDegree() { return degree; }
         public String getRuns() { return runs; }
         public String getCredits() { return credits; }
+
+
     }
 }
