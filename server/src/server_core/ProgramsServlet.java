@@ -109,6 +109,8 @@ public class ProgramsServlet extends BaseApiServlet {
         u.helperContrib.addAndGet(report.providedFunctions().size());
         VERSION.incrementAndGet();
 
+
+
         // Send response with details of the new program
         final String resJson = "{"
                 + "\"ok\":true,"
@@ -117,7 +119,7 @@ public class ProgramsServlet extends BaseApiServlet {
                 + "\"instrDeg0\":" + report.mainInstrDeg0() + ","
                 + "\"maxDegree\":" + report.mainMaxDegree() + ","
                 + "\"functions\":" + toJsonArray(report.providedFunctions().keySet()) + ","
-                + "\"functionsDetailed\":" + fd
+                + "\"functionsDetailed\":" + functionsDetailedJson(report)
                 + "}";
         json(resp, 200, resJson);
     }
@@ -160,4 +162,23 @@ public class ProgramsServlet extends BaseApiServlet {
         sb.append("]}");
         json(resp, 200, sb.toString());
     }
+
+    private static String functionsDetailedJson(IngestReport report) {
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (String fn : report.providedFunctions().keySet()) {
+            if (!first) sb.append(',');
+            first = false;
+            sb.append("{\"name\":\"").append(esc(fn)).append("\",")
+                    .append("\"instr\":").append(report.functionInstrDeg0().getOrDefault(fn, 0)).append(',')
+                    .append("\"maxDegree\":").append(report.functionMaxDegree().getOrDefault(fn, 0))
+                    .append("}");
+        }
+        sb.append(']');
+        return sb.toString();
+    }
+
+
+
+
 }
