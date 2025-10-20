@@ -4,10 +4,17 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import system.api.view.IngestReport;
+import system.api.view.ProgramView;
 import system.core.EmulatorEngineImpl;
+import system.core.exec.FunctionEnv;
+import system.core.expand.ExpanderImpl;
+import system.core.io.ArchTierMap;
+import system.core.io.ProgramMapper;
+import system.core.model.Instruction;
 import system.core.model.Program;
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -105,11 +112,12 @@ public class ProgramsServlet extends BaseApiServlet {
         // Send response with details of the new program
         final String resJson = "{"
                 + "\"ok\":true,"
-                + "\"program\":\"" + esc(programName) + "\","
+                + "\"programName\":\"" + esc(programName) + "\","
                 + "\"owner\":\"" + esc(owner) + "\","
                 + "\"instrDeg0\":" + report.mainInstrDeg0() + ","
                 + "\"maxDegree\":" + report.mainMaxDegree() + ","
-                + "\"functions\":" + toJsonArray(report.providedFunctions().keySet())
+                + "\"functions\":" + toJsonArray(report.providedFunctions().keySet()) + ","
+                + "\"functionsDetailed\":" + fd
                 + "}";
         json(resp, 200, resJson);
     }
@@ -128,6 +136,25 @@ public class ProgramsServlet extends BaseApiServlet {
                     .append("\"maxDegree\":").append(pm.maxDegree).append(',')
                     .append("\"timesRun\":").append(pm.runsCount.get()).append(',')
                     .append("\"avgCredits\":").append(Math.round(pm.avgCreditsCost))
+                    .append("}");
+        }
+        sb.append("]}");
+        json(resp, 200, sb.toString());
+    }
+
+    // --- GET /api/programs/functions ---
+    private void listFunctions(HttpServletResponse resp) throws IOException {
+        StringBuilder sb = new StringBuilder("{\"functions\":[");
+        boolean first = true;
+        for (FunctionMeta fm : FUNCTIONS.values()) {
+            if (!first) sb.append(',');
+            first = false;
+            sb.append("{")
+                    .append("\"name\":\"").append(esc(fm.name())).append("\",")
+                    .append("\"definedInProgram\":\"").append(esc(fm.definedInProgram())).append("\",")
+                    .append("\"owner\":\"").append(esc(fm.ownerUser())).append("\",")
+                    .append("\"instr\":").append(fm.instrCount()).append(',')
+                    .append("\"maxDegree\":").append(fm.maxDegree())
                     .append("}");
         }
         sb.append("]}");

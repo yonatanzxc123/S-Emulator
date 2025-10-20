@@ -10,7 +10,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<SplitPane dividerPositions="0.74" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="0.0" minWidth="-Infinity" orientation="VERTICAL" prefHeight="400.0" prefWidth="600.0" stylesheets="@centerleft.css" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.runner.components.center_left.CenterLeftController">
+<SplitPane dividerPositions="0.74" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="0.0" minWidth="-Infinity" orientation="VERTICAL" prefHeight="400.0" prefWidth="600.0" stylesheets="@centerleft.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.runner.components.center_left.CenterLeftController">
   <items>
     <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="100.0" prefWidth="160.0">
          <children>
@@ -18,7 +18,7 @@
                <children>
                   <HBox minHeight="30.0" prefWidth="200.0">
                      <children>
-                        <Button fx:id="expandBtn" mnemonicParsing="false" text="Expand">
+                        <Button fx:id="expandBtn" mnemonicParsing="false" onAction="#onExpand" text="Expand">
                            <HBox.margin>
                               <Insets left="10.0" />
                            </HBox.margin></Button>
