@@ -633,7 +633,7 @@ public class ApiClient {
 
 
     public String fetchOriginChain(String programName, int degree, int index) throws IOException, InterruptedException {
-        String path = "/api/programs/" + encSeg(programName) + "/ancestry?degree=" + degree + "&index=" + index;
+        String path = "/api/programs/ancestry/" + encSeg(programName) + "?degree=" + degree + "&index=" + index;
         HttpRequest req = HttpRequest.newBuilder(url(path))
                 .timeout(Duration.ofSeconds(10))
                 .GET()

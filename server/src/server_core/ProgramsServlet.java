@@ -43,8 +43,6 @@ public class ProgramsServlet extends BaseApiServlet {
             listPrograms(resp);
         } else if ("/functions".equals(sp)) {
             listFunctions(resp);
-        } else if (sp.endsWith("/ancestry")) {
-            return; // Handled in AncestryServlet
         } else if (sp.endsWith("/body") && sp.length() > "/body".length() + 1) {
             String name = sp.substring(1, sp.length() - "/body".length());
             programBody(req, resp, name);
