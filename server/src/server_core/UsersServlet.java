@@ -1,22 +1,20 @@
-// java
 package server_core;
 
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
 import java.io.IOException;
 
 @WebServlet(name = "UsersServlet", urlPatterns = {"/api/users/*"}, loadOnStartup = 1)
 public class UsersServlet extends BaseApiServlet {
 
-    private static final long ACTIVE_TTL_MS = 4000L;
+    private static final long ACTIVE_TTL_MS = 4000L;  // user considered "online" if seen within last 4 seconds
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         switch (subPath(req)) {
             case "/online" -> handleUsersOnline(req, resp);
-            default -> json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(subPath(req)) + "\"}");
+            default        -> json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(subPath(req)) + "\"}");
         }
     }
 
@@ -24,7 +22,7 @@ public class UsersServlet extends BaseApiServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         switch (subPath(req)) {
             case "/credits/add" -> handleCreditsAdd(req, resp);
-            default -> json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(subPath(req)) + "\"}");
+            default             -> json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(subPath(req)) + "\"}");
         }
     }
 
@@ -38,29 +36,30 @@ public class UsersServlet extends BaseApiServlet {
             json(resp, 400, "{\"error\":\"invalid_amount\"}");
             return;
         }
-        long newBal = u.credits.addAndGet(amount);
+        long newBalance = u.addCredits(amount);
         VERSION.incrementAndGet();
-        json(resp, 200, "{\"ok\":true,\"credits\":" + newBal + "}");
+        json(resp, 200, "{\"ok\":true,\"credits\":" + newBalance + "}");
     }
 
     private void handleUsersOnline(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         long now = System.currentTimeMillis();
         User me = optUser(req);
-        if (me != null) me.lastSeenMs = now;
+        if (me != null) {
+            me.lastSeenMs = now;
+        }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("{\"users\":[");
+        StringBuilder sb = new StringBuilder("{\"users\":[");
         boolean first = true;
-        for (User u : USERS.values()) {
-            if (now - u.lastSeenMs > ACTIVE_TTL_MS) continue; // only active users
+        for (User user : USERS.values()) {
+            if (now - user.lastSeenMs > ACTIVE_TTL_MS) continue;  // only include recently active users
             if (!first) sb.append(',');
             first = false;
-            sb.append("{\"name\":\"").append(esc(u.name)).append("\",")
-                    .append("\"mainUploaded\":").append(u.mainUploaded.get()).append(',')
-                    .append("\"helperContrib\":").append(u.helperContrib.get()).append(',')
-                    .append("\"credits\":").append(u.credits.get()).append(',')
-                    .append("\"creditsSpent\":").append(u.creditsSpent.get()).append(',')
-                    .append("\"runsCount\":").append(u.runsCount.get()).append('}');
+            sb.append("{\"name\":\"").append(esc(user.name)).append("\",")
+                    .append("\"mainUploaded\":").append(user.mainUploaded.get()).append(',')
+                    .append("\"helperContrib\":").append(user.helperContrib.get()).append(',')
+                    .append("\"credits\":").append(user.getCredits()).append(',')
+                    .append("\"creditsSpent\":").append(user.creditsSpent.get()).append(',')
+                    .append("\"runsCount\":").append(user.runsCount.get()).append('}');
         }
         sb.append("]}");
         json(resp, 200, sb.toString());

@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import system.core.model.Program;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -13,39 +12,53 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 abstract class BaseApiServlet extends HttpServlet {
-    // Shared in-memory state
+    // Shared in-memory state (global maps and versioning)
     protected static final Map<String, User> USERS = new ConcurrentHashMap<>();
     protected static final AtomicLong VERSION = new AtomicLong(1);
     protected static final Map<String, ProgramMeta> PROGRAMS = new ConcurrentHashMap<>();
     protected static final Map<String, FunctionMeta> FUNCTIONS = new ConcurrentHashMap<>();
-    protected static final Map<String, Program> FUNCTION_BODIES =new ConcurrentHashMap<>();
+    protected static final Map<String, Program> FUNCTION_BODIES = new ConcurrentHashMap<>();
 
-    // -------- Helpers --------
+    // -------- Helper Methods --------
+
+    /** Get the sub-path of the request (after the servlet mapping). */
     protected static String subPath(HttpServletRequest req) {
         String p = req.getPathInfo();
         return (p == null || p.isEmpty()) ? "/" : p;
     }
 
+    /** Write a JSON response with the given HTTP status code. */
     protected static void json(HttpServletResponse resp, int code, String body) throws IOException {
         resp.setStatus(code);
         resp.setContentType("application/json; charset=UTF-8");
-        try (PrintWriter out = resp.getWriter()) { out.write(body); }
+        try (PrintWriter out = resp.getWriter()) {
+            out.write(body);
+        }
     }
 
+    /** Read the entire request body as a string. */
     protected static String readBody(HttpServletRequest req) throws IOException {
         StringBuilder sb = new StringBuilder();
         try (BufferedReader br = req.getReader()) {
-            String line; while ((line = br.readLine()) != null) sb.append(line).append('\n');
+            String line;
+            while ((line = br.readLine()) != null) {
+                sb.append(line).append('\n');
+            }
         }
         return sb.toString();
     }
 
+    /** Escape a string for safe inclusion in JSON (handles quotes, backslashes, newlines). */
     protected static String esc(String s) {
-        return s.replace("\\","\\\\").replace("\"","\\\"").replace("\n","\\n");
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n");
     }
 
-    // Look up the logged-in user from the session.
-    // Prefer the "user" attribute (set by AuthServlet), with a legacy fallback to "username".
+    /**
+     * Retrieve the logged-in user from the session.
+     * Checks the "user" attribute first (set by AuthServlet), then falls back to a legacy "username" attribute.
+     */
     protected static User optUser(HttpServletRequest req) {
         var ses = req.getSession(false);
         if (ses == null) return null;
@@ -54,8 +67,7 @@ abstract class BaseApiServlet extends HttpServlet {
         if (uAttr instanceof User u) {
             return u;
         }
-
-        // Backward-compatible: if only username is present, materialize a User and cache it
+        // Backward-compatible: if only a username is stored, create or get the User object
         Object nameAttr = ses.getAttribute("username");
         if (nameAttr != null) {
             String name = String.valueOf(nameAttr);
@@ -63,10 +75,13 @@ abstract class BaseApiServlet extends HttpServlet {
             ses.setAttribute("user", u); // migrate to the canonical attribute
             return u;
         }
-
         return null;
     }
 
+    /**
+     * Require that a user is logged in for this request. If not, send a 401 and return null.
+     * Updates the user's last-seen timestamp on success.
+     */
     protected static User requireUser(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User u = optUser(req);
         if (u == null) {
@@ -77,79 +92,93 @@ abstract class BaseApiServlet extends HttpServlet {
         return u;
     }
 
-    // Naive JSON pickers (flat JSON only)
+    // ---- Basic JSON parsing helpers (for simple flat JSON structures) ----
+
     protected static String jStr(String json, String key) {
         if (json == null) return null;
-        String k = "\"" + key + "\"";
-        int i = json.indexOf(k);
+        String token = "\"" + key + "\"";
+        int i = json.indexOf(token);
         if (i < 0) return null;
-        int c = json.indexOf(':', i + k.length());
+        int c = json.indexOf(':', i + token.length());
         if (c < 0) return null;
-
         int p = c + 1, n = json.length();
+        // Skip whitespace and ensure next char is a quote
         while (p < n && Character.isWhitespace(json.charAt(p))) p++;
         if (p >= n || json.charAt(p) != '"') return null;
-
-        StringBuilder out = new StringBuilder(json.length() - p);
-        boolean esc = false;
+        StringBuilder out = new StringBuilder();
+        boolean escape = false;
         for (int q = p + 1; q < n; q++) {
             char ch = json.charAt(q);
-            if (esc) {
+            if (escape) {
                 switch (ch) {
-                    case '"': out.append('"'); break;
-                    case '\\': out.append('\\'); break;
-                    case '/': out.append('/'); break;
-                    case 'b': out.append('\b'); break;
-                    case 'f': out.append('\f'); break;
-                    case 'n': out.append('\n'); break;
-                    case 'r': out.append('\r'); break;
-                    case 't': out.append('\t'); break;
-                    case 'u':
+                    case '"'  -> out.append('"');
+                    case '\\' -> out.append('\\');
+                    case '/'  -> out.append('/');
+                    case 'b'  -> out.append('\b');
+                    case 'f'  -> out.append('\f');
+                    case 'n'  -> out.append('\n');
+                    case 'r'  -> out.append('\r');
+                    case 't'  -> out.append('\t');
+                    case 'u'-> {
                         if (q + 4 < n) {
-                            int h = (hex(json.charAt(q + 1)) << 12)
-                                    | (hex(json.charAt(q + 2)) << 8)
-                                    | (hex(json.charAt(q + 3)) << 4)
-                                    | (hex(json.charAt(q + 4)));
-                            out.append((char) h);
+                            int code = (hex(json.charAt(q+1)) << 12)
+                                    | (hex(json.charAt(q+2)) << 8)
+                                    | (hex(json.charAt(q+3)) << 4)
+                                    | (hex(json.charAt(q+4)));
+                            out.append((char) code);
                             q += 4;
                         }
-                        break;
-                    default:
+                    }
+                    default ->
                         out.append(ch);
-                        break;
+
+
                 }
-                esc = false;
+                escape = false;
             } else if (ch == '\\') {
-                esc = true;
+                escape = true;
             } else if (ch == '"') {
+                // end of string
                 return out.toString();
             } else {
                 out.append(ch);
             }
         }
-        return null;
+        return null; // no closing quote found
     }
 
     private static int hex(char c) {
-        if (c >= '0' && c <= '9') return c - '0';
-        if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
-        if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
-        return 0;
+        return switch (c) {
+            case '0','1','2','3','4','5','6','7','8','9' -> c - '0';
+            case 'a','b','c','d','e','f' -> 10 + (c - 'a');
+            case 'A','B','C','D','E','F' -> 10 + (c - 'A');
+            default -> 0;
+        };
     }
 
     protected static Long jLong(String json, String key) {
         if (json == null) return null;
-        String n = "\"" + key + "\"";
-        int i = json.indexOf(n); if (i < 0) return null;
-        int c = json.indexOf(':', i + n.length()); if (c < 0) return null;
+        String token = "\"" + key + "\"";
+        int i = json.indexOf(token);
+        if (i < 0) return null;
+        int c = json.indexOf(':', i + token.length());
+        if (c < 0) return null;
         int s = c + 1;
+        // Skip whitespace, then parse number
         while (s < json.length() && Character.isWhitespace(json.charAt(s))) s++;
         int e = s;
-        while (e < json.length() && "-0123456789".indexOf(json.charAt(e)) >= 0) e++;
+        while (e < json.length() && "-0123456789".indexOf(json.charAt(e)) >= 0) {
+            e++;
+        }
         if (s == e) return null;
-        try { return Long.parseLong(json.substring(s, e)); } catch (NumberFormatException ex) { return null; }
+        try {
+            return Long.parseLong(json.substring(s, e));
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
+    /** Convert a collection of strings into a JSON array representation. */
     protected static String toJsonArray(java.util.Collection<String> items) {
         StringBuilder sb = new StringBuilder("[");
         boolean first = true;

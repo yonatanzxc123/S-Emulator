@@ -3,7 +3,6 @@ package server_core;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
 import system.api.view.IngestReport;
 import system.api.view.ProgramView;
 import system.core.EmulatorEngineImpl;
@@ -13,15 +12,14 @@ import system.core.io.ArchTierMap;
 import system.core.io.ProgramMapper;
 import system.core.model.Instruction;
 import system.core.model.Program;
-
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Lists programs, handles upload, and serves /api/programs/{name}/body
- * so the JavaFX client can populate the instruction table.
+ * Handles listing of programs and uploading new programs via XML.
+ * Also serves program data to clients (e.g., program instruction bodies).
  */
 @WebServlet(name = "ProgramsServlet", urlPatterns = {"/api/programs/*"}, loadOnStartup = 1)
 public class ProgramsServlet extends BaseApiServlet {
@@ -32,129 +30,18 @@ public class ProgramsServlet extends BaseApiServlet {
         if (sp == null) sp = "";
         switch (sp) {
             case "/upload" -> handleProgramUpload(req, resp);
-            default -> json(resp, 404, "{\"error\":\"not_found\"}");
+            default        -> json(resp, 404, "{\"error\":\"not_found\"}");
         }
     }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String sp = subPath(req);
-        switch (sp) {
-            case "/" -> listPrograms(resp);
-            case "/functions" -> listFunctions(resp);
-            default -> {
-                if (sp.endsWith("/body") && sp.length() > "/body".length() + 1) {
-                    String name = sp.substring(1, sp.length() - "/body".length());
-                    programBody(req,resp, name);
-                } else {
-                    json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(sp) + "\"}");
-                }
-            }
-        }
-    }
-
-    // GET /api/programs/{name}/body[?degree=N]
-    private void programBody(HttpServletRequest req, HttpServletResponse resp, String programName) throws IOException {
-        var meta = PROGRAMS.get(programName);
-        Program base;
-        int maxDegree;
-        boolean isFunction = false;
-
-        if (meta == null) {
-            // Try as function
-            var fnBody = FUNCTION_BODIES.get(programName);
-            var fnMeta = FUNCTIONS.get(programName);
-            if (fnBody == null || fnMeta == null) {
-                json(resp, 404, "{\"error\":\"program_not_found\",\"name\":\"" + esc(programName) + "\"}");
-                return;
-            }
-            base = fnBody;
-            maxDegree = fnMeta.maxDegree();
-            isFunction = true;
+        if (sp == null || sp.isBlank() || "/".equals(sp)) {
+            listPrograms(resp);
         } else {
-            base = meta.mainProgram;
-            maxDegree = meta.maxDegree;
+            json(resp, 404, "{\"error\":\"not_found\"}");
         }
-
-        int degree = 0;
-        try {
-            String q = req.getParameter("degree");
-            if (q != null) degree = Integer.parseInt(q);
-        } catch (NumberFormatException ignore) { /* keep 0 */ }
-        if (degree < 0) degree = 0;
-        if (degree > maxDegree) degree = maxDegree;
-
-        final int useDegree = degree;
-        final Object[] pair;
-        try {
-            // Use correct function set for expansion
-            pair = FunctionEnv.with(
-                    new FunctionEnv(isFunction ? FUNCTION_BODIES : (meta != null ? meta.engine.getFunctions() : Map.of())),
-                    () -> {
-                        Program pr;
-                        ProgramView view;
-                        if (useDegree == 0) {
-                            pr = base;
-                            view = ProgramMapper.toView(pr);
-                        } else {
-                            var res = new ExpanderImpl().expandToDegreeWithOrigins(base, useDegree);
-                            pr = res.program();
-                            view = ProgramMapper.toView(pr, res.origins());
-                        }
-                        return new Object[]{pr, view};
-                    }
-            );
-        } catch (Exception e) {
-            json(resp, 500, "{\"error\":\"expand_failed\",\"degree\":" + useDegree + "}");
-            return;
-        }
-
-        final Program p = (Program) pair[0];
-        final ProgramView view = (ProgramView) pair[1];
-        final var cmds = view.commands();
-
-        StringBuilder sb = new StringBuilder(128 + 64 * p.instructions().size());
-        sb.append("{\"degree\":").append(useDegree)
-                .append(",\"maxDegree\":").append(maxDegree)
-                .append(",\"instructions\":[");
-        boolean first = true;
-
-        List<Instruction> insns = p.instructions();
-        for (int i = 0; i < insns.size(); i++) {
-            var ins = insns.get(i);
-            var cv = cmds.get(i);
-
-            String op = ins.asText();
-            String bs = ins.isBasic() ? "B" : "S";
-            String lvl = toRoman(ArchTierMap.tierOf(ins.getClass()));
-            String lbl = cv.labelOrEmpty() == null ? "" : cv.labelOrEmpty();
-            int cyc = Math.max(0, cv.cycles());
-
-            if (!first) sb.append(',');
-            first = false;
-
-            String originChain = cv.originChain() == null ? "" : cv.originChain();
-            sb.append("{\"index\":").append(i + 1)
-                    .append(",\"op\":\"").append(esc(op)).append('"')
-                    .append(",\"level\":\"").append(lvl).append('"')
-                    .append(",\"bs\":\"").append(bs).append('"')
-                    .append(",\"label\":\"").append(esc(lbl)).append('"')
-                    .append(",\"cycles\":").append(cyc)
-                    .append(",\"originChain\":\"").append(esc(originChain)).append('"')
-                    .append('}');
-        }
-        sb.append("]}");
-        json(resp, 200, sb.toString());
-    }
-
-    // tiny helper for I/II/III/IV
-    private static String toRoman(int t) {
-        return switch (t) {
-            case 1 -> "I";
-            case 2 -> "II";
-            case 3 -> "III";
-            default -> "IV";
-        };
     }
 
     // --- POST /api/programs/upload ---
@@ -170,18 +57,18 @@ public class ProgramsServlet extends BaseApiServlet {
             return;
         }
 
-        // Let the ENGINE do the heavy work (parse, merge functions, validate, compute degrees)
+        // Use a new engine instance to parse and ingest the program XML
         final EmulatorEngineImpl engine = new EmulatorEngineImpl();
         final IngestReport report;
         try {
-            // Pass a snapshot of the current global helper functions
+            // Provide a snapshot of current global helper functions to the engine for linking
             report = engine.ingestFromXml(xml, new LinkedHashMap<>(FUNCTION_BODIES));
         } catch (IllegalArgumentException ex) {
             json(resp, 400, "{\"error\":\"" + esc(ex.getMessage()) + "\"}");
             return;
         }
 
-        // API-level uniqueness checks (pure validation; still no persistence)
+        // Validate that the program and any provided helper functions are unique
         final String programName = report.programName();
         if (PROGRAMS.containsKey(programName)) {
             json(resp, 409, "{\"error\":\"duplicate_program\",\"name\":\"" + esc(programName) + "\"}");
@@ -194,7 +81,7 @@ public class ProgramsServlet extends BaseApiServlet {
             }
         }
 
-        // Persist program meta (functions snapshot is the engine's merged view)
+        // Everything is valid, register the new program
         PROGRAMS.put(programName, new ProgramMeta(
                 programName,
                 owner,
@@ -204,41 +91,26 @@ public class ProgramsServlet extends BaseApiServlet {
                 report.mainMaxDegree(),
                 engine
         ));
-
-        // Persist the newly provided functions: both body and summarized meta
-        for (Map.Entry<String, Program> e : report.providedFunctions().entrySet()) {
-            final String fn = e.getKey();
-            FUNCTION_BODIES.put(fn, e.getValue());
-            FUNCTIONS.put(fn, new FunctionMeta(
-                    fn,
+        // Register all newly provided helper functions
+        for (Map.Entry<String, Program> entry : report.providedFunctions().entrySet()) {
+            final String fnName = entry.getKey();
+            FUNCTION_BODIES.put(fnName, entry.getValue());
+            FUNCTIONS.put(fnName, new FunctionMeta(
+                    fnName,
                     programName,
                     owner,
-                    report.functionInstrDeg0().getOrDefault(fn, 0),
-                    report.functionMaxDegree().getOrDefault(fn, 0)
+                    report.functionInstrDeg0().getOrDefault(fnName, 0),
+                    report.functionMaxDegree().getOrDefault(fnName, 0)
             ));
         }
 
-        // Stats + version bump
+        // Update user stats and global version
         u.mainUploaded.incrementAndGet();
         u.helperContrib.addAndGet(report.providedFunctions().size());
         VERSION.incrementAndGet();
 
-        // Build functionsDetailed array for client
-        StringBuilder fd = new StringBuilder("[");
-        boolean first = true;
-        for (String fn : report.providedFunctions().keySet()) {
-            if (!first) fd.append(',');
-            first = false;
-            int instr0 = report.functionInstrDeg0().getOrDefault(fn, 0);
-            int maxDeg = report.functionMaxDegree().getOrDefault(fn, 0);
-            fd.append("{\"name\":\"").append(esc(fn)).append("\",")
-                    .append("\"instr\":").append(instr0).append(',')
-                    .append("\"maxDegree\":").append(maxDeg).append('}');
-        }
-        fd.append(']');
-
-        // Response aligned with ApiClient.uploadProgram()
-        final String res = "{"
+        // Send response with details of the new program
+        final String resJson = "{"
                 + "\"ok\":true,"
                 + "\"programName\":\"" + esc(programName) + "\","
                 + "\"owner\":\"" + esc(owner) + "\","
@@ -247,11 +119,10 @@ public class ProgramsServlet extends BaseApiServlet {
                 + "\"functions\":" + toJsonArray(report.providedFunctions().keySet()) + ","
                 + "\"functionsDetailed\":" + fd
                 + "}";
-        json(resp, 200, res);
-
+        json(resp, 200, resJson);
     }
 
-    // --- GET /api/programs ---
+    // --- GET /api/programs (list all programs) ---
     private void listPrograms(HttpServletResponse resp) throws IOException {
         StringBuilder sb = new StringBuilder("{\"programs\":[");
         boolean first = true;

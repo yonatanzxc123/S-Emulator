@@ -3,17 +3,12 @@ package server_core;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
+import server_core.util.Credits;
 
 @WebServlet(name = "RunServlet", urlPatterns = {"/api/run/*"}, loadOnStartup = 1)
 public class RunServlet extends BaseApiServlet {
-
-    private static final Map<String,Integer> ARCH_COST = Map.of(
-            "I", 5, "II", 100, "III", 500, "IV", 1000
-    );
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -27,38 +22,45 @@ public class RunServlet extends BaseApiServlet {
         User u = requireUser(req, resp);
         if (u == null) return;
 
-        String body = readBody(req);
+        String body    = readBody(req);
         String program = jStr(body, "program");
-        String arch = jStr(body, "arch");
-        Long degreeL = jLong(body, "degree");
-        int degree = degreeL == null ? 0 : degreeL.intValue();
+        String arch    = jStr(body, "arch");
+        Long   degreeL = jLong(body, "degree");
+        int    degree  = (degreeL == null ? 0 : degreeL.intValue());
 
-        if (program == null || program.isBlank() || arch == null || !ARCH_COST.containsKey(arch)) {
+        // Validate parameters
+        if (program == null || program.isBlank() || !Credits.validArch(arch)) {
             json(resp, 400, "{\"error\":\"bad_params\"}");
             return;
         }
         ProgramMeta meta = PROGRAMS.get(program);
-        if (meta == null) { json(resp, 404, "{\"error\":\"program_not_found\"}"); return; }
+        if (meta == null) {
+            json(resp, 404, "{\"error\":\"program_not_found\"}");
+            return;
+        }
 
-        long archFixed = ARCH_COST.get(arch);
-        long avgCredits = Math.round(meta.avgCreditsCost);
-        long requiredMin = archFixed + Math.max(0, avgCredits);
-        if (u.credits.get() < requiredMin) {
+        // Ensure user has at least the fixed + average cost to start
+        long requiredMin = Credits.minRequiredToStart(meta, arch);
+        if (u.getCredits() < requiredMin) {
             json(resp, 402, "{\"error\":\"insufficient_credits\",\"required\":" + requiredMin + "}");
             return;
         }
 
-        if (u.credits.addAndGet(-archFixed) < 0) {
-            u.credits.addAndGet(archFixed);
+        // Charge fixed architecture cost up front
+        long archFixed = Credits.archFixed(arch);
+        if (!Credits.tryCharge(u, archFixed)) {
+            // (Should not happen if the above check passed, but just in case)
             json(resp, 402, "{\"error\":\"insufficient_credits\"}");
             return;
         }
 
+        // Execute the program run
         system.api.RunResult rr;
         try {
             rr = meta.engine.run(degree, List.of());  // supply inputs if needed
         } catch (Exception e) {
-            u.credits.addAndGet(archFixed);
+            // Roll back the fixed cost if the engine run fails
+            u.addCredits(archFixed);
             json(resp, 500, "{\"error\":\"engine_run_error\"}");
             return;
         }
@@ -66,22 +68,30 @@ public class RunServlet extends BaseApiServlet {
         long cycles = rr.cycles();
         long y      = rr.y();
 
-        long available = u.credits.get();
-        if (available < cycles) {
-            u.credits.addAndGet(-available);
-            u.creditsSpent.addAndGet(archFixed + available);
-            json(resp, 409, "{\"error\":\"credit_exhausted\",\"charged\":" + (archFixed + available) + "}");
+        // Attempt to charge for the variable cost (cycles); handle insufficient credits
+        if (!Credits.tryCharge(u, cycles)) {
+            long remaining = u.getCredits();  // credits still available (tryCharge rolled back if insufficient)
+            if (remaining > 0) {
+                // Deduct all remaining credits as a partial payment
+                Credits.tryCharge(u, remaining);
+            }
+            // Record the credits that were actually spent (fixed + remaining) and return error
+            u.creditsSpent.addAndGet(archFixed + remaining);
+            json(resp, 409, "{\"error\":\"credit_exhausted\",\"charged\":" + (archFixed + remaining) + "}");
             return;
         } else {
-            u.credits.addAndGet(-cycles);
+            // Full charge succeeded, record total credits spent
             u.creditsSpent.addAndGet(archFixed + cycles);
         }
 
+        // Update usage statistics
         u.runsCount.incrementAndGet();
-        long totalCredits = archFixed + cycles;
-        long newRuns = meta.runsCount.incrementAndGet();
-        meta.avgCreditsCost = ((meta.avgCreditsCost * (newRuns - 1)) + totalCredits) / (double) newRuns;
+        long totalUsed = archFixed + cycles;
+        long newRunCount = meta.runsCount.incrementAndGet();
+        // Update average credits cost (note: not atomic, but minor race conditions are acceptable here)
+        meta.avgCreditsCost = ((meta.avgCreditsCost * (newRunCount - 1)) + totalUsed) / (double) newRunCount;
 
+        // Respond with success and run results
         json(resp, 200, "{"
                 + "\"ok\":true,"
                 + "\"program\":\"" + esc(program) + "\","
@@ -89,7 +99,7 @@ public class RunServlet extends BaseApiServlet {
                 + "\"degree\":" + degree + ","
                 + "\"cycles\":" + cycles + ","
                 + "\"y\":" + y + ","
-                + "\"creditsLeft\":" + u.credits.get()
+                + "\"creditsLeft\":" + u.getCredits()
                 + "}");
     }
 }
