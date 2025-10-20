@@ -12,6 +12,8 @@ import system.core.io.ArchTierMap;
 import system.core.io.ProgramMapper;
 import system.core.model.Instruction;
 import system.core.model.Program;
+import server_core.util.CommonUtils;
+
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,13 +44,13 @@ public class ProgramsServlet extends BaseApiServlet {
         } else if ("/functions".equals(sp)) {
             listFunctions(resp);
         } else if (sp.endsWith("/body") && sp.length() > "/body".length() + 1) {
+            // e.g., GET /api/programs/SomeProgram/body -> return that program's instruction list
             String name = sp.substring(1, sp.length() - "/body".length());
             programBody(req, resp, name);
         } else {
             json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(sp) + "\"}");
         }
     }
-
 
     // --- POST /api/programs/upload ---
     private void handleProgramUpload(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -114,8 +116,6 @@ public class ProgramsServlet extends BaseApiServlet {
         u.mainUploaded.incrementAndGet();
         u.helperContrib.addAndGet(report.providedFunctions().size());
         VERSION.incrementAndGet();
-
-
 
         // Send response with details of the new program
         final String resJson = "{"
@@ -184,8 +184,6 @@ public class ProgramsServlet extends BaseApiServlet {
         return sb.toString();
     }
 
-
-
     private void programBody(HttpServletRequest req, HttpServletResponse resp, String programName) throws IOException {
         final ProgramMeta meta = PROGRAMS.get(programName);
         final boolean isFunction = (meta == null);
@@ -195,6 +193,7 @@ public class ProgramsServlet extends BaseApiServlet {
         Map<String, Program> fnMap;
 
         if (isFunction) {
+            // If requesting a helper function body
             Program body = FUNCTION_BODIES.get(programName);
             FunctionMeta fm = FUNCTIONS.get(programName);
             if (body == null || fm == null) {
@@ -205,14 +204,17 @@ public class ProgramsServlet extends BaseApiServlet {
             maxDegree = fm.maxDegree();
             fnMap = FUNCTION_BODIES;
         } else {
+            // Requesting a main program body
             base = meta.mainProgram;
             maxDegree = meta.maxDegree;
             fnMap = meta.engine.getFunctions();
         }
 
-        int degree = parseDegree(req.getParameter("degree"), maxDegree);
+        // Parse the requested degree (clamped to maxDegree)
+        int degree = CommonUtils.parseDegree(req.getParameter("degree"), maxDegree);
         final int useDegree = degree;
 
+        // Expand program to the requested degree and map to a view
         ProgramView view;
         Program p;
         try {
@@ -220,9 +222,11 @@ public class ProgramsServlet extends BaseApiServlet {
                 Program program;
                 ProgramView pv;
                 if (useDegree == 0) {
+                    // Degree 0: no expansion
                     program = base;
                     pv = ProgramMapper.toView(base);
                 } else {
+                    // Expand the program to the given degree, with origin tracking
                     var res = new ExpanderImpl().expandToDegreeWithOrigins(base, useDegree);
                     program = res.program();
                     pv = ProgramMapper.toView(program, res.origins());
@@ -236,6 +240,7 @@ public class ProgramsServlet extends BaseApiServlet {
             return;
         }
 
+        // Build JSON response with program instruction list
         StringBuilder sb = new StringBuilder("{\"degree\":").append(useDegree)
                 .append(",\"maxDegree\":").append(maxDegree)
                 .append(",\"instructions\":[");
@@ -249,40 +254,15 @@ public class ProgramsServlet extends BaseApiServlet {
 
             sb.append("{\"index\":").append(i + 1)
                     .append(",\"op\":\"").append(esc(ins.asText())).append('"')
-                    .append(",\"level\":\"").append(toRoman(ArchTierMap.tierOf(ins.getClass()))).append('"')
+                    .append(",\"level\":\"").append(CommonUtils.toRoman(ArchTierMap.tierOf(ins.getClass()))).append('"')
                     .append(",\"bs\":\"").append(ins.isBasic() ? "B" : "S").append('"')
                     .append(",\"label\":\"").append(esc(cv.labelOrEmpty() == null ? "" : cv.labelOrEmpty())).append('"')
                     .append(",\"cycles\":").append(Math.max(0, cv.cycles()))
-                    .append(",\"originChain\":\"").append(esc(cv.originChain() == null ? "" : cv.originChain())).append("\"}");
+                    .append(",\"originChain\":\"").append(esc(cv.originChain() == null ? "" : cv.originChain())).append("\"}")
+            ;
         }
         sb.append("]}");
         json(resp, 200, sb.toString());
     }
-
-
-
-    // --- Helpers ---
-
-    private static int parseDegree(String q, int max) {
-        try {
-            int d = (q == null) ? 0 : Integer.parseInt(q);
-            return Math.max(0, Math.min(d, max));
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    private static String toRoman(int t) {
-        return switch (t) {
-            case 1 -> "I";
-            case 2 -> "II";
-            case 3 -> "III";
-            default -> "IV";
-        };
-    }
-
-
-
-
 
 }
