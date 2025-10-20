@@ -214,6 +214,9 @@ public class ProgramsServlet extends BaseApiServlet {
         int degree = CommonUtils.parseDegree(req.getParameter("degree"), maxDegree);
         final int useDegree = degree;
 
+
+        boolean withOrigins = Boolean.parseBoolean(req.getParameter("withOrigins"));
+
         // Expand program to the requested degree and map to a view
         ProgramView view;
         Program p;
@@ -229,7 +232,7 @@ public class ProgramsServlet extends BaseApiServlet {
                     // Expand the program to the given degree, with origin tracking
                     var res = new ExpanderImpl().expandToDegreeWithOrigins(base, useDegree);
                     program = res.program();
-                    pv = ProgramMapper.toView(program, res.origins());
+                    pv = withOrigins ? ProgramMapper.toView(program, res.origins()) : ProgramMapper.toView(program);
                 }
                 return new Object[]{program, pv};
             });
@@ -240,29 +243,40 @@ public class ProgramsServlet extends BaseApiServlet {
             return;
         }
 
-        // Build JSON response with program instruction list
-        StringBuilder sb = new StringBuilder("{\"degree\":").append(useDegree)
-                .append(",\"maxDegree\":").append(maxDegree)
-                .append(",\"instructions\":[");
+        // Build response JSON
+        resp.setContentType("application/json");
+        resp.setCharacterEncoding("UTF-8");
+        var out = resp.getWriter();
+
+        out.print("{\"degree\":" + useDegree + ",\"maxDegree\":" + maxDegree + ",\"instructions\":[");
 
         List<Instruction> insns = p.instructions();
         List<system.api.view.CommandView> cmds = view.commands();
+
         for (int i = 0; i < insns.size(); i++) {
-            if (i > 0) sb.append(',');
+            if (i > 0) out.print(",");
             var ins = insns.get(i);
             var cv = cmds.get(i);
 
-            sb.append("{\"index\":").append(i + 1)
-                    .append(",\"op\":\"").append(esc(ins.asText())).append('"')
-                    .append(",\"level\":\"").append(CommonUtils.toRoman(ArchTierMap.tierOf(ins.getClass()))).append('"')
-                    .append(",\"bs\":\"").append(ins.isBasic() ? "B" : "S").append('"')
-                    .append(",\"label\":\"").append(esc(cv.labelOrEmpty() == null ? "" : cv.labelOrEmpty())).append('"')
-                    .append(",\"cycles\":").append(Math.max(0, cv.cycles()))
-                    .append(",\"originChain\":\"").append(esc(cv.originChain() == null ? "" : cv.originChain())).append("\"}")
-            ;
+            out.print("{\"index\":" + (i + 1));
+            out.print(",\"op\":\"" + esc(ins.asText()) + "\"");
+            out.print(",\"level\":\"" + CommonUtils.toRoman(ArchTierMap.tierOf(ins.getClass())) + "\"");
+            out.print(",\"bs\":\"" + (ins.isBasic() ? "B" : "S") + "\"");
+            out.print(",\"label\":\"" + esc(nullToEmpty(cv.labelOrEmpty())) + "\"");
+            out.print(",\"cycles\":" + Math.max(0, cv.cycles()));
+            out.print(",\"originChain\":\"" + esc(withOrigins ? nullToEmpty(cv.originChain()) : "") + "\"}");
         }
-        sb.append("]}");
-        json(resp, 200, sb.toString());
+
+        out.print("]}");
+        out.flush();
     }
+
+
+    // --- Helpers ---
+
+    private static String nullToEmpty(String s) {
+        return s == null ? "" : s;
+    }
+
 
 }
