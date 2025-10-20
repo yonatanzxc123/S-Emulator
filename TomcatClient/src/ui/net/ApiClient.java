@@ -630,4 +630,24 @@ public class ApiClient {
         if (!path.startsWith("/")) path = "/" + path;
         return URI.create(base + path);
     }
+
+
+    public String fetchOriginChain(String programName, int degree, int index) throws IOException, InterruptedException {
+        String path = "/api/programs/" + encSeg(programName) + "/ancestry?degree=" + degree + "&index=" + index;
+        HttpRequest req = HttpRequest.newBuilder(url(path))
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
+
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) return "";
+        return jStr(resp.body(), "originChain");
+    }
+
+
+
+
+
+
+
 }

@@ -76,10 +76,21 @@ public class CenterLeftController {
     }
 
     private void showAncestry(ApiClient.ProgramInstruction selected) {
-        String chain = selected.getOriginChain();
-        List<ApiClient.ProgramInstruction> ancestry = buildAncestryChain(chain);
-        System.out.println(selected.getOriginChain());
-        ancestryTableController.setInstructions(ancestry);
+        if (selected == null || selected.getIndex() <= 0 || programName == null) return;
+
+        new Thread(() -> {
+            String chain = "";
+            try {
+                chain = ApiClient.get().fetchOriginChain(programName, currDegree, selected.getIndex());
+            } catch (Exception e) {
+                // Log or fallback
+            }
+            final String finalChain = chain;
+            javafx.application.Platform.runLater(() -> {
+                List<ApiClient.ProgramInstruction> ancestry = buildAncestryChain(finalChain);
+                ancestryTableController.setInstructions(ancestry);
+            });
+        }, "fetch-ancestry").start();
     }
 
     private List<ApiClient.ProgramInstruction> buildAncestryChain(String chain) {

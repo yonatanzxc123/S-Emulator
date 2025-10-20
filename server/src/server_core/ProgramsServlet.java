@@ -43,14 +43,16 @@ public class ProgramsServlet extends BaseApiServlet {
             listPrograms(resp);
         } else if ("/functions".equals(sp)) {
             listFunctions(resp);
+        } else if (sp.endsWith("/ancestry")) {
+            return; // Handled in AncestryServlet
         } else if (sp.endsWith("/body") && sp.length() > "/body".length() + 1) {
-            // e.g., GET /api/programs/SomeProgram/body -> return that program's instruction list
             String name = sp.substring(1, sp.length() - "/body".length());
             programBody(req, resp, name);
         } else {
             json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(sp) + "\"}");
         }
     }
+
 
     // --- POST /api/programs/upload ---
     private void handleProgramUpload(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -232,7 +234,7 @@ public class ProgramsServlet extends BaseApiServlet {
                     // Expand the program to the given degree, with origin tracking
                     var res = new ExpanderImpl().expandToDegreeWithOrigins(base, useDegree);
                     program = res.program();
-                    pv = withOrigins ? ProgramMapper.toView(program, res.origins()) : ProgramMapper.toView(program);
+                    pv = ProgramMapper.toView(program, withOrigins ? res.origins() : null);
                 }
                 return new Object[]{program, pv};
             });
