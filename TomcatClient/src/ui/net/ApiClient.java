@@ -109,14 +109,16 @@ public class ApiClient {
         public final String bs;
         public final String label;
         public final int cycles;
+        public final String originChain;
 
-        public ProgramInstruction(int index, String op, String level, String bs, String label, int cycles) {
+        public ProgramInstruction(int index, String op, String level, String bs, String label, int cycles, String originChain) {
             this.index = index;
             this.op = op;
             this.level = level;
             this.bs = bs;
             this.label = label;
             this.cycles = cycles;
+            this.originChain = originChain == null ? "" : originChain;
         }
         public int getIndex()   { return index; }
         public String getOp()   { return op; }
@@ -124,6 +126,7 @@ public class ApiClient {
         public String getBs()   { return bs; }
         public String getLabel(){ return label; }
         public int getCycles()  { return cycles; }
+        public String getOriginChain() { return originChain; }
     }
 
     private static String encSeg(String s) {
@@ -167,9 +170,11 @@ public class ApiClient {
             String bs  = jStr(obj, "bs");
             String lbl = jStr(obj, "label");
             int cyc    = jInt(obj, "cycles", 0);
+            String originChain = jStr(obj, "originChain");
 
             if (bs == null || bs.isBlank()) bs = ("I".equals(lvl) ? "B" : "S");
-            if (idx >= 0 && op != null) out.add(new ProgramInstruction(idx, op, (lvl == null ? "" : lvl), bs, (lbl == null ? "" : lbl), Math.max(0, cyc)));
+            if (idx >= 0 && op != null)
+                out.add(new ProgramInstruction(idx, op, (lvl == null ? "" : lvl), bs, (lbl == null ? "" : lbl), Math.max(0, cyc), originChain));
             pos = o2 + 1;
         }
         return out;
@@ -209,9 +214,10 @@ public class ApiClient {
             String bs  = jStr(obj, "bs");
             String lbl = jStr(obj, "label");
             int cyc    = jInt(obj, "cycles", 0);
+            String originChain = jStr(obj, "originChain");
 
             if (bs == null || bs.isBlank()) bs = ("I".equals(lvl) ? "B" : "S");
-            if (idx >= 0 && op != null) out.add(new ProgramInstruction(idx, op, (lvl == null ? "" : lvl), bs, (lbl == null ? "" : lbl), Math.max(0, cyc)));
+            if (idx >= 0 && op != null) out.add(new ProgramInstruction(idx, op, (lvl == null ? "" : lvl), bs, (lbl == null ? "" : lbl), Math.max(0, cyc),originChain));
             pos = o2 + 1;
         }
         return out;

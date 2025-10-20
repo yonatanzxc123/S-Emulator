@@ -28,7 +28,15 @@ public class CenterLeftController {
 
     @FXML
     private void initialize() {
+
         updateDegreeLabel();
+        instructionTableController.getTable().getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
+            if (selected != null) {
+                showAncestry(selected);
+            } else {
+                ancestryTableController.setInstructions(List.of());
+            }
+        });
     }
 
     // Called by CenterController after injection
@@ -65,6 +73,64 @@ public class CenterLeftController {
         chooseVarBox.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> {
             highlightRows(sel);
         });
+    }
+
+    private void showAncestry(ApiClient.ProgramInstruction selected) {
+        String chain = selected.getOriginChain();
+        List<ApiClient.ProgramInstruction> ancestry = buildAncestryChain(chain);
+        System.out.println(selected.getOriginChain());
+        ancestryTableController.setInstructions(ancestry);
+    }
+
+    private List<ApiClient.ProgramInstruction> buildAncestryChain(String chain) {
+        if (chain == null || chain.isBlank()) return List.of();
+
+        String[] parts = chain.split("\\s*>>>\\s*");
+        List<String> links = new ArrayList<>();
+        for (String p : parts) {
+            String s = p.trim();
+            if (!s.isEmpty()) links.add(s);
+        }
+        if (links.isEmpty()) return List.of(); // Only original command, no ancestry
+
+        java.util.Collections.reverse(links);
+
+        List<ApiClient.ProgramInstruction> ancestry = new ArrayList<>();
+        for (String link : links) {
+            ancestry.add(parseAncestryStep(link));
+        }
+        return ancestry;
+    }
+
+    private ApiClient.ProgramInstruction parseAncestryStep(String link) {
+        try {
+            int idx = link.indexOf('#');
+            int idxEnd = link.indexOf(' ', idx + 1);
+            int index = Integer.parseInt(link.substring(idx + 1, idxEnd).trim());
+
+            int bsStart = link.indexOf('(', idxEnd);
+            int bsEnd = link.indexOf(')', bsStart);
+            String bs = link.substring(bsStart + 1, bsEnd).trim();
+
+            int labelStart = link.indexOf('[', bsEnd);
+            int labelEnd = link.indexOf(']', labelStart);
+            String label = "";
+            int afterLabel = bsEnd + 1;
+            if (labelStart != -1 && labelEnd > labelStart) {
+                label = link.substring(labelStart + 1, labelEnd).trim();
+                afterLabel = labelEnd + 1;
+            }
+
+            int cyclesStart = link.lastIndexOf('(');
+            int cyclesEnd = link.lastIndexOf(')');
+            int cycles = Integer.parseInt(link.substring(cyclesStart + 1, cyclesEnd).trim());
+
+            String op = link.substring(afterLabel, cyclesStart).trim();
+
+            return new ApiClient.ProgramInstruction(index, op, "", bs, label, cycles, "");
+        } catch (Exception ex) {
+            return new ApiClient.ProgramInstruction(0, link, "", "", "", 0, "");
+        }
     }
 
     // Highlight rows in the instruction table containing the selected var/label

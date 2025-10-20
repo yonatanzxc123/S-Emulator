@@ -91,8 +91,17 @@ public class ProgramsServlet extends BaseApiServlet {
             pair = FunctionEnv.with(
                     new FunctionEnv(isFunction ? FUNCTION_BODIES : (meta != null ? meta.engine.getFunctions() : Map.of())),
                     () -> {
-                        Program pr = (useDegree == 0) ? base : new ExpanderImpl().expandToDegree(base, useDegree);
-                        return new Object[]{pr, ProgramMapper.toView(pr)};
+                        Program pr;
+                        ProgramView view;
+                        if (useDegree == 0) {
+                            pr = base;
+                            view = ProgramMapper.toView(pr);
+                        } else {
+                            var res = new ExpanderImpl().expandToDegreeWithOrigins(base, useDegree);
+                            pr = res.program();
+                            view = ProgramMapper.toView(pr, res.origins());
+                        }
+                        return new Object[]{pr, view};
                     }
             );
         } catch (Exception e) {
@@ -123,12 +132,15 @@ public class ProgramsServlet extends BaseApiServlet {
 
             if (!first) sb.append(',');
             first = false;
+
+            String originChain = cv.originChain() == null ? "" : cv.originChain();
             sb.append("{\"index\":").append(i + 1)
                     .append(",\"op\":\"").append(esc(op)).append('"')
                     .append(",\"level\":\"").append(lvl).append('"')
                     .append(",\"bs\":\"").append(bs).append('"')
                     .append(",\"label\":\"").append(esc(lbl)).append('"')
                     .append(",\"cycles\":").append(cyc)
+                    .append(",\"originChain\":\"").append(esc(originChain)).append('"')
                     .append('}');
         }
         sb.append("]}");
