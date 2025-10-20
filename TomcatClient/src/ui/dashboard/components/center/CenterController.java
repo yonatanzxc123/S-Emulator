@@ -23,7 +23,7 @@ public class CenterController {
         ProgramTableController program = right.programTableController();
         FunctionTableController functions = right.functionTableController();
 
-        if (functions != null) functions.init();
+        if (functions != null) functions.initialize();
         if (fileLineController != null) fileLineController.init(ctx, program, functions);
 
         // Load existing catalog so tables show already-uploaded programs/functions

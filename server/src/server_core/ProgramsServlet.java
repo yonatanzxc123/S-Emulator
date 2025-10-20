@@ -5,11 +5,18 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import system.api.view.IngestReport;
+import system.api.view.ProgramView;
 import system.core.EmulatorEngineImpl;
+import system.core.exec.FunctionEnv;
+import system.core.expand.ExpanderImpl;
+import system.core.io.ArchTierMap;
+import system.core.io.ProgramMapper;
+import system.core.model.Instruction;
 import system.core.model.Program;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -32,12 +39,122 @@ public class ProgramsServlet extends BaseApiServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String sp = subPath(req);
-        if (sp == null || sp.isBlank() || "/".equals(sp)) {
-            listPrograms(resp);
+        switch (sp) {
+            case "/" -> listPrograms(resp);
+            case "/functions" -> listFunctions(resp);
+            default -> {
+                if (sp.endsWith("/body") && sp.length() > "/body".length() + 1) {
+                    String name = sp.substring(1, sp.length() - "/body".length());
+                    programBody(req,resp, name);
+                } else {
+                    json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(sp) + "\"}");
+                }
+            }
+        }
+    }
+
+    // GET /api/programs/{name}/body[?degree=N]
+    private void programBody(HttpServletRequest req, HttpServletResponse resp, String programName) throws IOException {
+        var meta = PROGRAMS.get(programName);
+        Program base;
+        int maxDegree;
+        boolean isFunction = false;
+
+        if (meta == null) {
+            // Try as function
+            var fnBody = FUNCTION_BODIES.get(programName);
+            var fnMeta = FUNCTIONS.get(programName);
+            if (fnBody == null || fnMeta == null) {
+                json(resp, 404, "{\"error\":\"program_not_found\",\"name\":\"" + esc(programName) + "\"}");
+                return;
+            }
+            base = fnBody;
+            maxDegree = fnMeta.maxDegree();
+            isFunction = true;
+        } else {
+            base = meta.mainProgram;
+            maxDegree = meta.maxDegree;
+        }
+
+        int degree = 0;
+        try {
+            String q = req.getParameter("degree");
+            if (q != null) degree = Integer.parseInt(q);
+        } catch (NumberFormatException ignore) { /* keep 0 */ }
+        if (degree < 0) degree = 0;
+        if (degree > maxDegree) degree = maxDegree;
+
+        final int useDegree = degree;
+        final Object[] pair;
+        try {
+            // Use correct function set for expansion
+            pair = FunctionEnv.with(
+                    new FunctionEnv(isFunction ? FUNCTION_BODIES : (meta != null ? meta.engine.getFunctions() : Map.of())),
+                    () -> {
+                        Program pr;
+                        ProgramView view;
+                        if (useDegree == 0) {
+                            pr = base;
+                            view = ProgramMapper.toView(pr);
+                        } else {
+                            var res = new ExpanderImpl().expandToDegreeWithOrigins(base, useDegree);
+                            pr = res.program();
+                            view = ProgramMapper.toView(pr, res.origins());
+                        }
+                        return new Object[]{pr, view};
+                    }
+            );
+        } catch (Exception e) {
+            json(resp, 500, "{\"error\":\"expand_failed\",\"degree\":" + useDegree + "}");
             return;
         }
 
-        json(resp, 404, "{\"error\":\"not_found\"}");
+        final Program p = (Program) pair[0];
+        final ProgramView view = (ProgramView) pair[1];
+        final var cmds = view.commands();
+
+        StringBuilder sb = new StringBuilder(128 + 64 * p.instructions().size());
+        sb.append("{\"degree\":").append(useDegree)
+                .append(",\"maxDegree\":").append(maxDegree)
+                .append(",\"instructions\":[");
+        boolean first = true;
+
+        List<Instruction> insns = p.instructions();
+        for (int i = 0; i < insns.size(); i++) {
+            var ins = insns.get(i);
+            var cv = cmds.get(i);
+
+            String op = ins.asText();
+            String bs = ins.isBasic() ? "B" : "S";
+            String lvl = toRoman(ArchTierMap.tierOf(ins.getClass()));
+            String lbl = cv.labelOrEmpty() == null ? "" : cv.labelOrEmpty();
+            int cyc = Math.max(0, cv.cycles());
+
+            if (!first) sb.append(',');
+            first = false;
+
+            String originChain = cv.originChain() == null ? "" : cv.originChain();
+            sb.append("{\"index\":").append(i + 1)
+                    .append(",\"op\":\"").append(esc(op)).append('"')
+                    .append(",\"level\":\"").append(lvl).append('"')
+                    .append(",\"bs\":\"").append(bs).append('"')
+                    .append(",\"label\":\"").append(esc(lbl)).append('"')
+                    .append(",\"cycles\":").append(cyc)
+                    .append(",\"originChain\":\"").append(esc(originChain)).append('"')
+                    .append('}');
+        }
+        sb.append("]}");
+        json(resp, 200, sb.toString());
+    }
+
+    // tiny helper for I/II/III/IV
+    private static String toRoman(int t) {
+        return switch (t) {
+            case 1 -> "I";
+            case 2 -> "II";
+            case 3 -> "III";
+            default -> "IV";
+        };
     }
 
     // --- POST /api/programs/upload ---
@@ -106,16 +223,32 @@ public class ProgramsServlet extends BaseApiServlet {
         u.helperContrib.addAndGet(report.providedFunctions().size());
         VERSION.incrementAndGet();
 
-        // Response
+        // Build functionsDetailed array for client
+        StringBuilder fd = new StringBuilder("[");
+        boolean first = true;
+        for (String fn : report.providedFunctions().keySet()) {
+            if (!first) fd.append(',');
+            first = false;
+            int instr0 = report.functionInstrDeg0().getOrDefault(fn, 0);
+            int maxDeg = report.functionMaxDegree().getOrDefault(fn, 0);
+            fd.append("{\"name\":\"").append(esc(fn)).append("\",")
+                    .append("\"instr\":").append(instr0).append(',')
+                    .append("\"maxDegree\":").append(maxDeg).append('}');
+        }
+        fd.append(']');
+
+        // Response aligned with ApiClient.uploadProgram()
         final String res = "{"
                 + "\"ok\":true,"
-                + "\"program\":\"" + esc(programName) + "\","
+                + "\"programName\":\"" + esc(programName) + "\","
                 + "\"owner\":\"" + esc(owner) + "\","
                 + "\"instrDeg0\":" + report.mainInstrDeg0() + ","
                 + "\"maxDegree\":" + report.mainMaxDegree() + ","
-                + "\"functions\":" + toJsonArray(report.providedFunctions().keySet())
+                + "\"functions\":" + toJsonArray(report.providedFunctions().keySet()) + ","
+                + "\"functionsDetailed\":" + fd
                 + "}";
         json(resp, 200, res);
+
     }
 
     // --- GET /api/programs ---
@@ -132,6 +265,25 @@ public class ProgramsServlet extends BaseApiServlet {
                     .append("\"maxDegree\":").append(pm.maxDegree).append(',')
                     .append("\"timesRun\":").append(pm.runsCount.get()).append(',')
                     .append("\"avgCredits\":").append(Math.round(pm.avgCreditsCost))
+                    .append("}");
+        }
+        sb.append("]}");
+        json(resp, 200, sb.toString());
+    }
+
+    // --- GET /api/programs/functions ---
+    private void listFunctions(HttpServletResponse resp) throws IOException {
+        StringBuilder sb = new StringBuilder("{\"functions\":[");
+        boolean first = true;
+        for (FunctionMeta fm : FUNCTIONS.values()) {
+            if (!first) sb.append(',');
+            first = false;
+            sb.append("{")
+                    .append("\"name\":\"").append(esc(fm.name())).append("\",")
+                    .append("\"definedInProgram\":\"").append(esc(fm.definedInProgram())).append("\",")
+                    .append("\"owner\":\"").append(esc(fm.ownerUser())).append("\",")
+                    .append("\"instr\":").append(fm.instrCount()).append(',')
+                    .append("\"maxDegree\":").append(fm.maxDegree())
                     .append("}");
         }
         sb.append("]}");
