@@ -160,41 +160,55 @@ public class CenterLeftController {
     }
 
     private void loadInstructionsAsync(String programName, int degree) {
+        // Disable expand button while loading
+        expandBtn.setDisable(true);
+        currDegreeLbl.setText("Loading...");
+
         new Thread(() -> {
             List<ApiClient.ProgramInstruction> result;
+            List<String> varsList = new ArrayList<>();
+            List<String> labelsList = new ArrayList<>();
             try {
-                result = ui.net.ApiClient.get().programBody(programName, degree);
+                result = ApiClient.get().programBody(programName, degree);
+
+                // Extract vars/labels in background thread
+                var varSet = new java.util.TreeSet<String>();
+                var labelSet = new java.util.TreeSet<String>();
+                java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\b([xz]\\d+)\\b");
+                for (ApiClient.ProgramInstruction pi : result) {
+                    if (pi.getOp() != null) {
+                        var m = pattern.matcher(pi.getOp());
+                        while (m.find()) varSet.add(m.group(1));
+                    }
+                    if (pi.getLabel() != null && !pi.getLabel().isBlank()) {
+                        labelSet.add(pi.getLabel());
+                    }
+                }
+                varsList.addAll(varSet);
+                labelsList.addAll(labelSet);
             } catch (Exception e) {
                 result = List.of();
             }
+
             final List<ApiClient.ProgramInstruction> finalResult = result;
-            javafx.application.Platform.runLater(() -> updateInstructionsUI(finalResult));
+            javafx.application.Platform.runLater(() -> {
+                updateInstructionsUI(finalResult, varsList, labelsList);
+                currDegreeLbl.setText("Degree " + degree + " / " + maxDegree);
+                expandBtn.setDisable(false);
+            });
         }, "load-instructions-bg").start();
     }
 
-    private void updateInstructionsUI(List<ApiClient.ProgramInstruction> loaded) {
+    // Modified updateInstructionsUI() to take vars/labels
+    private void updateInstructionsUI(List<ApiClient.ProgramInstruction> loaded, List<String> vars, List<String> labels) {
         instructionTableController.setInstructions(loaded);
-
-        // Recompute vars and labels
         allVarsAndLabels.clear();
-        var vars = new java.util.TreeSet<String>();
-        var labels = new java.util.TreeSet<String>();
-        for (ApiClient.ProgramInstruction pi : loaded) {
-            String op = pi.getOp();
-            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\b([xz]\\d+)\\b").matcher(op);
-            while (m.find()) vars.add(m.group(1));
-            String lbl = pi.getLabel();
-            if (lbl != null && !lbl.isBlank()) labels.add(lbl);
-        }
         allVarsAndLabels.addAll(vars);
         allVarsAndLabels.addAll(labels);
         chooseVarBox.getItems().setAll(allVarsAndLabels);
-
-        // Clear highlights
         chooseVarBox.setValue(null);
         highlightRows(null);
     }
-
     @FXML
     private void onExpand() {
         if (programName == null || programName.isBlank()) return;
