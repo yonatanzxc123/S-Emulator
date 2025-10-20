@@ -39,10 +39,16 @@ public class ProgramsServlet extends BaseApiServlet {
         String sp = subPath(req);
         if (sp == null || sp.isBlank() || "/".equals(sp)) {
             listPrograms(resp);
+        } else if ("/functions".equals(sp)) {
+            listFunctions(resp);
+        } else if (sp.endsWith("/body") && sp.length() > "/body".length() + 1) {
+            String name = sp.substring(1, sp.length() - "/body".length());
+            programBody(req, resp, name);
         } else {
-            json(resp, 404, "{\"error\":\"not_found\"}");
+            json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(sp) + "\"}");
         }
     }
+
 
     // --- POST /api/programs/upload ---
     private void handleProgramUpload(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -177,6 +183,104 @@ public class ProgramsServlet extends BaseApiServlet {
         sb.append(']');
         return sb.toString();
     }
+
+
+
+    private void programBody(HttpServletRequest req, HttpServletResponse resp, String programName) throws IOException {
+        final ProgramMeta meta = PROGRAMS.get(programName);
+        final boolean isFunction = (meta == null);
+
+        Program base;
+        int maxDegree;
+        Map<String, Program> fnMap;
+
+        if (isFunction) {
+            Program body = FUNCTION_BODIES.get(programName);
+            FunctionMeta fm = FUNCTIONS.get(programName);
+            if (body == null || fm == null) {
+                json(resp, 404, "{\"error\":\"program_not_found\",\"name\":\"" + esc(programName) + "\"}");
+                return;
+            }
+            base = body;
+            maxDegree = fm.maxDegree();
+            fnMap = FUNCTION_BODIES;
+        } else {
+            base = meta.mainProgram;
+            maxDegree = meta.maxDegree;
+            fnMap = meta.engine.getFunctions();
+        }
+
+        int degree = parseDegree(req.getParameter("degree"), maxDegree);
+        final int useDegree = degree;
+
+        ProgramView view;
+        Program p;
+        try {
+            Object[] result = FunctionEnv.with(new FunctionEnv(fnMap), () -> {
+                Program program;
+                ProgramView pv;
+                if (useDegree == 0) {
+                    program = base;
+                    pv = ProgramMapper.toView(base);
+                } else {
+                    var res = new ExpanderImpl().expandToDegreeWithOrigins(base, useDegree);
+                    program = res.program();
+                    pv = ProgramMapper.toView(program, res.origins());
+                }
+                return new Object[]{program, pv};
+            });
+            p = (Program) result[0];
+            view = (ProgramView) result[1];
+        } catch (Exception e) {
+            json(resp, 500, "{\"error\":\"expand_failed\",\"degree\":" + useDegree + "}");
+            return;
+        }
+
+        StringBuilder sb = new StringBuilder("{\"degree\":").append(useDegree)
+                .append(",\"maxDegree\":").append(maxDegree)
+                .append(",\"instructions\":[");
+
+        List<Instruction> insns = p.instructions();
+        List<system.api.view.CommandView> cmds = view.commands();
+        for (int i = 0; i < insns.size(); i++) {
+            if (i > 0) sb.append(',');
+            var ins = insns.get(i);
+            var cv = cmds.get(i);
+
+            sb.append("{\"index\":").append(i + 1)
+                    .append(",\"op\":\"").append(esc(ins.asText())).append('"')
+                    .append(",\"level\":\"").append(toRoman(ArchTierMap.tierOf(ins.getClass()))).append('"')
+                    .append(",\"bs\":\"").append(ins.isBasic() ? "B" : "S").append('"')
+                    .append(",\"label\":\"").append(esc(cv.labelOrEmpty() == null ? "" : cv.labelOrEmpty())).append('"')
+                    .append(",\"cycles\":").append(Math.max(0, cv.cycles()))
+                    .append(",\"originChain\":\"").append(esc(cv.originChain() == null ? "" : cv.originChain())).append("\"}");
+        }
+        sb.append("]}");
+        json(resp, 200, sb.toString());
+    }
+
+
+
+    // --- Helpers ---
+
+    private static int parseDegree(String q, int max) {
+        try {
+            int d = (q == null) ? 0 : Integer.parseInt(q);
+            return Math.max(0, Math.min(d, max));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private static String toRoman(int t) {
+        return switch (t) {
+            case 1 -> "I";
+            case 2 -> "II";
+            case 3 -> "III";
+            default -> "IV";
+        };
+    }
+
 
 
 
