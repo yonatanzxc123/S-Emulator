@@ -3,18 +3,16 @@ package server_core;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
 import system.api.view.IngestReport;
 import system.core.EmulatorEngineImpl;
 import system.core.model.Program;
-
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Lists programs, handles upload, and serves /api/programs/{name}/body
- * so the JavaFX client can populate the instruction table.
+ * Handles listing of programs and uploading new programs via XML.
+ * Also serves program data to clients (e.g., program instruction bodies).
  */
 @WebServlet(name = "ProgramsServlet", urlPatterns = {"/api/programs/*"}, loadOnStartup = 1)
 public class ProgramsServlet extends BaseApiServlet {
@@ -25,7 +23,7 @@ public class ProgramsServlet extends BaseApiServlet {
         if (sp == null) sp = "";
         switch (sp) {
             case "/upload" -> handleProgramUpload(req, resp);
-            default -> json(resp, 404, "{\"error\":\"not_found\"}");
+            default        -> json(resp, 404, "{\"error\":\"not_found\"}");
         }
     }
 
@@ -34,10 +32,9 @@ public class ProgramsServlet extends BaseApiServlet {
         String sp = subPath(req);
         if (sp == null || sp.isBlank() || "/".equals(sp)) {
             listPrograms(resp);
-            return;
+        } else {
+            json(resp, 404, "{\"error\":\"not_found\"}");
         }
-
-        json(resp, 404, "{\"error\":\"not_found\"}");
     }
 
     // --- POST /api/programs/upload ---
@@ -53,18 +50,18 @@ public class ProgramsServlet extends BaseApiServlet {
             return;
         }
 
-        // Let the ENGINE do the heavy work (parse, merge functions, validate, compute degrees)
+        // Use a new engine instance to parse and ingest the program XML
         final EmulatorEngineImpl engine = new EmulatorEngineImpl();
         final IngestReport report;
         try {
-            // Pass a snapshot of the current global helper functions
+            // Provide a snapshot of current global helper functions to the engine for linking
             report = engine.ingestFromXml(xml, new LinkedHashMap<>(FUNCTION_BODIES));
         } catch (IllegalArgumentException ex) {
             json(resp, 400, "{\"error\":\"" + esc(ex.getMessage()) + "\"}");
             return;
         }
 
-        // API-level uniqueness checks (pure validation; still no persistence)
+        // Validate that the program and any provided helper functions are unique
         final String programName = report.programName();
         if (PROGRAMS.containsKey(programName)) {
             json(resp, 409, "{\"error\":\"duplicate_program\",\"name\":\"" + esc(programName) + "\"}");
@@ -77,7 +74,7 @@ public class ProgramsServlet extends BaseApiServlet {
             }
         }
 
-        // Persist program meta (functions snapshot is the engine's merged view)
+        // Everything is valid, register the new program
         PROGRAMS.put(programName, new ProgramMeta(
                 programName,
                 owner,
@@ -87,27 +84,26 @@ public class ProgramsServlet extends BaseApiServlet {
                 report.mainMaxDegree(),
                 engine
         ));
-
-        // Persist the newly provided functions: both body and summarized meta
-        for (Map.Entry<String, Program> e : report.providedFunctions().entrySet()) {
-            final String fn = e.getKey();
-            FUNCTION_BODIES.put(fn, e.getValue());
-            FUNCTIONS.put(fn, new FunctionMeta(
-                    fn,
+        // Register all newly provided helper functions
+        for (Map.Entry<String, Program> entry : report.providedFunctions().entrySet()) {
+            final String fnName = entry.getKey();
+            FUNCTION_BODIES.put(fnName, entry.getValue());
+            FUNCTIONS.put(fnName, new FunctionMeta(
+                    fnName,
                     programName,
                     owner,
-                    report.functionInstrDeg0().getOrDefault(fn, 0),
-                    report.functionMaxDegree().getOrDefault(fn, 0)
+                    report.functionInstrDeg0().getOrDefault(fnName, 0),
+                    report.functionMaxDegree().getOrDefault(fnName, 0)
             ));
         }
 
-        // Stats + version bump
+        // Update user stats and global version
         u.mainUploaded.incrementAndGet();
         u.helperContrib.addAndGet(report.providedFunctions().size());
         VERSION.incrementAndGet();
 
-        // Response
-        final String res = "{"
+        // Send response with details of the new program
+        final String resJson = "{"
                 + "\"ok\":true,"
                 + "\"program\":\"" + esc(programName) + "\","
                 + "\"owner\":\"" + esc(owner) + "\","
@@ -115,10 +111,10 @@ public class ProgramsServlet extends BaseApiServlet {
                 + "\"maxDegree\":" + report.mainMaxDegree() + ","
                 + "\"functions\":" + toJsonArray(report.providedFunctions().keySet())
                 + "}";
-        json(resp, 200, res);
+        json(resp, 200, resJson);
     }
 
-    // --- GET /api/programs ---
+    // --- GET /api/programs (list all programs) ---
     private void listPrograms(HttpServletResponse resp) throws IOException {
         StringBuilder sb = new StringBuilder("{\"programs\":[");
         boolean first = true;
