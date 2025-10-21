@@ -85,6 +85,7 @@ public class CenterLeftController {
             } catch (Exception e) {
                 // Log or fallback
             }
+            System.out.println("[DEBUG] Origin chain for index " + selected.getIndex() + ": " + chain);
             final String finalChain = chain;
             javafx.application.Platform.runLater(() -> {
                 List<ApiClient.ProgramInstruction> ancestry = buildAncestryChain(finalChain);

@@ -62,16 +62,7 @@ public class ProgramAncestryServlet extends BaseApiServlet {
         try {
             String chain = FunctionEnv.with(new FunctionEnv(fnMap), () -> {
                 if (useDegree == 0) {
-                    var view = ProgramMapper.toView(base);
-                    int z = index1 - 1;
-                    if (z < 0 || z >= view.commands().size()) return "";
-                    var cv = view.commands().get(z);
-                    var ins = base.instructions().get(z);
-                    String label = cv.labelOrEmpty() == null ? "" : cv.labelOrEmpty();
-                    String labelPart = label.isEmpty() ? "" : ("[" + label + "] ");
-                    String bs = ins.isBasic() ? "B" : "S";
-                    int cyc = Math.max(0, cv.cycles());
-                    return "#" + index1 + " (" + bs + ") " + labelPart + ins.asText() + " (" + cyc + ")";
+                    return "";
                 } else {
                     var res = new ExpanderImpl().expandToDegreeWithOrigins(base, useDegree);
                     int z = index1 - 1;

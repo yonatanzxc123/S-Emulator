@@ -86,19 +86,13 @@ public class FunctionTableController {
 
     @FXML
     private void onExecute() {
-        if (table == null) return;
+        if (table == null || ctx == null || app == null) return;
         FunctionRow sel = table.getSelectionModel().getSelectedItem();
         if (sel == null) return;
 
-        // Use the FUNCTION name (not the program) so the run screen loads the function body
         SelectedProgram.set(sel.getFunctionName());
-
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/runner/MainRunScreen.fxml"));
-            Scene scene = new Scene(loader.load());
-            Stage currentStage = (Stage) table.getScene().getWindow();
-            currentStage.setScene(scene);
-            currentStage.show();
+            app.showRunScreen();
         } catch (Exception e) {
             e.printStackTrace();
         }
