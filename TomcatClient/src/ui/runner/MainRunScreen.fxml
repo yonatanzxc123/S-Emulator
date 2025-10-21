@@ -7,7 +7,7 @@
    <content>
       <BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" prefHeight="800.0" prefWidth="1000.0" stylesheets="@mainrunscreen.css">
           <top>
-              <fx:include fx:id="headerComponent" prefHeight="30.0" source="../components/header/header.fxml" />
+              <fx:include fx:id="header" prefHeight="30.0" source="../components/header/header.fxml" />
               </top>
          <center>
               <fx:include fx:id="centerComponent" source="components/center/center.fxml" />

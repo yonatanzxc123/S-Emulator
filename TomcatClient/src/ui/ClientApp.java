@@ -9,6 +9,7 @@ import javafx.stage.Stage;
 import ui.components.login.LoginScreenController;
 import ui.dashboard.MainDashboardScreenController;
 import ui.net.ApiClient;
+import ui.runner.MainRunScreenController;
 
 public class ClientApp extends Application {
     private Stage stage;
@@ -56,7 +57,9 @@ public class ClientApp extends Application {
         FXMLLoader fxml = new FXMLLoader(ClientApp.class.getResource("/ui/dashboard/MainDashboardScreen.fxml"));
         fxml.setControllerFactory(type -> {
             if (type == MainDashboardScreenController.class) {
-                return new MainDashboardScreenController(ctx);
+                MainDashboardScreenController ctrl = new MainDashboardScreenController(ctx);
+                ctrl.setClientApp(this); // Pass ClientApp instance
+                return ctrl;
             }
             try { return type.getDeclaredConstructor().newInstance(); }
             catch (Exception e) { throw new RuntimeException(e); }
@@ -68,4 +71,18 @@ public class ClientApp extends Application {
         Platform.runLater(stage::centerOnScreen);
         stage.setTitle("Dashboard");
     }
+    public void showRunScreen() throws Exception {
+        FXMLLoader fxml = new FXMLLoader(ClientApp.class.getResource("/ui/runner/MainRunScreen.fxml"));
+        fxml.setControllerFactory(type -> {
+            if (type == MainRunScreenController.class) {
+                return new MainRunScreenController(ctx); // inject context
+            }
+            try { return type.getDeclaredConstructor().newInstance(); }
+            catch (Exception e) { throw new RuntimeException(e); }
+        });
+        stage.setScene(new Scene(fxml.load()));
+        stage.sizeToScene();
+        stage.setTitle("Run Program");
+    }
+
 }

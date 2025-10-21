@@ -5,6 +5,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.fxml.FXML;
 import ui.AppContext;
+import ui.ClientApp;
 import ui.components.header.HeaderController;
 import ui.dashboard.components.center.CenterController;
 import ui.net.ApiClient;
@@ -21,6 +22,9 @@ public class MainDashboardScreenController {
 
     @FXML private HeaderController headerController;
     @FXML private CenterController centerController;
+
+    private ClientApp app;
+    public void setClientApp(ClientApp app) { this.app = app; }
 
     @FXML
     private void initialize() {
@@ -41,6 +45,8 @@ public class MainDashboardScreenController {
             headerController.bindCredits(ctx.creditsProperty());
         }
         if (centerController != null && ctx != null) {
+            centerController.setAppContext(ctx);
+            centerController.setClientApp(app);
             centerController.init(ctx);
         }
         fetchInitialCredits();

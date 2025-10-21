@@ -12,6 +12,8 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
+import ui.AppContext;
+import ui.ClientApp;
 import ui.net.ApiClient;
 import ui.runner.SelectedProgram;
 
@@ -30,6 +32,11 @@ public class FunctionTableController {
 
     private final ObservableList<FunctionRow> items = FXCollections.observableArrayList();
 
+    private AppContext ctx;
+    public void setAppContext(AppContext ctx) { this.ctx = ctx; }
+
+    private ClientApp app;
+    public void setClientApp(ClientApp app) { this.app = app; }
 
     @FXML public void initialize() {
         if (programCol != null) programCol.setCellValueFactory(new PropertyValueFactory<>("programName"));
