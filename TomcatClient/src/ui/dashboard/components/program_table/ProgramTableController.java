@@ -2,6 +2,10 @@
 // File: 'TomcatClient/src/ui/dashboard/components/program_table/ProgramTableController.java'
 package ui.dashboard.components.program_table;
 
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -12,9 +16,12 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import ui.AppContext;
 import ui.ClientApp;
 import ui.runner.SelectedProgram;
+
+import java.util.concurrent.CompletableFuture;
 
 public class ProgramTableController {
 
@@ -34,6 +41,9 @@ public class ProgramTableController {
 
     private ClientApp app;
     public void setClientApp(ClientApp app) { this.app = app; }
+
+    private final Timeline autoRefresh = new Timeline(new KeyFrame(Duration.seconds(2), e -> refresh()));
+    private volatile boolean fetching = false;
 
     @FXML
     private void initialize() {
@@ -57,6 +67,9 @@ public class ProgramTableController {
                     table.getSelectionModel().selectedItemProperty().isNull()
             );
         }
+        autoRefresh.setCycleCount(Animation.INDEFINITE);
+        autoRefresh.play();
+        refresh();
     }
 
     // Called by CenterController to populate the table
@@ -75,6 +88,43 @@ public class ProgramTableController {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private void refresh() {
+        if (fetching || ctx == null) return;
+        fetching = true;
+
+        // Remember selected program name
+        String selectedName;
+        if (table != null && table.getSelectionModel().getSelectedItem() != null) {
+            selectedName = table.getSelectionModel().getSelectedItem().getName();
+        } else{
+            selectedName = null;
+        }
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                var catalog = ctx.api().listPrograms();
+                Platform.runLater(() -> {
+                    items.clear();
+                    for (var p : catalog) {
+                        items.add(new Row(p.name, p.owner, p.instrDeg0, p.maxDegree));
+                    }
+                    // Restore selection
+                    if (selectedName != null) {
+                        for (Row row : items) {
+                            if (row.getName().equals(selectedName)) {
+                                table.getSelectionModel().select(row);
+                                break;
+                            }
+                        }
+                    }
+                    fetching = false;
+                });
+            } catch (Exception e) {
+                fetching = false;
+            }
+        });
     }
 
     // Row bean for the table

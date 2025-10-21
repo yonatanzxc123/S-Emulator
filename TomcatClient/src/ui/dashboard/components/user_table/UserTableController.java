@@ -69,6 +69,13 @@ public class UserTableController {
         if (fetching) return;
         fetching = true;
 
+        String selectedName;
+        if (table != null && table.getSelectionModel().getSelectedItem() != null) {
+            selectedName = table.getSelectionModel().getSelectedItem().getName();
+        } else {
+            selectedName = null;
+        }
+
         CompletableFuture<List<UserRow>> fut = CompletableFuture.supplyAsync(() -> {
             try {
                 List<ApiClient.UserOnline> users = ApiClient.get().usersOnline();
@@ -82,6 +89,14 @@ public class UserTableController {
 
         fut.whenComplete((rows, err) -> Platform.runLater(() -> {
             items.setAll(rows == null ? java.util.Collections.<UserRow>emptyList() : rows);
+            if (selectedName != null) {
+                for (UserRow row : items) {
+                    if (row.getName().equals(selectedName)) {
+                        table.getSelectionModel().select(row);
+                        break;
+                    }
+                }
+            }
             fetching = false;
         }));
     }
