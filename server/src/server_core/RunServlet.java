@@ -14,8 +14,42 @@ public class RunServlet extends BaseApiServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         switch (subPath(req)) {
             case "/start" -> handleRunStart(req, resp);
+            case "/inputs" -> handleInputsRequest(req, resp);
             default -> json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(subPath(req)) + "\"}");
         }
+    }
+
+    //POST /api/run/inputs
+    private void handleInputsRequest(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        User u = requireUser(req, resp);
+        if (u == null) return;
+
+        String body = readBody(req);
+        String program = jStr(body, "program");
+        if (program == null || program.isBlank()) {
+            json(resp, 400, "{\"error\":\"bad_params\"}");
+            return;
+        }
+        ProgramMeta meta = PROGRAMS.get(program);
+        if (meta == null) {
+            json(resp, 404, "{\"error\":\"program_not_found\"}");
+            return;
+        }
+
+        var view = meta.engine.getProgramView();
+        if (view == null) {
+            json(resp, 500, "{\"error\":\"program_view_unavailable\"}");
+            return;
+        }
+
+        List<String> inputs = view.inputsUsed();
+        StringBuilder sb = new StringBuilder("{\"ok\":true,\"inputs\":[");
+        for (int i = 0; i < inputs.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append("{\"name\":\"").append(esc(inputs.get(i))).append("\",\"value\":0}");
+        }
+        sb.append("]}");
+        json(resp, 200, sb.toString());
     }
 
     private void handleRunStart(HttpServletRequest req, HttpServletResponse resp) throws IOException {

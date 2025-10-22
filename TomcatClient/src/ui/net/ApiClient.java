@@ -528,6 +528,49 @@ public class ApiClient {
         return new ProgramInfo(name, owner, instr0, maxDeg, flist);
     }
 
+    // ---------- Inputs for a Program ----------
+    public static final class InputVarInfo {
+        public final String name;
+        public final long value;
+        public InputVarInfo(String name, long value) {
+            this.name = name;
+            this.value = value;
+        }
+    }
+
+    public List<InputVarInfo> fetchInputsForProgram(String programName) throws IOException, InterruptedException {
+        String body = "{\"program\":\"" + jsonEsc(programName) + "\"}";
+        HttpRequest req = HttpRequest.newBuilder(url("/api/run/inputs"))
+                .timeout(Duration.ofSeconds(10))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) return List.of();
+        String s = resp.body() == null ? "" : resp.body();
+
+        List<InputVarInfo> out = new ArrayList<>();
+        String key = "\"inputs\"";
+        int i = s.indexOf(key); if (i < 0) return out;
+        int c = s.indexOf(':', i + key.length()); if (c < 0) return out;
+        int a1 = s.indexOf('[', c + 1); if (a1 < 0) return out;
+        int a2 = matchBracket(s, a1); if (a2 < 0) return out;
+        String arr = s.substring(a1 + 1, a2);
+
+        int pos = 0;
+        while (pos < arr.length()) {
+            int o1 = arr.indexOf('{', pos); if (o1 < 0) break;
+            int o2 = matchBrace(arr, o1); if (o2 < 0) break;
+            String obj = arr.substring(o1 + 1, o2);
+
+            String name = jStr(obj, "name");
+            long value = jLong(obj, "value", 0L);
+            if (name != null) out.add(new InputVarInfo(name, value));
+            pos = o2 + 1;
+        }
+        return out;
+    }
+
     // --- tiny helpers for naive JSON parsing (flat keys) ---
     private static int matchBracket(String s, int openIdx) {
         int depth = 0;

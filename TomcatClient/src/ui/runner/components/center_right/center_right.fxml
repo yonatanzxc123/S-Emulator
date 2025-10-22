@@ -11,7 +11,7 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox stylesheets="@center_right.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1">
+<VBox stylesheets="@center_right.css" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.runner.components.center_right.CenterRightController">
     <children>
         <HBox alignment="TOP_CENTER" VBox.vgrow="NEVER">
             <children>
@@ -20,7 +20,7 @@
         </HBox>
         <FlowPane hgap="5.0" prefHeight="100.0" prefWidth="200.0" vgap="5.0" VBox.vgrow="NEVER">
             <children>
-                <Button fx:id="newRunBtn" mnemonicParsing="false" text="New Run">
+                <Button fx:id="newRunBtn" mnemonicParsing="false" onAction="#onNewRun" text="New Run">
                     <FlowPane.margin>
                         <Insets />
                     </FlowPane.margin>
