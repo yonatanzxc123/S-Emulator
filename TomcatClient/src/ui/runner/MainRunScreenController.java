@@ -3,12 +3,14 @@ package ui.runner;
 import javafx.fxml.FXML;
 import ui.AppContext;
 import ui.components.header.HeaderController;
+import ui.runner.components.center.CenterController;
 
 
 // java
 public class MainRunScreenController {
     private AppContext ctx;
     @FXML private HeaderController headerController;
+    @FXML private CenterController centerController;
 
     public MainRunScreenController() {}
 
@@ -18,10 +20,18 @@ public class MainRunScreenController {
 
     @FXML
     private void initialize() {
+
         if (headerController != null && ctx != null) {
             updateHeader();
         } else {
             javafx.application.Platform.runLater(this::updateHeader);
+        }
+        if (centerController != null && ctx != null) {
+            centerController.init(ctx);
+        } else {
+            javafx.application.Platform.runLater(() -> {
+                if (centerController != null && ctx != null) centerController.init(ctx);
+            });
         }
     }
 

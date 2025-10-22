@@ -25,7 +25,7 @@
                         <Insets />
                     </FlowPane.margin>
                 </Button>
-                <Button fx:id="startBtn" mnemonicParsing="false" text="Start" />
+                <Button fx:id="startBtn" mnemonicParsing="false" onAction="#onStart" text="Start" />
                 <Button fx:id="debugBtn" mnemonicParsing="false" text="Debug" />
                 <Button fx:id="stopBtn" mnemonicParsing="false" text="Stop" />
                 <Button fx:id="resumeBtn" mnemonicParsing="false" text="Resume" />

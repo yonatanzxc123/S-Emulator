@@ -5,6 +5,7 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import ui.net.ApiClient;
+import ui.runner.SelectedProgram;
 import ui.runner.components.instruction_table.InstructionTableController;
 
 import java.util.ArrayList;
@@ -242,6 +243,7 @@ public class CenterLeftController {
 
                 currDegree = d;
                 updateDegreeLabel();
+                SelectedProgram.setSelectedDegree(currDegree);
 
                 if (instructionTableController != null) {
                     loadInstructionsAsync(programName, currDegree);

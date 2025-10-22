@@ -45,4 +45,7 @@ public class InputTableController {
             items.add(new InputVar(iv.name));
         }
     }
+    public List<Long> getInputValues() {
+        return items.stream().map(InputVar::getValue).toList();
+    }
 }

@@ -100,6 +100,7 @@ public class RunServlet extends BaseApiServlet {
         }
 
         long cycles = rr.cycles();
+        System.out.println("the cycles: " + cycles);
         long y      = rr.y();
 
         // Attempt to charge for the variable cost (cycles); handle insufficient credits
