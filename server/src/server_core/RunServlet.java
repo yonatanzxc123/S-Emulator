@@ -88,10 +88,11 @@ public class RunServlet extends BaseApiServlet {
             return;
         }
 
+        List<Long> inputs = jLongList(body, "inputs");
         // Execute the program run
         system.api.RunResult rr;
         try {
-            rr = meta.engine.run(degree, List.of());  // supply inputs if needed
+            rr = meta.engine.run(degree, inputs);  // supply inputs if needed
         } catch (Exception e) {
             // Roll back the fixed cost if the engine run fails
             u.addCredits(archFixed);

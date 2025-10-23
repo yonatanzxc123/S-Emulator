@@ -80,9 +80,20 @@ public final class EmulatorEngineImpl implements EmulatorEngine {
                 toRun = res.program();
                 executedView = ProgramMapper.toView(res.program(), res.origins());
             }
+            System.out.println("Starting program run. Degree: " + use);
+            System.out.println("Instructions to execute: " + toRun.instructions().size());
+
+            // Print each instruction before execution (if you have access to Executor internals, move this there)
+            for (int i = 0; i < toRun.instructions().size(); i++) {
+                var ins = toRun.instructions().get(i);
+                System.out.println("Instruction " + (i + 1) + ": " + ins.asText());
+            }
 
             var exec = new Executor();
             var st = exec.run(toRun, inputs);
+            System.out.println("Run finished. Total cycles: " + st.cycles());
+            System.out.println("Final y value: " + st.y());
+
 
             var vars = new LinkedHashMap<String, Long>();
             vars.put("y", st.y());
