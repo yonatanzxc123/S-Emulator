@@ -92,7 +92,7 @@ public class RunServlet extends BaseApiServlet {
         // Execute the program run
         system.api.RunResult rr;
         try {
-            rr = meta.engine.run(degree, inputs);  // supply inputs if needed
+            rr = meta.engine.run(degree, inputs);
         } catch (Exception e) {
             // Roll back the fixed cost if the engine run fails
             u.addCredits(archFixed);
@@ -128,14 +128,24 @@ public class RunServlet extends BaseApiServlet {
         meta.avgCreditsCost = ((meta.avgCreditsCost * (newRunCount - 1)) + totalUsed) / (double) newRunCount;
 
         // Respond with success and run results
-        json(resp, 200, "{"
-                + "\"ok\":true,"
-                + "\"program\":\"" + esc(program) + "\","
-                + "\"arch\":\"" + esc(arch) + "\","
-                + "\"degree\":" + degree + ","
-                + "\"cycles\":" + cycles + ","
-                + "\"y\":" + y + ","
-                + "\"creditsLeft\":" + u.getCredits()
-                + "}");
+        var vars = rr.variablesOrdered(); // This is your LinkedHashMap<String, Long>
+
+        StringBuilder sb = new StringBuilder("{");
+        sb.append("\"ok\":true,");
+        sb.append("\"program\":\"").append(esc(program)).append("\",");
+        sb.append("\"arch\":\"").append(esc(arch)).append("\",");
+        sb.append("\"degree\":").append(degree).append(",");
+        sb.append("\"cycles\":").append(cycles).append(",");
+        sb.append("\"y\":").append(y).append(",");
+        sb.append("\"creditsLeft\":").append(u.getCredits()).append(",");
+        sb.append("\"vars\":{");
+        boolean first = true;
+        for (var e : vars.entrySet()) {
+            if (!first) sb.append(",");
+            first = false;
+            sb.append("\"").append(esc(e.getKey())).append("\":").append(e.getValue());
+        }
+        sb.append("}}");
+        json(resp, 200, sb.toString());
     }
 }
