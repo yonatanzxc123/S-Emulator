@@ -587,12 +587,13 @@ public class ApiClient {
         }
     }
 
-    public RunResult runStart(String program, int degree, java.util.List<Long> inputs) throws IOException, InterruptedException {
+    public RunResult runStart(String program, int degree, List<Long> inputs, boolean isMainProgram) throws IOException, InterruptedException {
         StringBuilder sb = new StringBuilder();
         sb.append("{\"program\":\"").append(jsonEsc(program)).append("\"");
         sb.append(",\"degree\":").append(degree);
         sb.append(",\"arch\":\"IV\"");
         sb.append(",\"inputs\":[").append(inputs == null ? "" : inputs.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","))).append("]");
+        sb.append(",\"isMainProgram\":").append(isMainProgram);
         sb.append("}");
         HttpRequest req = HttpRequest.newBuilder(url("/api/run/start"))
                 .timeout(Duration.ofSeconds(10))
