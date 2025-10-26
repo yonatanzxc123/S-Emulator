@@ -11,6 +11,8 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import ui.net.ApiClient;
 
+import java.io.IOException;
+
 public class HistoryTableController {
     @FXML
     private TableView<ApiClient.RunHistoryEntry> table;
@@ -25,6 +27,8 @@ public class HistoryTableController {
     @FXML private Button rerunBtn;
 
     private final ObservableList<ApiClient.RunHistoryEntry> items = FXCollections.observableArrayList();
+
+
 
     @FXML
     private void initialize() {
@@ -53,16 +57,24 @@ public class HistoryTableController {
         ApiClient.RunHistoryEntry entry = table.getSelectionModel().getSelectedItem();
         if (entry == null) return;
 
-        // Set selected program and degree
+        // Set static fields
         ui.runner.SelectedProgram.set(entry.name);
         ui.runner.SelectedProgram.setSelectedDegree(entry.degree);
-
-        // Store inputs in a static field (add this to SelectedProgram)
-        ui.runner.SelectedProgram.setInputs(entry.inputs); // You need to add setInputs/getInputs
+        ui.runner.SelectedProgram.setInputs(entry.inputs);
 
         try {
             ui.ClientApp.get().showRunScreen();
-            ui.ClientApp.get().getRunScreenController().setMainProgram(entry.isMainProgram);
+            Platform.runLater(() -> {
+                var runScreenCtrl = ui.ClientApp.get().getRunScreenController();
+                if (runScreenCtrl != null) {
+                    runScreenCtrl.setMainProgram(entry.isMainProgram);
+                    try {
+                        runScreenCtrl.prepareRerun();
+                    } catch (IOException | InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            });
         } catch (Exception e) {
             e.printStackTrace();
         }

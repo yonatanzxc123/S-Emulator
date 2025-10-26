@@ -223,7 +223,7 @@ public class CenterLeftController {
         highlightRows(null);
     }
     @FXML
-    private void onExpand() {
+    public void onExpand() {
         if (programName == null || programName.isBlank()) return;
 
         List<String> options = new ArrayList<>();
@@ -250,6 +250,16 @@ public class CenterLeftController {
                 }
             } catch (NumberFormatException ignore) {}
         });
+    }
+
+    public void expandToDegree(int degree) {
+        if (degree < 0 || degree > maxDegree || degree == currDegree) return;
+        currDegree = degree;
+        updateDegreeLabel();
+        ui.runner.SelectedProgram.setSelectedDegree(currDegree);
+        if (instructionTableController != null) {
+            loadInstructionsAsync(programName, currDegree);
+        }
     }
 
     private void updateDegreeLabel() {

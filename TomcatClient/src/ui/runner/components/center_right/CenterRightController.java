@@ -24,6 +24,10 @@ public class CenterRightController {
     @FXML private Button dashboardBtn;
     @FXML private VarTableController varTableController;
 
+    public InputTableController getInputTableController() {
+        return inputTableController;
+    }
+
     private AppContext ctx;
 
     public void setAppContext(AppContext ctx) {
@@ -34,7 +38,7 @@ public class CenterRightController {
     private void initialize() {}
 
     @FXML
-    private void onNewRun() throws IOException, InterruptedException {
+    public void onNewRun() throws IOException, InterruptedException {
         String program = SelectedProgram.get();
         boolean isMainProgram = ui.ClientApp.get().getRunScreenController().getIsMainProgram();
 

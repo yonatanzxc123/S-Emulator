@@ -5,6 +5,8 @@ import ui.AppContext;
 import ui.components.header.HeaderController;
 import ui.runner.components.center.CenterController;
 
+import java.io.IOException;
+
 
 // java
 public class MainRunScreenController {
@@ -56,6 +58,33 @@ public class MainRunScreenController {
             headerController.bindUsername(ctx.usernameProperty());
             headerController.setTitleSuffix("Execution");
             headerController.bindCredits(ctx.creditsProperty());
+        }
+    }
+
+    public void prepareRerun() throws IOException, InterruptedException {
+        if (centerController != null && centerController.getCenterRightController() != null) {
+            centerController.getCenterRightController().onNewRun();
+            javafx.application.Platform.runLater(() -> {
+                var rightCtrl = centerController.getCenterRightController();
+                var leftCtrl = centerController.getCenterLeftController();
+                if (rightCtrl != null && rightCtrl.getInputTableController() != null && leftCtrl != null) {
+                    String program = ui.runner.SelectedProgram.get();
+                    int degree = ui.runner.SelectedProgram.getSelectedDegree();
+                    new Thread(() -> {
+                        try {
+                            var inputsInfo = ui.net.ApiClient.get().fetchInputsForProgram(program);
+                            javafx.application.Platform.runLater(() -> {
+                                rightCtrl.getInputTableController().setInputs(inputsInfo);
+                                rightCtrl.getInputTableController().setInputValues(ui.runner.SelectedProgram.getInputs());
+                                // Simulate expand button press
+                                leftCtrl.expandToDegree(degree);
+                            });
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }).start();
+                }
+            });
         }
     }
 }
