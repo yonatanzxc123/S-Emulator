@@ -74,7 +74,23 @@ public class ProgramsServlet extends BaseApiServlet {
         } catch (IllegalArgumentException ex) {
             json(resp, 400, "{\"error\":\"" + esc(ex.getMessage()) + "\"}");
             return;
+        }catch (RuntimeException ex) {
+            // e.g., missing function during linking/expansion → used to bubble up as 500
+            String msg = deepestMessage(ex);
+            // Optional: detect the common "Function 'X' not found" and return the name
+            String missingFn = extractMissingFunctionName(msg);
+            if (missingFn != null) {
+                json(resp, 400, "{\"error\":\"missing_functions_to_operate\",\"name\":\"" + esc(missingFn) + "\"}");
+            } else {
+                json(resp, 400, "{\"error\":\"invalid_program\",\"detail\":\"" + esc(msg) + "\"}");
+            }
+            return;
         }
+
+
+
+
+
 
         // Validate that the program and any provided helper functions are unique
         final String programName = report.programName();
@@ -277,6 +293,22 @@ public class ProgramsServlet extends BaseApiServlet {
 
     private static String nullToEmpty(String s) {
         return s == null ? "" : s;
+    }
+    private static String deepestMessage(Throwable t) {
+        Throwable cur = t;
+        while (cur.getCause() != null) cur = cur.getCause();
+        return cur.getMessage() == null ? t.toString() : cur.getMessage();
+    }
+
+    private static String extractMissingFunctionName(String msg) {
+        // Match: Function 'foo' not found
+        if (msg == null) return null;
+        int i = msg.indexOf("Function '");
+        int j = msg.indexOf("' not found");
+        if (i >= 0 && j > i + 10) {
+            return msg.substring(i + 10, j);
+        }
+        return null;
     }
 
 
