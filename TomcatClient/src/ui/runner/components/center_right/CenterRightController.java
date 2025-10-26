@@ -20,6 +20,7 @@ public class CenterRightController {
     @FXML private InputTableController inputTableController;
     @FXML private Button startBtn;
     @FXML private Label cyclesLbl;
+    @FXML private Button dashboardBtn;
     @FXML private VarTableController varTableController;
 
     private AppContext ctx;
@@ -75,6 +76,11 @@ public class CenterRightController {
                 Platform.runLater(() -> showError("Run failed", ex.getMessage()));
             }
         }, "run-start").start();
+    }
+
+    @FXML
+    private void onBackToDashboard() throws Exception {
+        ui.ClientApp.get().showDashboard();
     }
 
     private void showError(String header, String msg) {
