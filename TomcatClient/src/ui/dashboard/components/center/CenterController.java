@@ -46,7 +46,7 @@ public class CenterController {
                     var catalog = ctx.api().listPrograms();
                     Platform.runLater(() -> {
                         for (var p : catalog) {
-                            program.addProgram(p.name, p.owner, p.instrDeg0, p.maxDegree);
+                            program.addProgram(p.name, p.owner, p.instrDeg0, p.maxDegree, p.timesRun,p.avgCredits);
                             if (p.functions != null && !p.functions.isEmpty()) {
                                 functions.addFunctions(p.name, p.owner, p.functions);
                             }

@@ -392,13 +392,17 @@ public class ApiClient {
         public final String owner;
         public final int instrDeg0;
         public final int maxDegree;
+        public final int timesRun;      // <-- add this
+        public final long avgCredits;
         public final List<FunctionInfo> functions;
 
-        public ProgramInfo(String name, String owner, int instrDeg0, int maxDegree, List<FunctionInfo> functions) {
+        public ProgramInfo(String name, String owner, int instrDeg0, int maxDegree, int timesRun, long avgCredits, List<FunctionInfo> functions) {
             this.name = name;
             this.owner = owner;
             this.instrDeg0 = instrDeg0;
             this.maxDegree = maxDegree;
+            this.timesRun = timesRun;
+            this.avgCredits = avgCredits;
             this.functions = functions == null ? List.of() : List.copyOf(functions);
         }
     }
@@ -432,6 +436,8 @@ public class ApiClient {
             String owner = jStr(obj, "owner");
             int instr0 = jInt(obj, "instrDeg0", 0);
             int maxDeg = jInt(obj, "maxDegree", 0);
+            int timesRun = jInt(obj, "timesRun", 0);
+            long avgCredits = jLong(obj, "avgCredits", 0L);
 
             List<FunctionInfo> flist = new ArrayList<>();
             String fk = "\"functions\"";
@@ -462,7 +468,7 @@ public class ApiClient {
                 }
             }
 
-            out.add(new ProgramInfo(name, owner, instr0, maxDeg, flist));
+            out.add(new ProgramInfo(name, owner, instr0, maxDeg,timesRun,avgCredits, flist));
             pos = o2 + 1;
         }
         return out;
@@ -495,6 +501,8 @@ public class ApiClient {
         String owner = jStr(s, "owner");
         int instr0 = jInt(s, "instrDeg0", 0);
         int maxDeg = jInt(s, "maxDegree", 0);
+        int timesRun = jInt(s, "timesRun", 0);
+        long avgCredits = jLong(s, "avgCredits", 0L);
 
         List<FunctionInfo> flist = new ArrayList<>();
         // Prefer detailed functions
@@ -525,7 +533,7 @@ public class ApiClient {
                 }
             }
         }
-        return new ProgramInfo(name, owner, instr0, maxDeg, flist);
+        return new ProgramInfo(name, owner, instr0, maxDeg,timesRun,avgCredits ,flist);
     }
 
     // ---------- Inputs for a Program ----------

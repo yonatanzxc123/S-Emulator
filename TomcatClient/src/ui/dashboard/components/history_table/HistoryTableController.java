@@ -27,7 +27,7 @@ public class HistoryTableController {
     @FXML
     private void initialize() {
         runNoColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue().runNo));
-        mainProgramColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().isMainProgram ? "Main" : "Helper"));
+        mainProgramColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().isMainProgram ? "Program" : "Function"));
         nameColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().name));
         archColumn.setCellValueFactory(cd -> new ReadOnlyStringWrapper(cd.getValue().arch));
         degreeColumn.setCellValueFactory(cd -> new ReadOnlyObjectWrapper<>(cd.getValue().degree));

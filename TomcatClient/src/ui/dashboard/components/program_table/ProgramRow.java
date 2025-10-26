@@ -9,9 +9,9 @@ public class ProgramRow {
     private final IntegerProperty instrCount = new SimpleIntegerProperty();
     private final IntegerProperty maxDegree = new SimpleIntegerProperty();
     private final IntegerProperty timesRun = new SimpleIntegerProperty();
-    private final IntegerProperty creditsCost = new SimpleIntegerProperty();
+    private final DoubleProperty creditsCost = new SimpleDoubleProperty();
 
-    public ProgramRow(String name, String uploader, int instrCount, int maxDegree, int timesRun, int creditsCost) {
+    public ProgramRow(String name, String uploader, int instrCount, int maxDegree, int timesRun, double creditsCost) {
         this.name.set(name);
         this.uploader.set(uploader);
         this.instrCount.set(instrCount);
@@ -35,6 +35,6 @@ public class ProgramRow {
     public int getTimesRun() { return timesRun.get(); }
     public IntegerProperty timesRunProperty() { return timesRun; }
 
-    public int getCreditsCost() { return creditsCost.get(); }
-    public IntegerProperty creditsCostProperty() { return creditsCost; }
+    public double getCreditsCost() { return creditsCost.get(); }
+    public DoubleProperty creditsCostProperty() { return creditsCost; }
 }
