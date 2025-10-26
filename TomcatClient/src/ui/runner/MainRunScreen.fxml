@@ -10,7 +10,7 @@
               <fx:include fx:id="header" prefHeight="30.0" source="../components/header/header.fxml" />
               </top>
          <center>
-              <fx:include fx:id="centerComponent" source="components/center/center.fxml" />
+              <fx:include fx:id="center" source="components/center/center.fxml" />
          </center>
           </BorderPane>
    </content>

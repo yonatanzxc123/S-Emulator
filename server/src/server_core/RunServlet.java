@@ -14,8 +14,42 @@ public class RunServlet extends BaseApiServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         switch (subPath(req)) {
             case "/start" -> handleRunStart(req, resp);
+            case "/inputs" -> handleInputsRequest(req, resp);
             default -> json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(subPath(req)) + "\"}");
         }
+    }
+
+    //POST /api/run/inputs
+    private void handleInputsRequest(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        User u = requireUser(req, resp);
+        if (u == null) return;
+
+        String body = readBody(req);
+        String program = jStr(body, "program");
+        if (program == null || program.isBlank()) {
+            json(resp, 400, "{\"error\":\"bad_params\"}");
+            return;
+        }
+        ProgramMeta meta = PROGRAMS.get(program);
+        if (meta == null) {
+            json(resp, 404, "{\"error\":\"program_not_found\"}");
+            return;
+        }
+
+        var view = meta.engine.getProgramView();
+        if (view == null) {
+            json(resp, 500, "{\"error\":\"program_view_unavailable\"}");
+            return;
+        }
+
+        List<String> inputs = view.inputsUsed();
+        StringBuilder sb = new StringBuilder("{\"ok\":true,\"inputs\":[");
+        for (int i = 0; i < inputs.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append("{\"name\":\"").append(esc(inputs.get(i))).append("\",\"value\":0}");
+        }
+        sb.append("]}");
+        json(resp, 200, sb.toString());
     }
 
     private void handleRunStart(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -54,10 +88,11 @@ public class RunServlet extends BaseApiServlet {
             return;
         }
 
+        List<Long> inputs = jLongList(body, "inputs");
         // Execute the program run
         system.api.RunResult rr;
         try {
-            rr = meta.engine.run(degree, List.of());  // supply inputs if needed
+            rr = meta.engine.run(degree, inputs);
         } catch (Exception e) {
             // Roll back the fixed cost if the engine run fails
             u.addCredits(archFixed);
@@ -66,6 +101,7 @@ public class RunServlet extends BaseApiServlet {
         }
 
         long cycles = rr.cycles();
+        System.out.println("the cycles: " + cycles);
         long y      = rr.y();
 
         // Attempt to charge for the variable cost (cycles); handle insufficient credits
@@ -92,14 +128,24 @@ public class RunServlet extends BaseApiServlet {
         meta.avgCreditsCost = ((meta.avgCreditsCost * (newRunCount - 1)) + totalUsed) / (double) newRunCount;
 
         // Respond with success and run results
-        json(resp, 200, "{"
-                + "\"ok\":true,"
-                + "\"program\":\"" + esc(program) + "\","
-                + "\"arch\":\"" + esc(arch) + "\","
-                + "\"degree\":" + degree + ","
-                + "\"cycles\":" + cycles + ","
-                + "\"y\":" + y + ","
-                + "\"creditsLeft\":" + u.getCredits()
-                + "}");
+        var vars = rr.variablesOrdered(); // This is your LinkedHashMap<String, Long>
+
+        StringBuilder sb = new StringBuilder("{");
+        sb.append("\"ok\":true,");
+        sb.append("\"program\":\"").append(esc(program)).append("\",");
+        sb.append("\"arch\":\"").append(esc(arch)).append("\",");
+        sb.append("\"degree\":").append(degree).append(",");
+        sb.append("\"cycles\":").append(cycles).append(",");
+        sb.append("\"y\":").append(y).append(",");
+        sb.append("\"creditsLeft\":").append(u.getCredits()).append(",");
+        sb.append("\"vars\":{");
+        boolean first = true;
+        for (var e : vars.entrySet()) {
+            if (!first) sb.append(",");
+            first = false;
+            sb.append("\"").append(esc(e.getKey())).append("\":").append(e.getValue());
+        }
+        sb.append("}}");
+        json(resp, 200, sb.toString());
     }
 }

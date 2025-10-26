@@ -7,6 +7,7 @@ import system.core.model.Program;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -176,6 +177,21 @@ abstract class BaseApiServlet extends HttpServlet {
         } catch (NumberFormatException ex) {
             return null;
         }
+    }
+
+    public List<Long> jLongList(String json, String key) {
+        String k = "\"" + key + "\"";
+        int i = json.indexOf(k); if (i < 0) return List.of();
+        int c = json.indexOf(':', i + k.length()); if (c < 0) return List.of();
+        int a1 = json.indexOf('[', c + 1); if (a1 < 0) return List.of();
+        int a2 = json.indexOf(']', a1 + 1); if (a2 < 0) return List.of();
+        String arr = json.substring(a1 + 1, a2);
+        List<Long> out = new java.util.ArrayList<>();
+        for (String s : arr.split(",")) {
+            s = s.trim();
+            if (!s.isEmpty()) try { out.add(Long.parseLong(s)); } catch (Exception ignore) {}
+        }
+        return out;
     }
 
     /** Convert a collection of strings into a JSON array representation. */

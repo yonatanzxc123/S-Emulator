@@ -250,6 +250,7 @@ public class ProgramsServlet extends BaseApiServlet {
 
         out.print("{\"degree\":" + useDegree + ",\"maxDegree\":" + maxDegree + ",\"instructions\":[");
 
+
         List<Instruction> insns = p.instructions();
         List<system.api.view.CommandView> cmds = view.commands();
 
