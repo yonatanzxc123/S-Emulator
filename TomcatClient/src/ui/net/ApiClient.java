@@ -640,6 +640,64 @@ public class ApiClient {
         return new RunResult(cycles, y, vars, creditsLeft, null);
     }
 
+    //---- fetching the users history ----
+    public static final class RunHistoryEntry {
+        public final long runNo;
+        public final boolean isMainProgram;
+        public final String name;
+        public final String arch;
+        public final int degree;
+        public final long y;
+        public final long cycles;
+
+        public RunHistoryEntry(long runNo, boolean isMainProgram, String name, String arch, int degree, long y, long cycles) {
+            this.runNo = runNo;
+            this.isMainProgram = isMainProgram;
+            this.name = name;
+            this.arch = arch;
+            this.degree = degree;
+            this.y = y;
+            this.cycles = cycles;
+        }
+    }
+
+    public List<RunHistoryEntry> fetchOwnRunHistory() throws IOException, InterruptedException {
+        HttpRequest req = HttpRequest.newBuilder(url("/api/users/history"))
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        String s = resp.body() == null ? "" : resp.body();
+        if (resp.statusCode() != 200) return List.of();
+
+        List<RunHistoryEntry> out = new ArrayList<>();
+        String key = "\"history\"";
+        int i = s.indexOf(key); if (i < 0) return out;
+        int c = s.indexOf(':', i + key.length()); if (c < 0) return out;
+        int a1 = s.indexOf('[', c + 1); if (a1 < 0) return out;
+        int a2 = s.indexOf(']', a1 + 1); if (a2 < 0) return out;
+        String arr = s.substring(a1 + 1, a2);
+
+        int pos = 0;
+        while (pos < arr.length()) {
+            int o1 = arr.indexOf('{', pos); if (o1 < 0) break;
+            int o2 = arr.indexOf('}', o1 + 1); if (o2 < 0) break;
+            String obj = arr.substring(o1 + 1, o2);
+
+            long runNo = jLong(obj, "runNo", 0L);
+            boolean isMainProgram = jBool(obj, "isMainProgram", true);
+            String name = jStr(obj, "name");
+            String arch = jStr(obj, "arch");
+            int degree = jInt(obj, "degree", 0);
+            long y = jLong(obj, "y", 0L);
+            long cycles = jLong(obj, "cycles", 0L);
+
+            out.add(new RunHistoryEntry(runNo, isMainProgram, name, arch, degree, y, cycles));
+            pos = o2 + 1;
+        }
+        return out;
+    }
+
     // --- tiny helpers for naive JSON parsing (flat keys) ---
     private static int matchBracket(String s, int openIdx) {
         int depth = 0;

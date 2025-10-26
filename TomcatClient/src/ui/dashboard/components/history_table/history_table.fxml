@@ -12,11 +12,11 @@
         <TableView fx:id="table">
             <columns>
                 <TableColumn fx:id="runNoColumn" prefWidth="55.0" text="#Run" />
-            <TableColumn prefWidth="87.0" text="ProgramType" />
-            <TableColumn prefWidth="83.0" text="Name" />
-            <TableColumn prefWidth="75.0" text="Architecture" />
+            <TableColumn fx:id="mainProgramColumn" prefWidth="87.0" text="ProgramType" />
+            <TableColumn fx:id="nameColumn" prefWidth="83.0" text="Name" />
+            <TableColumn fx:id="archColumn" prefWidth="75.0" text="Architecture" />
                 <TableColumn fx:id="degreeColumn" prefWidth="75.0" text="Degree" />
-                <TableColumn fx:id="outputColumn" prefWidth="75.0" text="Output" />
+                <TableColumn fx:id="yColumn" prefWidth="75.0" text="Output" />
                 <TableColumn fx:id="cyclesColumn" prefWidth="75.0" text="Cycles" />
             </columns>
             <columnResizePolicy>

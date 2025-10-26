@@ -14,6 +14,7 @@ public class UsersServlet extends BaseApiServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         switch (subPath(req)) {
             case "/online" -> handleUsersOnline(req, resp);
+            case "/history" -> handleUserHistory(req, resp);
             default        -> json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(subPath(req)) + "\"}");
         }
     }
@@ -24,6 +25,29 @@ public class UsersServlet extends BaseApiServlet {
             case "/credits/add" -> handleCreditsAdd(req, resp);
             default             -> json(resp, 404, "{\"error\":\"not_found\",\"path\":\"" + esc(subPath(req)) + "\"}");
         }
+    }
+
+    private void handleUserHistory(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        User u = requireUser(req, resp);
+        if (u == null) return;
+        var history = u.getRunHistory();
+        StringBuilder sb = new StringBuilder("{\"ok\":true,\"history\":[");
+        boolean first = true;
+        for (User.RunRecord r : history) {
+            if (!first) sb.append(",");
+            first = false;
+            sb.append("{")
+                    .append("\"runNo\":").append(r.runNo).append(",")
+                    .append("\"isMainProgram\":").append(r.isMainProgram).append(",")
+                    .append("\"name\":\"").append(esc(r.name)).append("\",")
+                    .append("\"arch\":\"").append(esc(r.arch)).append("\",")
+                    .append("\"degree\":").append(r.degree).append(",")
+                    .append("\"y\":").append(r.y).append(",")
+                    .append("\"cycles\":").append(r.cycles)
+                    .append("}");
+        }
+        sb.append("]}");
+        json(resp, 200, sb.toString());
     }
 
     private void handleCreditsAdd(HttpServletRequest req, HttpServletResponse resp) throws IOException {

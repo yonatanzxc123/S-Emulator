@@ -123,6 +123,18 @@ public class RunServlet extends BaseApiServlet {
 
         // Update usage statistics
         u.runsCount.incrementAndGet();
+
+        boolean isMainProgram = jBool(body, "isMainProgram", true); // default to true if not present
+
+        u.addRunRecord(new User.RunRecord(
+                u.runsCount.get(), // run number
+                isMainProgram,
+                program,
+                arch,
+                degree,
+                rr.y(),
+                rr.cycles()
+        ));
         long totalUsed = archFixed + cycles;
         long newRunCount = meta.runsCount.incrementAndGet();
         // Update average credits cost (note: not atomic, but minor race conditions are acceptable here)

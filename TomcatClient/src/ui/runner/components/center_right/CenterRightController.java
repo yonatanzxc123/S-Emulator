@@ -13,6 +13,7 @@ import ui.runner.SelectedProgram;
 import ui.runner.components.input_table.InputTableController;
 import ui.runner.components.var_table.VarTableController;
 
+import java.io.IOException;
 import java.util.List;
 
 public class CenterRightController {
@@ -33,12 +34,25 @@ public class CenterRightController {
     private void initialize() {}
 
     @FXML
-    private void onNewRun() {
+    private void onNewRun() throws IOException, InterruptedException {
         String program = SelectedProgram.get();
+        boolean isMainProgram = ui.ClientApp.get().getRunScreenController().getIsMainProgram();
+
+        if (!isMainProgram) {
+            var functions = ApiClient.get().listAllFunctions();
+            for (var f : functions) {
+                if (f.name.equals(program)) {
+                    program = f.program; // Use parent program name
+                    break;
+                }
+            }
+        }
+
+        final String inputProgram = program;
         if (program == null || program.isBlank()) return;
         new Thread(() -> {
             try {
-                var inputs = ApiClient.get().fetchInputsForProgram(program);
+                var inputs = ApiClient.get().fetchInputsForProgram(inputProgram);
                 Platform.runLater(() -> inputTableController.setInputs(inputs));
             } catch (Exception ex) {
                 ex.printStackTrace();
@@ -47,17 +61,29 @@ public class CenterRightController {
     }
 
     @FXML
-    private void onStart() {
+    private void onStart() throws IOException, InterruptedException {
         String program = SelectedProgram.get();
+        boolean isMainProgram = ui.ClientApp.get().getRunScreenController().getIsMainProgram();
+
+        if (!isMainProgram) {
+            var functions = ApiClient.get().listAllFunctions();
+            for (var f : functions) {
+                if (f.name.equals(program)) {
+                    program = f.program; // Use parent program name
+                    break;
+                }
+            }
+        }
+
         if (program == null || program.isBlank()) return;
         int degree = SelectedProgram.getSelectedDegree();
         List<Long> inputs = inputTableController.getInputValues();
 
-        boolean isMainProgram = ui.ClientApp.get().getRunScreenController().getIsMainProgram();
+        final String runProgram = program;
 
         new Thread(() -> {
             try {
-                ApiClient.RunResult result = ApiClient.get().runStart(program, degree, inputs, isMainProgram);
+                ApiClient.RunResult result = ApiClient.get().runStart(runProgram, degree, inputs, isMainProgram);
                 if ("insufficient_credits".equals(result.error)) {
                     Platform.runLater(this::showChargeCreditsPopup);
                     return;
