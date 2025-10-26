@@ -12,7 +12,9 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.prefs.Preferences;
 
 public class ApiClient {
@@ -582,11 +584,11 @@ public class ApiClient {
     public static final class RunResult {
         public final long cycles;
         public final long y;
-        public final java.util.Map<String, Long> vars;
+        public final Map<String, Long> vars;
         public final long creditsLeft;
         public final String error;
 
-        public RunResult(long cycles, long y, java.util.Map<String, Long> vars, long creditsLeft, String error) {
+        public RunResult(long cycles, long y, Map<String, Long> vars, long creditsLeft, String error) {
             this.cycles = cycles;
             this.y = y;
             this.vars = vars;
@@ -658,8 +660,9 @@ public class ApiClient {
         public final long y;
         public final long cycles;
         public final List<Long> inputs;
+        public final Map<String, Long> vars;
 
-        public RunHistoryEntry(long runNo, boolean isMainProgram, String name, String arch, int degree, long y, long cycles,List<Long> inputs) {
+        public RunHistoryEntry(long runNo, boolean isMainProgram, String name, String arch, int degree, long y, long cycles, List<Long> inputs, Map<String, Long> vars) {
             this.runNo = runNo;
             this.isMainProgram = isMainProgram;
             this.name = name;
@@ -668,6 +671,7 @@ public class ApiClient {
             this.y = y;
             this.cycles = cycles;
             this.inputs = inputs;
+            this.vars = vars == null ? Map.of() : new LinkedHashMap<>(vars);
         }
     }
 
@@ -677,6 +681,7 @@ public class ApiClient {
                 .GET()
                 .build();
         HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+
         String s = resp.body() == null ? "" : resp.body();
         if (resp.statusCode() != 200) return List.of();
 
@@ -691,7 +696,7 @@ public class ApiClient {
         int pos = 0;
         while (pos < arr.length()) {
             int o1 = arr.indexOf('{', pos); if (o1 < 0) break;
-            int o2 = arr.indexOf('}', o1 + 1); if (o2 < 0) break;
+            int o2 = matchBrace(arr, o1); if (o2 < 0) break;
             String obj = arr.substring(o1 + 1, o2);
 
             long runNo = jLong(obj, "runNo", 0L);
@@ -702,8 +707,30 @@ public class ApiClient {
             long y = jLong(obj, "y", 0L);
             long cycles = jLong(obj, "cycles", 0L);
             List<Long> inputs = jLongList(obj, "inputs");
-
-            out.add(new RunHistoryEntry(runNo, isMainProgram, name, arch, degree, y, cycles,inputs));
+            Map<String, Long> vars = new java.util.LinkedHashMap<>();
+            String vkey = "\"vars\"";
+            int vi = obj.indexOf(vkey);
+            if (vi >= 0) {
+                int vc = obj.indexOf(':', vi + vkey.length());
+                int vo1 = obj.indexOf('{', vc + 1);
+                int vo2 = matchBrace(obj, vo1);
+                if (vo1 >= 0 && vo2 > vo1) {
+                    String vobj = obj.substring(vo1 + 1, vo2);
+                    for (String pair : vobj.split(",")) {
+                        int sep = pair.indexOf(':');
+                        if (sep > 0) {
+                            String vname = pair.substring(0, sep).replaceAll("[\"\\s]", "");
+                            try {
+                                long vval = Long.parseLong(pair.substring(sep + 1).trim());
+                                vars.put(vname, vval);
+                            } catch (Exception ignore) {}
+                        }
+                    }
+                }
+            }
+            System.out.println("Raw history JSON: " + s);
+            System.out.println("Parsed vars: " + vars);
+            out.add(new RunHistoryEntry(runNo, isMainProgram, name, arch, degree, y, cycles,inputs,vars));
             pos = o2 + 1;
         }
         return out;

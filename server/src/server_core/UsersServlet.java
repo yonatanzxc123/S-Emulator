@@ -44,8 +44,16 @@ public class UsersServlet extends BaseApiServlet {
                     .append("\"degree\":").append(r.degree).append(",")
                     .append("\"y\":").append(r.y).append(",")
                     .append("\"cycles\":").append(r.cycles).append(",")
-                    .append("\"inputs\":").append(r.inputs == null ? "[]" : r.inputs.toString())
-                    .append("}");
+                    .append("\"inputs\":").append(r.inputs == null ? "[]" : r.inputs.toString()).append(",")
+                    .append("\"vars\":{");
+            boolean firstVar = true;
+            for (var e : r.vars.entrySet()) {
+                if (!firstVar) sb.append(",");
+                firstVar = false;
+                sb.append("\"").append(esc(e.getKey())).append("\":").append(e.getValue());
+            }
+            sb.append("}");
+            sb.append("}");
         }
         sb.append("]}");
         System.out.println("User history JSON: " + sb);

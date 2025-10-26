@@ -6,9 +6,12 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.stage.Stage;
 import ui.net.ApiClient;
 
 import java.io.IOException;
@@ -25,6 +28,7 @@ public class HistoryTableController {
     @FXML private TableColumn<ApiClient.RunHistoryEntry, Number> yColumn;
     @FXML private TableColumn<ApiClient.RunHistoryEntry, Number> cyclesColumn;
     @FXML private Button rerunBtn;
+    @FXML private Button showBtn;
 
     private final ObservableList<ApiClient.RunHistoryEntry> items = FXCollections.observableArrayList();
 
@@ -75,6 +79,29 @@ public class HistoryTableController {
                     }
                 }
             });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    public void onActionShow() {
+        ApiClient.RunHistoryEntry entry = table.getSelectionModel().getSelectedItem();
+        if (entry == null) return;
+
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/dashboard/components/history_table/VarsPopup.fxml"));
+            Scene scene = new Scene(loader.load());
+            VarsPopupController controller = loader.getController();
+
+            java.util.List<VarsPopupController.VarEntry> vars = new java.util.ArrayList<>();
+            entry.vars.forEach((k, v) -> vars.add(new VarsPopupController.VarEntry(k, v)));
+            controller.setVariables(vars);
+
+            Stage popup = new Stage();
+            popup.setTitle("Variables for Run #" + entry.runNo);
+            popup.setScene(scene);
+            popup.show();
         } catch (Exception e) {
             e.printStackTrace();
         }

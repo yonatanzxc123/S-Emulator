@@ -28,7 +28,7 @@
                 <HBox fx:id="historyBtns" alignment="BOTTOM_CENTER" fillHeight="false" spacing="10.0" AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="100.0" AnchorPane.rightAnchor="100.0" AnchorPane.topAnchor="365.0">
                     <children>
                         <Button fx:id="rerunBtn" mnemonicParsing="false" onAction="#onRerunClicked" text="Rerun" />
-                        <Button fx:id="showBtn" mnemonicParsing="false" text="Show" />
+                        <Button fx:id="showBtn" mnemonicParsing="false" onAction="#onActionShow" text="Show" />
                     </children>
                 </HBox>
             </children>

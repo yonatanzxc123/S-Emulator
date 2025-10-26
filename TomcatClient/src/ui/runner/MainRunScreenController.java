@@ -1,8 +1,10 @@
 
 package ui.runner;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import ui.AppContext;
 import ui.components.header.HeaderController;
+import ui.net.ApiClient;
 import ui.runner.components.center.CenterController;
 
 import java.io.IOException;
@@ -64,7 +66,7 @@ public class MainRunScreenController {
     public void prepareRerun() throws IOException, InterruptedException {
         if (centerController != null && centerController.getCenterRightController() != null) {
             centerController.getCenterRightController().onNewRun();
-            javafx.application.Platform.runLater(() -> {
+            Platform.runLater(() -> {
                 var rightCtrl = centerController.getCenterRightController();
                 var leftCtrl = centerController.getCenterLeftController();
                 if (rightCtrl != null && rightCtrl.getInputTableController() != null && leftCtrl != null) {
@@ -72,8 +74,8 @@ public class MainRunScreenController {
                     int degree = ui.runner.SelectedProgram.getSelectedDegree();
                     new Thread(() -> {
                         try {
-                            var inputsInfo = ui.net.ApiClient.get().fetchInputsForProgram(program);
-                            javafx.application.Platform.runLater(() -> {
+                            var inputsInfo = ApiClient.get().fetchInputsForProgram(program);
+                            Platform.runLater(() -> {
                                 rightCtrl.getInputTableController().setInputs(inputsInfo);
                                 rightCtrl.getInputTableController().setInputValues(ui.runner.SelectedProgram.getInputs());
                                 // Simulate expand button press

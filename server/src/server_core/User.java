@@ -2,6 +2,7 @@ package server_core;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -58,8 +59,9 @@ public final class User {
         public final long y;
         public final long cycles;
         public final List<Long> inputs;
+        public final Map<String, Long> vars; // <-- add this
 
-        public RunRecord(long runNo, boolean isMainProgram, String name, String arch, int degree, long y, long cycles, List<Long> inputs) {
+        public RunRecord(long runNo, boolean isMainProgram, String name, String arch, int degree, long y, long cycles, List<Long> inputs, Map<String, Long> vars) {
             this.runNo = runNo;
             this.isMainProgram = isMainProgram;
             this.name = name;
@@ -68,6 +70,7 @@ public final class User {
             this.y = y;
             this.cycles = cycles;
             this.inputs = inputs;
+            this.vars = vars == null ? Map.of() : new java.util.LinkedHashMap<>(vars);
         }
     }
 }

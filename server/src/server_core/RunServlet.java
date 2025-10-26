@@ -134,7 +134,8 @@ public class RunServlet extends BaseApiServlet {
                 degree,
                 rr.y(),
                 rr.cycles(),
-                inputs
+                inputs,
+                rr.variablesOrdered()
         ));
         long totalUsed = archFixed + cycles;
         long newRunCount = meta.runsCount.incrementAndGet();
