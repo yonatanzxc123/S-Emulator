@@ -12,6 +12,15 @@ public class MainRunScreenController {
     @FXML private HeaderController headerController;
     @FXML private CenterController centerController;
 
+    private boolean isMainProgram;
+
+    public void setMainProgram(boolean mainProgram) {
+        isMainProgram = mainProgram;
+    }
+    public boolean getIsMainProgram() {
+        return isMainProgram;
+    }
+
     public MainRunScreenController() {}
 
     public MainRunScreenController(AppContext ctx) {

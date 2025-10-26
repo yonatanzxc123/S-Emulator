@@ -85,6 +85,7 @@ public class ProgramTableController {
         SelectedProgram.set(sel.getName());
         try {
             app.showRunScreen();
+            app.getRunScreenController().setMainProgram(true);
         } catch (Exception e) {
             e.printStackTrace();
         }

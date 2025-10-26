@@ -1,5 +1,7 @@
 package server_core;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -11,6 +13,8 @@ public final class User {
     final AtomicInteger mainUploaded = new AtomicInteger(0);
     final AtomicInteger helperContrib = new AtomicInteger(0);
     volatile long lastSeenMs = System.currentTimeMillis();
+
+    private final List<RunRecord> runHistory = new ArrayList<>();
 
     User(String name) { this.name = name; }
     public String name() { return name; }
@@ -35,5 +39,33 @@ public final class User {
     public long addCredits(long amount) {
         if (amount <= 0) return credits.get();
         return credits.addAndGet(amount);
+    }
+
+    public synchronized void addRunRecord(RunRecord record) {
+        runHistory.add(record);
+    }
+
+    public synchronized List<RunRecord> getRunHistory() {
+        return new ArrayList<>(runHistory);
+    }
+
+    public static class RunRecord {
+        public final long runNo;
+        public final boolean isMainProgram;
+        public final String name;
+        public final String arch;
+        public final int degree;
+        public final long y;
+        public final long cycles;
+
+        public RunRecord(long runNo, boolean isMainProgram, String name, String arch, int degree, long y, long cycles) {
+            this.runNo = runNo;
+            this.isMainProgram = isMainProgram;
+            this.name = name;
+            this.arch = arch;
+            this.degree = degree;
+            this.y = y;
+            this.cycles = cycles;
+        }
     }
 }

@@ -3,8 +3,10 @@ package ui.runner.components.center_right;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextInputDialog;
 import ui.AppContext;
 import ui.net.ApiClient;
 import ui.runner.SelectedProgram;
@@ -50,9 +52,11 @@ public class CenterRightController {
         int degree = SelectedProgram.getSelectedDegree();
         List<Long> inputs = inputTableController.getInputValues();
 
+        boolean isMainProgram = ui.ClientApp.get().getRunScreenController().getIsMainProgram();
+
         new Thread(() -> {
             try {
-                ApiClient.RunResult result = ApiClient.get().runStart(program, degree, inputs);
+                ApiClient.RunResult result = ApiClient.get().runStart(program, degree, inputs, isMainProgram);
                 if ("insufficient_credits".equals(result.error)) {
                     Platform.runLater(this::showChargeCreditsPopup);
                     return;
@@ -74,7 +78,7 @@ public class CenterRightController {
     }
 
     private void showError(String header, String msg) {
-        javafx.scene.control.Alert a = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+        javafx.scene.control.Alert a = new Alert(Alert.AlertType.ERROR);
         a.setTitle("Error");
         a.setHeaderText(header);
         a.setContentText(msg == null ? "" : msg);
@@ -82,7 +86,7 @@ public class CenterRightController {
     }
 
     private void showChargeCreditsPopup() {
-        javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
+        javafx.scene.control.TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Insufficient Credits");
         dialog.setHeaderText("You do not have enough credits to run this program.");
         dialog.setContentText("Enter credits to add:");

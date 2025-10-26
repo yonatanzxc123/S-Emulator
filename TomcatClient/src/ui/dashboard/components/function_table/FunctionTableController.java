@@ -105,6 +105,7 @@ public class FunctionTableController {
         SelectedProgram.set(sel.getFunctionName());
         try {
             app.showRunScreen();
+            app.getRunScreenController().setMainProgram(false);
         } catch (Exception e) {
             e.printStackTrace();
         }

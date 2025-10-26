@@ -14,6 +14,21 @@ import ui.runner.MainRunScreenController;
 public class ClientApp extends Application {
     private Stage stage;
     private AppContext ctx;
+    private static ClientApp INSTANCE;
+
+    public ClientApp() {
+        INSTANCE = this;
+    }
+
+    public static ClientApp get() {
+        return INSTANCE;
+    }
+
+    private MainRunScreenController runScreenController;
+
+    public MainRunScreenController getRunScreenController() {
+        return runScreenController;
+    }
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -75,7 +90,8 @@ public class ClientApp extends Application {
         FXMLLoader fxml = new FXMLLoader(ClientApp.class.getResource("/ui/runner/MainRunScreen.fxml"));
         fxml.setControllerFactory(type -> {
             if (type == MainRunScreenController.class) {
-                return new MainRunScreenController(ctx); // inject context
+                runScreenController = new MainRunScreenController(ctx);
+                return runScreenController;
             }
             try { return type.getDeclaredConstructor().newInstance(); }
             catch (Exception e) { throw new RuntimeException(e); }
