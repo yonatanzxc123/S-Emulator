@@ -21,7 +21,7 @@
                 <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
             </columnResizePolicy>
         </TableView>
-        <Button fx:id="executeBtn" mnemonicParsing="false" text="Execute Program" StackPane.alignment="BOTTOM_RIGHT">
+        <Button fx:id="executeBtn" mnemonicParsing="false" onAction="#onExecute" text="Execute Program" StackPane.alignment="BOTTOM_RIGHT">
             <StackPane.margin>
                 <Insets bottom="15.0" right="15.0" />
             </StackPane.margin>

@@ -30,7 +30,6 @@
                 <Button fx:id="stopBtn" mnemonicParsing="false" text="Stop" />
                 <Button fx:id="resumeBtn" mnemonicParsing="false" text="Resume" />
                 <Button fx:id="stepOverBtn" mnemonicParsing="false" text="Step Over" />
-                <Button fx:id="stepBackBtn" mnemonicParsing="false" text="Step Back" />
             </children>
             <VBox.margin>
                 <Insets top="10.0" />

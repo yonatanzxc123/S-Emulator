@@ -57,8 +57,9 @@ public final class User {
         public final int degree;
         public final long y;
         public final long cycles;
+        public final List<Long> inputs;
 
-        public RunRecord(long runNo, boolean isMainProgram, String name, String arch, int degree, long y, long cycles) {
+        public RunRecord(long runNo, boolean isMainProgram, String name, String arch, int degree, long y, long cycles, List<Long> inputs) {
             this.runNo = runNo;
             this.isMainProgram = isMainProgram;
             this.name = name;
@@ -66,6 +67,7 @@ public final class User {
             this.degree = degree;
             this.y = y;
             this.cycles = cycles;
+            this.inputs = inputs;
         }
     }
 }

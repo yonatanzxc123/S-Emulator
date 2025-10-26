@@ -43,10 +43,12 @@ public class UsersServlet extends BaseApiServlet {
                     .append("\"arch\":\"").append(esc(r.arch)).append("\",")
                     .append("\"degree\":").append(r.degree).append(",")
                     .append("\"y\":").append(r.y).append(",")
-                    .append("\"cycles\":").append(r.cycles)
+                    .append("\"cycles\":").append(r.cycles).append(",")
+                    .append("\"inputs\":").append(r.inputs == null ? "[]" : r.inputs.toString())
                     .append("}");
         }
         sb.append("]}");
+        System.out.println("User history JSON: " + sb);
         json(resp, 200, sb.toString());
     }
 

@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 
-<StackPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.dashboard.components.history_table.HistoryTableController">
+<StackPane xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.dashboard.components.history_table.HistoryTableController">
     <children>
         <TableView fx:id="table">
             <columns>
@@ -27,7 +27,7 @@
             <children>
                 <HBox fx:id="historyBtns" alignment="BOTTOM_CENTER" fillHeight="false" spacing="10.0" AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="100.0" AnchorPane.rightAnchor="100.0" AnchorPane.topAnchor="365.0">
                     <children>
-                        <Button fx:id="rerunBtn" mnemonicParsing="false" text="Rerun" />
+                        <Button fx:id="rerunBtn" mnemonicParsing="false" onAction="#onRerunClicked" text="Rerun" />
                         <Button fx:id="showBtn" mnemonicParsing="false" text="Show" />
                     </children>
                 </HBox>

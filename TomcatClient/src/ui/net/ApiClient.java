@@ -657,8 +657,9 @@ public class ApiClient {
         public final int degree;
         public final long y;
         public final long cycles;
+        public final List<Long> inputs;
 
-        public RunHistoryEntry(long runNo, boolean isMainProgram, String name, String arch, int degree, long y, long cycles) {
+        public RunHistoryEntry(long runNo, boolean isMainProgram, String name, String arch, int degree, long y, long cycles,List<Long> inputs) {
             this.runNo = runNo;
             this.isMainProgram = isMainProgram;
             this.name = name;
@@ -666,6 +667,7 @@ public class ApiClient {
             this.degree = degree;
             this.y = y;
             this.cycles = cycles;
+            this.inputs = inputs;
         }
     }
 
@@ -683,7 +685,7 @@ public class ApiClient {
         int i = s.indexOf(key); if (i < 0) return out;
         int c = s.indexOf(':', i + key.length()); if (c < 0) return out;
         int a1 = s.indexOf('[', c + 1); if (a1 < 0) return out;
-        int a2 = s.indexOf(']', a1 + 1); if (a2 < 0) return out;
+        int a2 = matchBracket(s, a1); if (a2 < 0) return out;
         String arr = s.substring(a1 + 1, a2);
 
         int pos = 0;
@@ -699,8 +701,9 @@ public class ApiClient {
             int degree = jInt(obj, "degree", 0);
             long y = jLong(obj, "y", 0L);
             long cycles = jLong(obj, "cycles", 0L);
+            List<Long> inputs = jLongList(obj, "inputs");
 
-            out.add(new RunHistoryEntry(runNo, isMainProgram, name, arch, degree, y, cycles));
+            out.add(new RunHistoryEntry(runNo, isMainProgram, name, arch, degree, y, cycles,inputs));
             pos = o2 + 1;
         }
         return out;
@@ -807,6 +810,21 @@ public class ApiClient {
     private URI url(String path) {
         if (!path.startsWith("/")) path = "/" + path;
         return URI.create(base + path);
+    }
+
+    private static List<Long> jLongList(String json, String key) {
+        String k = "\"" + key + "\"";
+        int i = json.indexOf(k); if (i < 0) return List.of();
+        int c = json.indexOf(':', i + k.length()); if (c < 0) return List.of();
+        int a1 = json.indexOf('[', c + 1); if (a1 < 0) return List.of();
+        int a2 = json.indexOf(']', a1 + 1); if (a2 < 0) return List.of();
+        String arr = json.substring(a1 + 1, a2);
+        List<Long> out = new ArrayList<>();
+        for (String s : arr.split(",")) {
+            s = s.trim();
+            if (!s.isEmpty()) try { out.add(Long.parseLong(s)); } catch (Exception ignore) {}
+        }
+        return out;
     }
 
 
