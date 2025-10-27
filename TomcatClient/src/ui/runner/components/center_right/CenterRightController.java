@@ -3,10 +3,7 @@ package ui.runner.components.center_right;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.*;
 import ui.AppContext;
 import ui.net.ApiClient;
 import ui.runner.SelectedProgram;
@@ -23,6 +20,7 @@ public class CenterRightController {
     @FXML private Label cyclesLbl;
     @FXML private Button dashboardBtn;
     @FXML private VarTableController varTableController;
+    @FXML private ChoiceBox<String> architectureChoiceBox;
 
     public InputTableController getInputTableController() {
         return inputTableController;
@@ -35,7 +33,10 @@ public class CenterRightController {
     }
 
     @FXML
-    private void initialize() {}
+    private void initialize() {
+        architectureChoiceBox.getItems().setAll( "I", "II", "III", "IV");
+        architectureChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> highlightByArch(selected));
+    }
 
     @FXML
     public void onNewRun() throws IOException, InterruptedException {
@@ -84,10 +85,11 @@ public class CenterRightController {
         List<Long> inputs = inputTableController.getInputValues();
 
         final String runProgram = program;
+        String selectedArch = architectureChoiceBox.getValue();
 
         new Thread(() -> {
             try {
-                ApiClient.RunResult result = ApiClient.get().runStart(runProgram, degree, inputs, isMainProgram);
+                ApiClient.RunResult result = ApiClient.get().runStart(runProgram, degree, inputs, isMainProgram,selectedArch);
                 if ("insufficient_credits".equals(result.error)) {
                     Platform.runLater(this::showChargeCreditsPopup);
                     return;
@@ -146,5 +148,39 @@ public class CenterRightController {
                 showError("Invalid Amount", "Please enter a valid number.");
             }
         });
+    }
+
+    private void highlightByArch(String selectedArch) {
+        int selectedTier = archTier(selectedArch);
+
+        // Get instruction table via CenterController -> CenterLeftController
+        var centerController = ((ui.runner.MainRunScreenController)
+                ui.ClientApp.get().getRunScreenController()).getCenterController();
+        var instructionTableController = centerController.getCenterLeftController().getInstructionTableController();
+        var instructionTable = instructionTableController.getTable();
+
+        instructionTable.setRowFactory(tv -> new javafx.scene.control.TableRow<ui.net.ApiClient.ProgramInstruction>() {
+            @Override
+            protected void updateItem(ui.net.ApiClient.ProgramInstruction item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setStyle("");
+                } else {
+                    int itemTier = archTier(item.getLevel());
+                    setStyle(itemTier > selectedTier && selectedTier > 0 ? "-fx-background-color: #ffcccc;" : "");
+                }
+            }
+        });
+        instructionTable.refresh();
+    }
+
+    private int archTier(String arch) {
+        return switch (arch) {
+            case "I" -> 1;
+            case "II" -> 2;
+            case "III" -> 3;
+            case "IV" -> 4;
+            default -> 0;
+        };
     }
 }

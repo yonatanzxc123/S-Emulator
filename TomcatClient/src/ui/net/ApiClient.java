@@ -597,11 +597,11 @@ public class ApiClient {
         }
     }
 
-    public RunResult runStart(String program, int degree, List<Long> inputs, boolean isMainProgram) throws IOException, InterruptedException {
+    public RunResult runStart(String program, int degree, List<Long> inputs, boolean isMainProgram,String arch) throws IOException, InterruptedException {
         StringBuilder sb = new StringBuilder();
         sb.append("{\"program\":\"").append(jsonEsc(program)).append("\"");
         sb.append(",\"degree\":").append(degree);
-        sb.append(",\"arch\":\"IV\"");
+        sb.append(",\"arch\":\"").append(jsonEsc(arch)).append("\"");
         sb.append(",\"inputs\":[").append(inputs == null ? "" : inputs.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","))).append("]");
         sb.append(",\"isMainProgram\":").append(isMainProgram);
         sb.append("}");
@@ -707,7 +707,7 @@ public class ApiClient {
             long y = jLong(obj, "y", 0L);
             long cycles = jLong(obj, "cycles", 0L);
             List<Long> inputs = jLongList(obj, "inputs");
-            Map<String, Long> vars = new java.util.LinkedHashMap<>();
+            Map<String, Long> vars = new LinkedHashMap<>();
             String vkey = "\"vars\"";
             int vi = obj.indexOf(vkey);
             if (vi >= 0) {
@@ -728,8 +728,6 @@ public class ApiClient {
                     }
                 }
             }
-            System.out.println("Raw history JSON: " + s);
-            System.out.println("Parsed vars: " + vars);
             out.add(new RunHistoryEntry(runNo, isMainProgram, name, arch, degree, y, cycles,inputs,vars));
             pos = o2 + 1;
         }

@@ -262,6 +262,10 @@ public class CenterLeftController {
         }
     }
 
+    public InstructionTableController getInstructionTableController() {
+        return instructionTableController;
+    }
+
     private void updateDegreeLabel() {
         if (currDegreeLbl != null) {
             currDegreeLbl.setText("Degree " + currDegree + " / " + maxDegree);

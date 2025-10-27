@@ -25,6 +25,10 @@ public class MainRunScreenController {
         return isMainProgram;
     }
 
+    public CenterController getCenterController() {
+        return centerController;
+    }
+
     public MainRunScreenController() {}
 
     public MainRunScreenController(AppContext ctx) {
