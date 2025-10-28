@@ -193,9 +193,11 @@ public class RunServlet extends BaseApiServlet {
                 inputs,
                 rr.variablesOrdered()
         ));
-        long totalUsed = archFixed + cycles;
-        long newRunCount = meta.runsCount.incrementAndGet();
-        meta.avgCreditsCost = ((meta.avgCreditsCost * (newRunCount - 1)) + totalUsed) / (double) newRunCount;
+        if (isMainProgram) {
+            long totalUsed = archFixed + cycles;
+            long newRunCount = meta.runsCount.incrementAndGet();
+            meta.avgCreditsCost = ((meta.avgCreditsCost * (newRunCount - 1)) + totalUsed) / (double) newRunCount;
+        }
 
         var vars = rr.variablesOrdered();
 

@@ -26,6 +26,10 @@ public class CenterRightController {
     @FXML private VarTableController varTableController;
     @FXML private ChoiceBox<String> architectureChoiceBox;
 
+
+    private boolean newRunPressed = false;
+    private boolean archOk = false;
+
     private String debugSessionId = null;
     private int currentPc = -1;
 
@@ -80,9 +84,9 @@ public class CenterRightController {
             }
         }, "fetch-inputs").start();
 
+        newRunPressed = true;
         Platform.runLater(() -> {
-            startBtn.setDisable(false);
-            debugBtn.setDisable(false);
+            updateRunDebugButtons(); // Only enable after arch selection
             stopBtn.setDisable(true);
             resumeBtn.setDisable(true);
             stepOverBtn.setDisable(true);
@@ -180,23 +184,20 @@ public class CenterRightController {
     private void highlightByArch(String selectedArch) {
         int selectedTier = archTier(selectedArch);
 
-        // Get instruction table via CenterController -> CenterLeftController
         var centerController = ((ui.runner.MainRunScreenController)
                 ui.ClientApp.get().getRunScreenController()).getCenterController();
         var instructionTableController = centerController.getCenterLeftController().getInstructionTableController();
         var instructionTable = instructionTableController.getTable();
 
-        // Find highest tier in displayed instructions
         int highestTier = 0;
         for (var item : instructionTable.getItems()) {
             int itemTier = archTier(item.getLevel());
             if (itemTier > highestTier) highestTier = itemTier;
         }
 
-        // Disable Start/Debug if selected arch is lower than required
-        boolean archOk = selectedTier >= highestTier && selectedTier > 0;
-        startBtn.setDisable(!archOk);
-        debugBtn.setDisable(!archOk);
+        // Update the field, not a local variable
+        archOk = selectedTier >= highestTier && selectedTier > 0;
+        updateRunDebugButtons();
 
         instructionTable.setRowFactory(tv -> new javafx.scene.control.TableRow<ui.net.ApiClient.ProgramInstruction>() {
             @Override
@@ -313,6 +314,11 @@ public class CenterRightController {
                 Platform.runLater(() -> showError("Fetch state failed", e.getMessage()));
             }
         }).start();
+    }
+
+    private void updateRunDebugButtons() {
+        startBtn.setDisable(!(archOk && newRunPressed));
+        debugBtn.setDisable(!(archOk && newRunPressed));
     }
 
     private void handleDebugResponse(ApiClient.DebugState state) {

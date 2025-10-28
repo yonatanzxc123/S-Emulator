@@ -127,7 +127,7 @@ public class DebugServlet extends BaseApiServlet {
         String sessionId = UUID.randomUUID().toString();
         SESSIONS.put(sessionId, new DebugSession(
                 sessionId, program, arch, degree,
-                dbg, fixed, 0L, snap.cycles(), inputs
+                dbg, fixed, 0L, snap.cycles(), inputs,function
         ));
 
         json(resp, 200, "{"
@@ -313,14 +313,14 @@ public class DebugServlet extends BaseApiServlet {
             return;
         }
         boolean isMainProgram = jBool(body, "isMainProgram", true);
-
+        String name = isMainProgram ? s.program : s.functionName;
         try {
             DebugStep snap = s.dbg.peek();
             u.runsCount.incrementAndGet();
             User.RunRecord record = new User.RunRecord(
                     u.runsCount.get(),
                     isMainProgram,
-                    s.program,
+                    name,
                     s.arch,
                     s.degree,
                     snap.vars().getOrDefault("y", 0L),
@@ -330,19 +330,9 @@ public class DebugServlet extends BaseApiServlet {
             );
             u.addRunRecord(record);
 
-// Print the record fields
-            System.out.println("[DEBUG] Added to history: runNo=" + record.runNo +
-                    ", isMainProgram=" + record.isMainProgram +
-                    ", name=" + record.name +
-                    ", arch=" + record.arch +
-                    ", degree=" + record.degree +
-                    ", y=" + record.y +
-                    ", cycles=" + record.cycles +
-                    ", inputs=" + record.inputs +
-                    ", vars=" + record.vars);
 
             ProgramMeta meta = PROGRAMS.get(s.program);
-            if (meta != null) {
+            if (isMainProgram && meta != null) {
                 long totalUsed = s.fixed + s.chargedCycles;
                 long newRunCount = meta.runsCount.incrementAndGet();
                 meta.avgCreditsCost = ((meta.avgCreditsCost * (newRunCount - 1)) + totalUsed) / (double) newRunCount;
