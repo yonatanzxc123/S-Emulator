@@ -93,12 +93,14 @@ public class CenterRightController {
     private void onStart() throws IOException, InterruptedException {
         String program = SelectedProgram.get();
         boolean isMainProgram = ui.ClientApp.get().getRunScreenController().getIsMainProgram();
+        String functionName = "";
 
         if (!isMainProgram) {
             var functions = ApiClient.get().listAllFunctions();
             for (var f : functions) {
                 if (f.name.equals(program)) {
-                    program = f.program; // Use parent program name
+                    functionName = f.name; // Use function name
+                    program = f.program;   // Use parent program name
                     break;
                 }
             }
@@ -107,13 +109,14 @@ public class CenterRightController {
         if (program == null || program.isBlank()) return;
         int degree = SelectedProgram.getSelectedDegree();
         List<Long> inputs = inputTableController.getInputValues();
+        String selectedArch = architectureChoiceBox.getValue();
 
         final String runProgram = program;
-        String selectedArch = architectureChoiceBox.getValue();
+        final String runFunction = functionName;
 
         new Thread(() -> {
             try {
-                ApiClient.RunResult result = ApiClient.get().runStart(runProgram, degree, inputs, isMainProgram,selectedArch);
+                ApiClient.RunResult result = ApiClient.get().runStart(runProgram, degree, inputs, isMainProgram,selectedArch,runFunction);
                 if ("insufficient_credits".equals(result.error)) {
                     Platform.runLater(this::showChargeCreditsPopup);
                     return;
@@ -218,20 +221,25 @@ public class CenterRightController {
         String arch = architectureChoiceBox.getValue();
 
         boolean isMainProgram = ui.ClientApp.get().getRunScreenController().getIsMainProgram();
+        String functionName = "";
+
         if (!isMainProgram) {
             var functions = ApiClient.get().listAllFunctions();
             for (var f : functions) {
                 if (f.name.equals(program)) {
-                    program = f.program; // Use parent program name
+                    functionName = f.name; // Use function name
+                    program = f.program;   // Use parent program name
                     break;
                 }
             }
         }
 
         final String debugProgram = program;
+        final String debugFunction = functionName;
+
         new Thread(() -> {
             try {
-                ApiClient.DebugState state = ctx.api().debugStart(debugProgram, degree, arch, inputs, isMainProgram);
+                ApiClient.DebugState state = ctx.api().debugStart(debugProgram, degree, arch, inputs, isMainProgram, debugFunction);
                 if ("insufficient_credits".equals(state.error)) {
                     Platform.runLater(this::showChargeCreditsPopup);
                     return;

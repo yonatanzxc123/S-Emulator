@@ -10,41 +10,58 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<SplitPane dividerPositions="0.74" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="0.0" minWidth="-Infinity" orientation="VERTICAL" prefHeight="400.0" prefWidth="600.0" stylesheets="@centerleft.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.runner.components.center_left.CenterLeftController">
-  <items>
-    <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="100.0" prefWidth="160.0">
-         <children>
-            <VBox prefHeight="200.0" prefWidth="100.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-               <children>
-                  <HBox minHeight="30.0" prefWidth="200.0">
-                     <children>
-                        <Button fx:id="expandBtn" mnemonicParsing="false" onAction="#onExpand" text="Expand">
-                           <HBox.margin>
-                              <Insets left="10.0" />
-                           </HBox.margin></Button>
-                         <Region minWidth="10.0" HBox.hgrow="ALWAYS" />
-                        <Label fx:id="currDegreeLbl" text="Degree / Max Degree" />
-                         <Region minWidth="10.0" HBox.hgrow="ALWAYS">
-                           <HBox.margin>
-                              <Insets />
-                           </HBox.margin></Region>
-                        <ChoiceBox fx:id="chooseVarBox" prefWidth="100.0">
-                           <HBox.margin>
-                              <Insets right="10.0" />
-                           </HBox.margin>
-                        </ChoiceBox>
-                     </children>
-                     <VBox.margin>
-                        <Insets top="10.0" />
-                     </VBox.margin>
-                  </HBox>
-                   <fx:include fx:id="instructionTable" source="../instruction_table/instruction_table.fxml" />
-               </children>
-            </VBox>
-         </children></AnchorPane>
-    <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="100.0" prefWidth="160.0">
-         <children>
-            <fx:include fx:id="ancestryTable" source="../instruction_table/instruction_table.fxml" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
-         </children></AnchorPane>
-  </items>
+<SplitPane dividerPositions="0.74"
+           maxHeight="Infinity" maxWidth="Infinity"
+           minHeight="0.0" minWidth="0.0"
+           orientation="VERTICAL"
+           stylesheets="@centerleft.css"
+           xmlns="http://javafx.com/javafx/25"
+           xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="ui.runner.components.center_left.CenterLeftController">
+    <items>
+        <AnchorPane minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">
+            <children>
+                <VBox maxHeight="Infinity" maxWidth="Infinity"
+                      AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+                      AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0"
+                      VBox.vgrow="ALWAYS">
+                    <children>
+                        <HBox minHeight="30.0" maxWidth="Infinity">
+                            <children>
+                                <Button fx:id="expandBtn" mnemonicParsing="false" onAction="#onExpand" text="Expand">
+                                    <HBox.margin>
+                                        <Insets left="10.0" />
+                                    </HBox.margin>
+                                </Button>
+                                <Region HBox.hgrow="ALWAYS" />
+                                <Label fx:id="currDegreeLbl" text="Degree / Max Degree" />
+                                <Region HBox.hgrow="ALWAYS">
+                                    <HBox.margin>
+                                        <Insets />
+                                    </HBox.margin>
+                                </Region>
+                                <ChoiceBox fx:id="chooseVarBox" maxWidth="Infinity">
+                                    <HBox.margin>
+                                        <Insets right="10.0" />
+                                    </HBox.margin>
+                                </ChoiceBox>
+                            </children>
+                            <VBox.margin>
+                                <Insets top="10.0" />
+                            </VBox.margin>
+                        </HBox>
+                        <fx:include fx:id="instructionTable" source="../instruction_table/instruction_table.fxml"
+                                    VBox.vgrow="ALWAYS" />
+                    </children>
+                </VBox>
+            </children>
+        </AnchorPane>
+        <AnchorPane minHeight="0.0" minWidth="0.0" maxHeight="Infinity" maxWidth="Infinity">
+            <children>
+                <fx:include fx:id="ancestryTable" source="../instruction_table/instruction_table.fxml"
+                            AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+                            AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+            </children>
+        </AnchorPane>
+    </items>
 </SplitPane>

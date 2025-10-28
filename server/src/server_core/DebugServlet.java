@@ -4,6 +4,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import system.api.DebugStep;
+import system.core.exec.FunctionEnv;
 import system.core.exec.debugg.Debugger;
 import java.io.IOException;
 import java.util.*;
@@ -50,11 +51,13 @@ public class DebugServlet extends BaseApiServlet {
         Long   degL    = jLong(body, "degree");
         int    degree  = (degL == null ? 0 : degL.intValue());
         String arch    = jStr(body, "arch");
+        String function = jStr(body, "function");
 
-        if (program == null || program.isBlank() || !Credits.validArch(arch)) {
+        if ((program == null || program.isBlank()) || !Credits.validArch(arch)) {
             json(resp, 400, "{\"error\":\"bad_params\"}");
             return;
         }
+
         ProgramMeta meta = PROGRAMS.get(program);
         if (meta == null) {
             json(resp, 404, "{\"error\":\"program_not_found\"}");
@@ -67,7 +70,6 @@ public class DebugServlet extends BaseApiServlet {
             return;
         }
 
-        // Pre-charge the fixed architecture cost for starting debug
         long fixed = Credits.archFixed(arch);
         if (!Credits.tryCharge(u, fixed)) {
             json(resp, 402, "{\"error\":\"insufficient_credits\"}");
@@ -75,22 +77,57 @@ public class DebugServlet extends BaseApiServlet {
         }
 
         Debugger dbg;
+        List<Long> inputs = parseInputs(body);
+
         try {
-            dbg = meta.engine.startDebug(degree, parseInputs(body));
-            if (dbg == null) throw new IllegalStateException("Debugger initialization failed");
+            if (function != null && !function.isBlank()) {
+                FunctionMeta fmeta = FUNCTIONS.get(function);
+                if (fmeta == null) {
+                    u.addCredits(fixed);
+                    json(resp, 404, "{\"error\":\"function_not_found\"}");
+                    return;
+                }
+                var fnMap = meta.engine.getFunctions();
+                var fnBody = fnMap.get(function);
+                if (fnBody == null) {
+                    u.addCredits(fixed);
+                    json(resp, 404, "{\"error\":\"function_body_not_found\"}");
+                    return;
+                }
+                dbg = FunctionEnv.with(new FunctionEnv(fnMap), () -> {
+                    int max = system.core.exec.FunctionEnv.with(new system.core.exec.FunctionEnv(fnMap), () -> {
+                        final int CAP = 1000;
+                        int d = 0;
+                        system.core.model.Program cur = fnBody;
+                        while (d < CAP && containsSynthetic(cur)) {
+                            cur = new system.core.expand.ExpanderImpl().expandToDegree(cur, 1);
+                            d++;
+                        }
+                        return d;
+                    });
+                    int use = Math.max(0, Math.min(degree, max));
+                    final system.core.model.Program programToDebug = (use == 0)
+                            ? fnBody
+                            : new system.core.expand.ExpanderImpl().expandToDegree(fnBody, use);
+                    Debugger dbgInstance = new Debugger();
+                    dbgInstance.init(programToDebug, inputs, fnMap);
+                    return dbgInstance;
+                });
+            } else {
+                dbg = meta.engine.startDebug(degree, inputs);
+                if (dbg == null) throw new IllegalStateException("Debugger initialization failed");
+            }
         } catch (Exception ex) {
-            // Roll back fixed cost on failure to start debugger
             u.addCredits(fixed);
             json(resp, 500, "{\"error\":\"debug_start_failed\"}");
             return;
         }
-        List<Long> inputs = parseInputs(body);
-        // Create a new debug session with initial state
+
         DebugStep snap = dbg.peek();
         String sessionId = UUID.randomUUID().toString();
         SESSIONS.put(sessionId, new DebugSession(
                 sessionId, program, arch, degree,
-                dbg, fixed, 0L, snap.cycles(),inputs
+                dbg, fixed, 0L, snap.cycles(), inputs
         ));
 
         json(resp, 200, "{"
@@ -98,6 +135,14 @@ public class DebugServlet extends BaseApiServlet {
                 + "\"id\":\"" + sessionId + "\","
                 + "\"creditsLeft\":" + u.getCredits()
                 + "}");
+    }
+
+    // Helper for synthetic detection
+    private static boolean containsSynthetic(system.core.model.Program p) {
+        for (system.core.model.Instruction ins : p.instructions()) {
+            if (!ins.isBasic()) return true;
+        }
+        return false;
     }
 
     // ---------- POST /api/debug/step ----------

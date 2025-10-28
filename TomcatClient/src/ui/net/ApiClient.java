@@ -597,9 +597,12 @@ public class ApiClient {
         }
     }
 
-    public RunResult runStart(String program, int degree, List<Long> inputs, boolean isMainProgram,String arch) throws IOException, InterruptedException {
+    public RunResult runStart(String program, int degree, List<Long> inputs, boolean isMainProgram,String arch,String functionName) throws IOException, InterruptedException {
         StringBuilder sb = new StringBuilder();
         sb.append("{\"program\":\"").append(jsonEsc(program)).append("\"");
+        if (functionName != null && !functionName.isBlank()) {
+            sb.append(",\"function\":\"").append(jsonEsc(functionName)).append("\"");
+        }
         sb.append(",\"degree\":").append(degree);
         sb.append(",\"arch\":\"").append(jsonEsc(arch)).append("\"");
         sb.append(",\"inputs\":[").append(inputs == null ? "" : inputs.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","))).append("]");
@@ -815,14 +818,20 @@ public class ApiClient {
         }
     }
 
-    public DebugState debugStart(String program, int degree, String arch, List<Long> inputs, boolean isMainProgram) throws IOException, InterruptedException {
-        String body = "{\"program\":\"" + jsonEsc(program) + "\",\"degree\":" + degree +
-                ",\"arch\":\"" + jsonEsc(arch) + "\",\"inputs\":[" +
-                (inputs == null ? "" : inputs.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","))) +
-                "],\"isMainProgram\":" + isMainProgram + "}";
+    public ApiClient.DebugState debugStart(String program, int degree, String arch, List<Long> inputs, boolean isMainProgram, String functionName) throws IOException, InterruptedException {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\"program\":\"").append(jsonEsc(program)).append("\"");
+        if (functionName != null && !functionName.isBlank()) {
+            sb.append(",\"function\":\"").append(jsonEsc(functionName)).append("\"");
+        }
+        sb.append(",\"degree\":").append(degree);
+        sb.append(",\"arch\":\"").append(jsonEsc(arch)).append("\"");
+        sb.append(",\"inputs\":[").append(inputs == null ? "" : inputs.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","))).append("]");
+        sb.append(",\"isMainProgram\":").append(isMainProgram);
+        sb.append("}");
         HttpRequest req = HttpRequest.newBuilder(url("/api/debug/start"))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .POST(HttpRequest.BodyPublishers.ofString(sb.toString()))
                 .build();
         HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
         String s = resp.body() == null ? "" : resp.body();
