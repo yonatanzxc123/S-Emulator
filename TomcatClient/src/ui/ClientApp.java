@@ -68,7 +68,7 @@ public class ClientApp extends Application {
         stage.setTitle("Login");
     }
 
-    private void showDashboard() throws Exception {
+    public void showDashboard() throws Exception {
         FXMLLoader fxml = new FXMLLoader(ClientApp.class.getResource("/ui/dashboard/MainDashboardScreen.fxml"));
         fxml.setControllerFactory(type -> {
             if (type == MainDashboardScreenController.class) {

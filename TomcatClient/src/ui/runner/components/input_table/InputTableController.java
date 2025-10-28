@@ -48,4 +48,10 @@ public class InputTableController {
     public List<Long> getInputValues() {
         return items.stream().map(InputVar::getValue).toList();
     }
+
+    public void setInputValues(List<Long> values) {
+        for (int i = 0; i < items.size() && i < values.size(); i++) {
+            items.get(i).setValue(values.get(i));
+        }
+    }
 }

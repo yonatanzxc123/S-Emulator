@@ -194,6 +194,22 @@ abstract class BaseApiServlet extends HttpServlet {
         return out;
     }
 
+    protected static boolean jBool(String json, String key, boolean def) {
+        if (json == null) return def;
+        String token = "\"" + key + "\"";
+        int i = json.indexOf(token);
+        if (i < 0) return def;
+        int c = json.indexOf(':', i + token.length());
+        if (c < 0) return def;
+        int s = c + 1;
+        while (s < json.length() && Character.isWhitespace(json.charAt(s))) s++;
+        if (json.regionMatches(true, s, "true", 0, 4)) return true;
+        if (json.regionMatches(true, s, "false", 0, 5)) return false;
+        return def;
+    }
+
+
+
     /** Convert a collection of strings into a JSON array representation. */
     protected static String toJsonArray(java.util.Collection<String> items) {
         StringBuilder sb = new StringBuilder("[");

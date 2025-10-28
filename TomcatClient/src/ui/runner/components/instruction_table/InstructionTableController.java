@@ -73,4 +73,5 @@ public class InstructionTableController {
         items.clear();
         if (list != null) items.addAll(list);
     }
+
 }

@@ -30,7 +30,6 @@
                 <Button fx:id="stopBtn" mnemonicParsing="false" text="Stop" />
                 <Button fx:id="resumeBtn" mnemonicParsing="false" text="Resume" />
                 <Button fx:id="stepOverBtn" mnemonicParsing="false" text="Step Over" />
-                <Button fx:id="stepBackBtn" mnemonicParsing="false" text="Step Back" />
             </children>
             <VBox.margin>
                 <Insets top="10.0" />
@@ -48,7 +47,7 @@
                 <RowConstraints maxHeight="313.0" minHeight="102.0" prefHeight="222.0" vgrow="ALWAYS" />
                 <RowConstraints maxHeight="233.0" minHeight="22.0" prefHeight="113.0" vgrow="NEVER" />
             </rowConstraints>
-         <Button fx:id="dashboardBtn" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Back To Dashboard" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
+         <Button fx:id="dashboardBtn" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onBackToDashboard" text="Back To Dashboard" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
 
             <ChoiceBox fx:id="architectureChoiceBox" maxWidth="1.7976931348623157E308" prefWidth="150.0" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.valignment="TOP" />
 

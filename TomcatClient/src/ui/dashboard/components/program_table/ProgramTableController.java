@@ -9,13 +9,10 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.stage.Stage;
 import javafx.util.Duration;
 import ui.AppContext;
 import ui.ClientApp;
@@ -73,8 +70,8 @@ public class ProgramTableController {
     }
 
     // Called by CenterController to populate the table
-    public void addProgram(String name, String owner, int instrDeg0, int maxDegree) {
-        items.add(new Row(name, owner, instrDeg0, maxDegree));
+    public void addProgram(String name, String owner, int instrDeg0, int maxDegree,int timesRun, long avgCredits) {
+        items.add(new Row(name, owner, instrDeg0, maxDegree,timesRun, avgCredits));
     }
 
     @FXML
@@ -109,7 +106,7 @@ public class ProgramTableController {
                 Platform.runLater(() -> {
                     items.clear();
                     for (var p : catalog) {
-                        items.add(new Row(p.name, p.owner, p.instrDeg0, p.maxDegree));
+                        items.add(new Row(p.name, p.owner, p.instrDeg0, p.maxDegree,p.timesRun, p.avgCredits));
                     }
                     // Restore selection
                     if (selectedName != null) {
@@ -137,13 +134,13 @@ public class ProgramTableController {
         private final String runs;
         private final String credits;
 
-        public Row(String name, String uploader, int instrDeg0, int maxDegree) {
+        public Row(String name, String uploader, int instrDeg0, int maxDegree,long timesRun, long avgCredits) {
             this.name = name;
             this.uploader = uploader == null ? "" : uploader;
             this.instr = String.valueOf(instrDeg0);
             this.degree = String.valueOf(maxDegree);
-            this.runs = "0";     // unknown here
-            this.credits = "0";  // unknown here
+            this.runs = String.valueOf(timesRun);
+            this.credits = String.valueOf(avgCredits);
         }
 
         public String getName() { return name; }

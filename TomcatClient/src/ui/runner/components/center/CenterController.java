@@ -14,6 +14,15 @@ public class CenterController {
     @FXML private CenterRightController centerRightController;
     private AppContext ctx;
 
+
+    public CenterRightController getCenterRightController() {
+        return centerRightController;
+    }
+
+    public CenterLeftController getCenterLeftController() {
+        return centerLeftController;
+    }
+
     public void init(AppContext ctx) {
         this.ctx = ctx;
         if (centerRightController != null) {

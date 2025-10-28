@@ -65,7 +65,7 @@ public class FileLineController {
                 Platform.runLater(() -> {
                     if (status != null) status.setText("Loaded " + file.getName());
                     if (loadButton != null) loadButton.setDisable(false);
-                    if (programTable != null) programTable.addProgram(p.name, p.owner, p.instrDeg0, p.maxDegree);
+                    if (programTable != null) programTable.addProgram(p.name, p.owner, p.instrDeg0, p.maxDegree,p.timesRun,p.avgCredits);
                     if (functionTable != null && p.functions != null && !p.functions.isEmpty()) {
                         functionTable.addFunctions(p.name, p.owner, p.functions);
                     }

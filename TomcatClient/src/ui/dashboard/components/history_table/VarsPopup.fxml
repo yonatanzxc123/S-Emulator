@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox prefHeight="400" prefWidth="300" spacing="10" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.dashboard.components.history_table.VarsPopupController">
+    <ScrollPane fitToHeight="true" fitToWidth="true">
+        <content>
+            <TableView fx:id="varsTable" prefHeight="380">
+                <columns>
+                    <TableColumn fx:id="nameCol" prefWidth="150" text="Name" />
+                    <TableColumn fx:id="valueCol" prefWidth="130" text="Value" />
+                </columns>
+            </TableView>
+        </content>
+    </ScrollPane>
+</VBox>

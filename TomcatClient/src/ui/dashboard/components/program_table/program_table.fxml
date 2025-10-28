@@ -15,7 +15,7 @@
                 <TableColumn fx:id="instrCol" prefWidth="110.0" text="#Instructions" />
                 <TableColumn fx:id="degreeCol" prefWidth="110.0" text="#MaxDegree" />
                 <TableColumn fx:id="runsCol" prefWidth="100.0" text="#TimesRun" />
-                <TableColumn fx:id="creditsCol" prefWidth="100.0" text="#CreditsCost" />
+                <TableColumn fx:id="creditsCol" prefWidth="100.0" text="AvgCreditCost" />
             </columns>
             <columnResizePolicy>
                 <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />

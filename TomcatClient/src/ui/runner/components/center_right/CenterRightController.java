@@ -3,16 +3,14 @@ package ui.runner.components.center_right;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.*;
 import ui.AppContext;
 import ui.net.ApiClient;
 import ui.runner.SelectedProgram;
 import ui.runner.components.input_table.InputTableController;
 import ui.runner.components.var_table.VarTableController;
 
+import java.io.IOException;
 import java.util.List;
 
 public class CenterRightController {
@@ -20,7 +18,13 @@ public class CenterRightController {
     @FXML private InputTableController inputTableController;
     @FXML private Button startBtn;
     @FXML private Label cyclesLbl;
+    @FXML private Button dashboardBtn;
     @FXML private VarTableController varTableController;
+    @FXML private ChoiceBox<String> architectureChoiceBox;
+
+    public InputTableController getInputTableController() {
+        return inputTableController;
+    }
 
     private AppContext ctx;
 
@@ -29,15 +33,31 @@ public class CenterRightController {
     }
 
     @FXML
-    private void initialize() {}
+    private void initialize() {
+        architectureChoiceBox.getItems().setAll( "I", "II", "III", "IV");
+        architectureChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> highlightByArch(selected));
+    }
 
     @FXML
-    private void onNewRun() {
+    public void onNewRun() throws IOException, InterruptedException {
         String program = SelectedProgram.get();
+        boolean isMainProgram = ui.ClientApp.get().getRunScreenController().getIsMainProgram();
+
+        if (!isMainProgram) {
+            var functions = ApiClient.get().listAllFunctions();
+            for (var f : functions) {
+                if (f.name.equals(program)) {
+                    program = f.program; // Use parent program name
+                    break;
+                }
+            }
+        }
+
+        final String inputProgram = program;
         if (program == null || program.isBlank()) return;
         new Thread(() -> {
             try {
-                var inputs = ApiClient.get().fetchInputsForProgram(program);
+                var inputs = ApiClient.get().fetchInputsForProgram(inputProgram);
                 Platform.runLater(() -> inputTableController.setInputs(inputs));
             } catch (Exception ex) {
                 ex.printStackTrace();
@@ -46,17 +66,30 @@ public class CenterRightController {
     }
 
     @FXML
-    private void onStart() {
+    private void onStart() throws IOException, InterruptedException {
         String program = SelectedProgram.get();
+        boolean isMainProgram = ui.ClientApp.get().getRunScreenController().getIsMainProgram();
+
+        if (!isMainProgram) {
+            var functions = ApiClient.get().listAllFunctions();
+            for (var f : functions) {
+                if (f.name.equals(program)) {
+                    program = f.program; // Use parent program name
+                    break;
+                }
+            }
+        }
+
         if (program == null || program.isBlank()) return;
         int degree = SelectedProgram.getSelectedDegree();
         List<Long> inputs = inputTableController.getInputValues();
 
-        boolean isMainProgram = ui.ClientApp.get().getRunScreenController().getIsMainProgram();
+        final String runProgram = program;
+        String selectedArch = architectureChoiceBox.getValue();
 
         new Thread(() -> {
             try {
-                ApiClient.RunResult result = ApiClient.get().runStart(program, degree, inputs, isMainProgram);
+                ApiClient.RunResult result = ApiClient.get().runStart(runProgram, degree, inputs, isMainProgram,selectedArch);
                 if ("insufficient_credits".equals(result.error)) {
                     Platform.runLater(this::showChargeCreditsPopup);
                     return;
@@ -75,6 +108,11 @@ public class CenterRightController {
                 Platform.runLater(() -> showError("Run failed", ex.getMessage()));
             }
         }, "run-start").start();
+    }
+
+    @FXML
+    private void onBackToDashboard() throws Exception {
+        ui.ClientApp.get().showDashboard();
     }
 
     private void showError(String header, String msg) {
@@ -110,5 +148,39 @@ public class CenterRightController {
                 showError("Invalid Amount", "Please enter a valid number.");
             }
         });
+    }
+
+    private void highlightByArch(String selectedArch) {
+        int selectedTier = archTier(selectedArch);
+
+        // Get instruction table via CenterController -> CenterLeftController
+        var centerController = ((ui.runner.MainRunScreenController)
+                ui.ClientApp.get().getRunScreenController()).getCenterController();
+        var instructionTableController = centerController.getCenterLeftController().getInstructionTableController();
+        var instructionTable = instructionTableController.getTable();
+
+        instructionTable.setRowFactory(tv -> new javafx.scene.control.TableRow<ui.net.ApiClient.ProgramInstruction>() {
+            @Override
+            protected void updateItem(ui.net.ApiClient.ProgramInstruction item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setStyle("");
+                } else {
+                    int itemTier = archTier(item.getLevel());
+                    setStyle(itemTier > selectedTier && selectedTier > 0 ? "-fx-background-color: #ffcccc;" : "");
+                }
+            }
+        });
+        instructionTable.refresh();
+    }
+
+    private int archTier(String arch) {
+        return switch (arch) {
+            case "I" -> 1;
+            case "II" -> 2;
+            case "III" -> 3;
+            case "IV" -> 4;
+            default -> 0;
+        };
     }
 }

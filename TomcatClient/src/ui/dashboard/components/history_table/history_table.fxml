@@ -7,16 +7,16 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 
-<StackPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.dashboard.components.history_table.HistoryTableController">
+<StackPane xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.dashboard.components.history_table.HistoryTableController">
     <children>
         <TableView fx:id="table">
             <columns>
                 <TableColumn fx:id="runNoColumn" prefWidth="55.0" text="#Run" />
-            <TableColumn prefWidth="87.0" text="ProgramType" />
-            <TableColumn prefWidth="83.0" text="Name" />
-            <TableColumn prefWidth="75.0" text="Architecture" />
+            <TableColumn fx:id="mainProgramColumn" prefWidth="87.0" text="ProgramType" />
+            <TableColumn fx:id="nameColumn" prefWidth="83.0" text="Name" />
+            <TableColumn fx:id="archColumn" prefWidth="75.0" text="Architecture" />
                 <TableColumn fx:id="degreeColumn" prefWidth="75.0" text="Degree" />
-                <TableColumn fx:id="outputColumn" prefWidth="75.0" text="Output" />
+                <TableColumn fx:id="yColumn" prefWidth="75.0" text="Output" />
                 <TableColumn fx:id="cyclesColumn" prefWidth="75.0" text="Cycles" />
             </columns>
             <columnResizePolicy>
@@ -27,8 +27,8 @@
             <children>
                 <HBox fx:id="historyBtns" alignment="BOTTOM_CENTER" fillHeight="false" spacing="10.0" AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="100.0" AnchorPane.rightAnchor="100.0" AnchorPane.topAnchor="365.0">
                     <children>
-                        <Button fx:id="rerunBtn" mnemonicParsing="false" text="Rerun" />
-                        <Button fx:id="showBtn" mnemonicParsing="false" text="Show" />
+                        <Button fx:id="rerunBtn" mnemonicParsing="false" onAction="#onRerunClicked" text="Rerun" />
+                        <Button fx:id="showBtn" mnemonicParsing="false" onAction="#onActionShow" text="Show" />
                     </children>
                 </HBox>
             </children>

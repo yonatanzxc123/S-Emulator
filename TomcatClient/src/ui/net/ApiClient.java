@@ -12,7 +12,9 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.prefs.Preferences;
 
 public class ApiClient {
@@ -392,13 +394,17 @@ public class ApiClient {
         public final String owner;
         public final int instrDeg0;
         public final int maxDegree;
+        public final int timesRun;      // <-- add this
+        public final long avgCredits;
         public final List<FunctionInfo> functions;
 
-        public ProgramInfo(String name, String owner, int instrDeg0, int maxDegree, List<FunctionInfo> functions) {
+        public ProgramInfo(String name, String owner, int instrDeg0, int maxDegree, int timesRun, long avgCredits, List<FunctionInfo> functions) {
             this.name = name;
             this.owner = owner;
             this.instrDeg0 = instrDeg0;
             this.maxDegree = maxDegree;
+            this.timesRun = timesRun;
+            this.avgCredits = avgCredits;
             this.functions = functions == null ? List.of() : List.copyOf(functions);
         }
     }
@@ -432,6 +438,8 @@ public class ApiClient {
             String owner = jStr(obj, "owner");
             int instr0 = jInt(obj, "instrDeg0", 0);
             int maxDeg = jInt(obj, "maxDegree", 0);
+            int timesRun = jInt(obj, "timesRun", 0);
+            long avgCredits = jLong(obj, "avgCredits", 0L);
 
             List<FunctionInfo> flist = new ArrayList<>();
             String fk = "\"functions\"";
@@ -462,7 +470,7 @@ public class ApiClient {
                 }
             }
 
-            out.add(new ProgramInfo(name, owner, instr0, maxDeg, flist));
+            out.add(new ProgramInfo(name, owner, instr0, maxDeg,timesRun,avgCredits, flist));
             pos = o2 + 1;
         }
         return out;
@@ -495,6 +503,8 @@ public class ApiClient {
         String owner = jStr(s, "owner");
         int instr0 = jInt(s, "instrDeg0", 0);
         int maxDeg = jInt(s, "maxDegree", 0);
+        int timesRun = jInt(s, "timesRun", 0);
+        long avgCredits = jLong(s, "avgCredits", 0L);
 
         List<FunctionInfo> flist = new ArrayList<>();
         // Prefer detailed functions
@@ -525,7 +535,7 @@ public class ApiClient {
                 }
             }
         }
-        return new ProgramInfo(name, owner, instr0, maxDeg, flist);
+        return new ProgramInfo(name, owner, instr0, maxDeg,timesRun,avgCredits ,flist);
     }
 
     // ---------- Inputs for a Program ----------
@@ -574,11 +584,11 @@ public class ApiClient {
     public static final class RunResult {
         public final long cycles;
         public final long y;
-        public final java.util.Map<String, Long> vars;
+        public final Map<String, Long> vars;
         public final long creditsLeft;
         public final String error;
 
-        public RunResult(long cycles, long y, java.util.Map<String, Long> vars, long creditsLeft, String error) {
+        public RunResult(long cycles, long y, Map<String, Long> vars, long creditsLeft, String error) {
             this.cycles = cycles;
             this.y = y;
             this.vars = vars;
@@ -587,11 +597,11 @@ public class ApiClient {
         }
     }
 
-    public RunResult runStart(String program, int degree, List<Long> inputs, boolean isMainProgram) throws IOException, InterruptedException {
+    public RunResult runStart(String program, int degree, List<Long> inputs, boolean isMainProgram,String arch) throws IOException, InterruptedException {
         StringBuilder sb = new StringBuilder();
         sb.append("{\"program\":\"").append(jsonEsc(program)).append("\"");
         sb.append(",\"degree\":").append(degree);
-        sb.append(",\"arch\":\"IV\"");
+        sb.append(",\"arch\":\"").append(jsonEsc(arch)).append("\"");
         sb.append(",\"inputs\":[").append(inputs == null ? "" : inputs.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","))).append("]");
         sb.append(",\"isMainProgram\":").append(isMainProgram);
         sb.append("}");
@@ -638,6 +648,90 @@ public class ApiClient {
             }
         }
         return new RunResult(cycles, y, vars, creditsLeft, null);
+    }
+
+    //---- fetching the users history ----
+    public static final class RunHistoryEntry {
+        public final long runNo;
+        public final boolean isMainProgram;
+        public final String name;
+        public final String arch;
+        public final int degree;
+        public final long y;
+        public final long cycles;
+        public final List<Long> inputs;
+        public final Map<String, Long> vars;
+
+        public RunHistoryEntry(long runNo, boolean isMainProgram, String name, String arch, int degree, long y, long cycles, List<Long> inputs, Map<String, Long> vars) {
+            this.runNo = runNo;
+            this.isMainProgram = isMainProgram;
+            this.name = name;
+            this.arch = arch;
+            this.degree = degree;
+            this.y = y;
+            this.cycles = cycles;
+            this.inputs = inputs;
+            this.vars = vars == null ? Map.of() : new LinkedHashMap<>(vars);
+        }
+    }
+
+    public List<RunHistoryEntry> fetchOwnRunHistory() throws IOException, InterruptedException {
+        HttpRequest req = HttpRequest.newBuilder(url("/api/users/history"))
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+
+        String s = resp.body() == null ? "" : resp.body();
+        if (resp.statusCode() != 200) return List.of();
+
+        List<RunHistoryEntry> out = new ArrayList<>();
+        String key = "\"history\"";
+        int i = s.indexOf(key); if (i < 0) return out;
+        int c = s.indexOf(':', i + key.length()); if (c < 0) return out;
+        int a1 = s.indexOf('[', c + 1); if (a1 < 0) return out;
+        int a2 = matchBracket(s, a1); if (a2 < 0) return out;
+        String arr = s.substring(a1 + 1, a2);
+
+        int pos = 0;
+        while (pos < arr.length()) {
+            int o1 = arr.indexOf('{', pos); if (o1 < 0) break;
+            int o2 = matchBrace(arr, o1); if (o2 < 0) break;
+            String obj = arr.substring(o1 + 1, o2);
+
+            long runNo = jLong(obj, "runNo", 0L);
+            boolean isMainProgram = jBool(obj, "isMainProgram", true);
+            String name = jStr(obj, "name");
+            String arch = jStr(obj, "arch");
+            int degree = jInt(obj, "degree", 0);
+            long y = jLong(obj, "y", 0L);
+            long cycles = jLong(obj, "cycles", 0L);
+            List<Long> inputs = jLongList(obj, "inputs");
+            Map<String, Long> vars = new LinkedHashMap<>();
+            String vkey = "\"vars\"";
+            int vi = obj.indexOf(vkey);
+            if (vi >= 0) {
+                int vc = obj.indexOf(':', vi + vkey.length());
+                int vo1 = obj.indexOf('{', vc + 1);
+                int vo2 = matchBrace(obj, vo1);
+                if (vo1 >= 0 && vo2 > vo1) {
+                    String vobj = obj.substring(vo1 + 1, vo2);
+                    for (String pair : vobj.split(",")) {
+                        int sep = pair.indexOf(':');
+                        if (sep > 0) {
+                            String vname = pair.substring(0, sep).replaceAll("[\"\\s]", "");
+                            try {
+                                long vval = Long.parseLong(pair.substring(sep + 1).trim());
+                                vars.put(vname, vval);
+                            } catch (Exception ignore) {}
+                        }
+                    }
+                }
+            }
+            out.add(new RunHistoryEntry(runNo, isMainProgram, name, arch, degree, y, cycles,inputs,vars));
+            pos = o2 + 1;
+        }
+        return out;
     }
 
     // --- tiny helpers for naive JSON parsing (flat keys) ---
@@ -741,6 +835,21 @@ public class ApiClient {
     private URI url(String path) {
         if (!path.startsWith("/")) path = "/" + path;
         return URI.create(base + path);
+    }
+
+    private static List<Long> jLongList(String json, String key) {
+        String k = "\"" + key + "\"";
+        int i = json.indexOf(k); if (i < 0) return List.of();
+        int c = json.indexOf(':', i + k.length()); if (c < 0) return List.of();
+        int a1 = json.indexOf('[', c + 1); if (a1 < 0) return List.of();
+        int a2 = json.indexOf(']', a1 + 1); if (a2 < 0) return List.of();
+        String arr = json.substring(a1 + 1, a2);
+        List<Long> out = new ArrayList<>();
+        for (String s : arr.split(",")) {
+            s = s.trim();
+            if (!s.isEmpty()) try { out.add(Long.parseLong(s)); } catch (Exception ignore) {}
+        }
+        return out;
     }
 
 
