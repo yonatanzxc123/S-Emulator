@@ -734,6 +734,114 @@ public class ApiClient {
         return out;
     }
 
+    public static final class DebugState {
+        public final boolean ok;
+        public final String id;
+        public final int pc;
+        public final boolean halted;
+        public final long cycles;
+        public final long creditsLeft;
+        public final String error;
+        public final Map<String, Long> vars;
+
+        public DebugState(boolean ok, String id, int pc, boolean halted, long cycles, long creditsLeft, String error, Map<String, Long> vars) {
+            this.ok = ok;
+            this.id = id;
+            this.pc = pc;
+            this.halted = halted;
+            this.cycles = cycles;
+            this.creditsLeft = creditsLeft;
+            this.error = error;
+            this.vars = vars == null ? Map.of() : new LinkedHashMap<>(vars);
+        }
+    }
+
+    public DebugState debugStart(String program, int degree, String arch, List<Long> inputs, boolean isMainProgram) throws IOException, InterruptedException {
+        String body = "{\"program\":\"" + jsonEsc(program) + "\",\"degree\":" + degree +
+                ",\"arch\":\"" + jsonEsc(arch) + "\",\"inputs\":[" +
+                (inputs == null ? "" : inputs.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","))) +
+                "],\"isMainProgram\":" + isMainProgram + "}";
+        HttpRequest req = HttpRequest.newBuilder(url("/api/debug/start"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        String s = resp.body() == null ? "" : resp.body();
+        boolean ok = jBool(s, "ok", false);
+        String id = jStr(s, "id");
+        long creditsLeft = jLong(s, "creditsLeft", 0L);
+        String error = jStr(s, "error");
+        return new DebugState(ok, id, -1, false, 0, creditsLeft, error, null);
+    }
+
+    public DebugState debugStep(String id) throws IOException, InterruptedException {
+        String body = "{\"id\":\"" + jsonEsc(id) + "\"}";
+        HttpRequest req = HttpRequest.newBuilder(url("/api/debug/step"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        return parseDebugState(resp.body());
+    }
+
+    public DebugState debugResume(String id) throws IOException, InterruptedException {
+        String body = "{\"id\":\"" + jsonEsc(id) + "\"}";
+        HttpRequest req = HttpRequest.newBuilder(url("/api/debug/resume"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        return parseDebugState(resp.body());
+    }
+
+    public DebugState debugState(String id) throws IOException, InterruptedException {
+        HttpRequest req = HttpRequest.newBuilder(url("/api/debug/state?id=" + jsonEsc(id)))
+                .GET().build();
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        return parseDebugState(resp.body());
+    }
+
+    public void debugStop(String id, boolean isMainProgram) throws IOException, InterruptedException {
+        String body = "{\"id\":\"" + jsonEsc(id) + "\",\"isMainProgram\":" + isMainProgram + "}";
+        HttpRequest req = HttpRequest.newBuilder(url("/api/debug/stop"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        client.send(req, HttpResponse.BodyHandlers.discarding());
+    }
+
+    private DebugState parseDebugState(String s) {
+        boolean ok = jBool(s, "ok", false);
+        String id = jStr(s, "id");
+        int pc = jInt(s, "pc", -1);
+        boolean halted = jBool(s, "halted", false);
+        long cycles = jLong(s, "cycles", 0L);
+        long creditsLeft = jLong(s, "creditsLeft", 0L);
+        String error = jStr(s, "error");
+        Map<String, Long> vars = new LinkedHashMap<>();
+        String key = "\"vars\"";
+        int i = s.indexOf(key);
+        if (i >= 0) {
+            int c = s.indexOf(':', i + key.length());
+            int o1 = s.indexOf('{', c + 1);
+            int o2 = s.indexOf('}', o1 + 1);
+            if (o1 >= 0 && o2 > o1) {
+                String obj = s.substring(o1 + 1, o2);
+                for (String pair : obj.split(",")) {
+                    int sep = pair.indexOf(':');
+                    if (sep > 0) {
+                        String name = pair.substring(0, sep).replaceAll("[\"\\s]", "");
+                        try {
+                            long val = Long.parseLong(pair.substring(sep + 1).trim());
+                            vars.put(name, val);
+                        } catch (Exception ignore) {}
+                    }
+                }
+            }
+        }
+        return new DebugState(ok, id, pc, halted, cycles, creditsLeft, error, vars);
+    }
+
     // --- tiny helpers for naive JSON parsing (flat keys) ---
     private static int matchBracket(String s, int openIdx) {
         int depth = 0;

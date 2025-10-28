@@ -61,7 +61,6 @@ public class HistoryTableController {
         ApiClient.RunHistoryEntry entry = table.getSelectionModel().getSelectedItem();
         if (entry == null) return;
 
-        // Set static fields
         ui.runner.SelectedProgram.set(entry.name);
         ui.runner.SelectedProgram.setSelectedDegree(entry.degree);
         ui.runner.SelectedProgram.setInputs(entry.inputs);
@@ -74,6 +73,11 @@ public class HistoryTableController {
                     runScreenCtrl.setMainProgram(entry.isMainProgram);
                     try {
                         runScreenCtrl.prepareRerun();
+                        // Set architecture choice box to recorded arch
+                        var centerRightCtrl = runScreenCtrl.getCenterController().getCenterRightController();
+                        if (centerRightCtrl != null && centerRightCtrl.getArchitectureChoiceBox() != null) {
+                            centerRightCtrl.getArchitectureChoiceBox().setValue(entry.arch);
+                        }
                     } catch (IOException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }

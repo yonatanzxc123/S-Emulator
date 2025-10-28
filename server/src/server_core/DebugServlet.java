@@ -84,13 +84,13 @@ public class DebugServlet extends BaseApiServlet {
             json(resp, 500, "{\"error\":\"debug_start_failed\"}");
             return;
         }
-
+        List<Long> inputs = parseInputs(body);
         // Create a new debug session with initial state
         DebugStep snap = dbg.peek();
         String sessionId = UUID.randomUUID().toString();
         SESSIONS.put(sessionId, new DebugSession(
                 sessionId, program, arch, degree,
-                dbg, fixed, 0L, snap.cycles()
+                dbg, fixed, 0L, snap.cycles(),inputs
         ));
 
         json(resp, 200, "{"
@@ -267,6 +267,42 @@ public class DebugServlet extends BaseApiServlet {
             json(resp, 404, "{\"error\":\"session_not_found\"}");
             return;
         }
+        boolean isMainProgram = jBool(body, "isMainProgram", true);
+
+        try {
+            DebugStep snap = s.dbg.peek();
+            u.runsCount.incrementAndGet();
+            User.RunRecord record = new User.RunRecord(
+                    u.runsCount.get(),
+                    isMainProgram,
+                    s.program,
+                    s.arch,
+                    s.degree,
+                    snap.vars().getOrDefault("y", 0L),
+                    snap.cycles(),
+                    s.inputs,
+                    snap.vars()
+            );
+            u.addRunRecord(record);
+
+// Print the record fields
+            System.out.println("[DEBUG] Added to history: runNo=" + record.runNo +
+                    ", isMainProgram=" + record.isMainProgram +
+                    ", name=" + record.name +
+                    ", arch=" + record.arch +
+                    ", degree=" + record.degree +
+                    ", y=" + record.y +
+                    ", cycles=" + record.cycles +
+                    ", inputs=" + record.inputs +
+                    ", vars=" + record.vars);
+
+            ProgramMeta meta = PROGRAMS.get(s.program);
+            if (meta != null) {
+                long totalUsed = s.fixed + s.chargedCycles;
+                long newRunCount = meta.runsCount.incrementAndGet();
+                meta.avgCreditsCost = ((meta.avgCreditsCost * (newRunCount - 1)) + totalUsed) / (double) newRunCount;
+            }
+        } catch (Exception ignore) {}
 
         // When stopping, record all credits spent during this session (fixed + variable)
         u.creditsSpent.addAndGet(s.fixed + s.chargedCycles);
