@@ -734,6 +734,65 @@ public class ApiClient {
         return out;
     }
 
+    public List<RunHistoryEntry> fetchUserRunHistory(String username) throws IOException, InterruptedException {
+        String path = "/api/users/history?username=" + URLEncoder.encode(username, StandardCharsets.UTF_8);
+        HttpRequest req = HttpRequest.newBuilder(url(path))
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        String s = resp.body() == null ? "" : resp.body();
+        if (resp.statusCode() != 200) return List.of();
+
+        List<RunHistoryEntry> out = new ArrayList<>();
+        String key = "\"history\"";
+        int i = s.indexOf(key); if (i < 0) return out;
+        int c = s.indexOf(':', i + key.length()); if (c < 0) return out;
+        int a1 = s.indexOf('[', c + 1); if (a1 < 0) return out;
+        int a2 = matchBracket(s, a1); if (a2 < 0) return out;
+        String arr = s.substring(a1 + 1, a2);
+
+        int pos = 0;
+        while (pos < arr.length()) {
+            int o1 = arr.indexOf('{', pos); if (o1 < 0) break;
+            int o2 = matchBrace(arr, o1); if (o2 < 0) break;
+            String obj = arr.substring(o1 + 1, o2);
+
+            long runNo = jLong(obj, "runNo", 0L);
+            boolean isMainProgram = jBool(obj, "isMainProgram", true);
+            String name = jStr(obj, "name");
+            String arch = jStr(obj, "arch");
+            int degree = jInt(obj, "degree", 0);
+            long y = jLong(obj, "y", 0L);
+            long cycles = jLong(obj, "cycles", 0L);
+            List<Long> inputs = jLongList(obj, "inputs");
+            Map<String, Long> vars = new LinkedHashMap<>();
+            String vkey = "\"vars\"";
+            int vi = obj.indexOf(vkey);
+            if (vi >= 0) {
+                int vc = obj.indexOf(':', vi + vkey.length());
+                int vo1 = obj.indexOf('{', vc + 1);
+                int vo2 = matchBrace(obj, vo1);
+                if (vo1 >= 0 && vo2 > vo1) {
+                    String vobj = obj.substring(vo1 + 1, vo2);
+                    for (String pair : vobj.split(",")) {
+                        int sep = pair.indexOf(':');
+                        if (sep > 0) {
+                            String vname = pair.substring(0, sep).replaceAll("[\"\\s]", "");
+                            try {
+                                long vval = Long.parseLong(pair.substring(sep + 1).trim());
+                                vars.put(vname, vval);
+                            } catch (Exception ignore) {}
+                        }
+                    }
+                }
+            }
+            out.add(new RunHistoryEntry(runNo, isMainProgram, name, arch, degree, y, cycles, inputs, vars));
+            pos = o2 + 1;
+        }
+        return out;
+    }
+
     public static final class DebugState {
         public final boolean ok;
         public final String id;

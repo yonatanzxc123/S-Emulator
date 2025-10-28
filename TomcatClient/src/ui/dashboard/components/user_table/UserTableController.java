@@ -29,6 +29,7 @@ public class UserTableController {
     @FXML private TableColumn<UserRow, String> spentCol;
     @FXML private TableColumn<UserRow, String> runsCol;
     @FXML private Button uncheckBtn;
+    private ui.dashboard.components.history_table.HistoryTableController historyTableController;
 
     private final ObservableList<UserRow> items = FXCollections.observableArrayList();
     private final Timeline autoRefresh = new Timeline(new KeyFrame(Duration.seconds(2), e -> refresh()));
@@ -44,6 +45,22 @@ public class UserTableController {
         runsCol.setCellValueFactory(new PropertyValueFactory<>("runsCount"));
 
         table.setItems(items);
+
+        table.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
+            if (historyTableController != null) {
+                String username = (selected != null) ? selected.getName() : null;
+                historyTableController.loadHistoryForUser(username);
+            }
+        });
+
+        if (uncheckBtn != null) {
+            uncheckBtn.setOnAction(e -> {
+                table.getSelectionModel().clearSelection();
+                if (historyTableController != null) {
+                    historyTableController.loadHistoryForUser(null); // Show own history
+                }
+            });
+        }
 
         if (uncheckBtn != null) {
             uncheckBtn.setOnAction(e -> table.getSelectionModel().clearSelection());
@@ -62,6 +79,10 @@ public class UserTableController {
                 table.getScene().getWindow().addEventHandler(WindowEvent.WINDOW_CLOSE_REQUEST, ev -> autoRefresh.stop());
             }
         });
+    }
+
+    public void setHistoryTableController(ui.dashboard.components.history_table.HistoryTableController ctrl) {
+        this.historyTableController = ctrl;
     }
 
     // Async refresh; applies updates on FX thread; prevents overlaps
