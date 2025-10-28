@@ -548,12 +548,17 @@ public class ApiClient {
         }
     }
 
-    public List<InputVarInfo> fetchInputsForProgram(String programName) throws IOException, InterruptedException {
-        String body = "{\"program\":\"" + jsonEsc(programName) + "\"}";
+    public List<InputVarInfo> fetchInputsForProgram(String programName, String functionName) throws IOException, InterruptedException {
+        StringBuilder body = new StringBuilder();
+        body.append("{\"program\":\"").append(jsonEsc(programName)).append("\"");
+        if (functionName != null && !functionName.isBlank()) {
+            body.append(",\"function\":\"").append(jsonEsc(functionName)).append("\"");
+        }
+        body.append("}");
         HttpRequest req = HttpRequest.newBuilder(url("/api/run/inputs"))
                 .timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                 .build();
         HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
         if (resp.statusCode() != 200) return List.of();

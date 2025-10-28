@@ -63,21 +63,27 @@ public class CenterRightController {
         String program = SelectedProgram.get();
         boolean isMainProgram = ui.ClientApp.get().getRunScreenController().getIsMainProgram();
 
+        String parentProgram = program;
+        String functionName = null;
+
         if (!isMainProgram) {
             var functions = ApiClient.get().listAllFunctions();
             for (var f : functions) {
                 if (f.name.equals(program)) {
-                    program = f.program; // Use parent program name
+                    parentProgram = f.program; // Use parent program name
+                    functionName = f.name;     // Use function name
                     break;
                 }
             }
         }
 
-        final String inputProgram = program;
-        if (program == null || program.isBlank()) return;
+        final String inputProgram = parentProgram;
+        final String inputFunction = functionName;
+
+        if (inputProgram == null || inputProgram.isBlank()) return;
         new Thread(() -> {
             try {
-                var inputs = ApiClient.get().fetchInputsForProgram(inputProgram);
+                var inputs = ApiClient.get().fetchInputsForProgram(inputProgram, inputFunction);
                 Platform.runLater(() -> inputTableController.setInputs(inputs));
             } catch (Exception ex) {
                 ex.printStackTrace();

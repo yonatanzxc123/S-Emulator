@@ -8,6 +8,7 @@ import ui.net.ApiClient;
 import ui.runner.components.center.CenterController;
 
 import java.io.IOException;
+import java.util.List;
 
 
 // java
@@ -76,13 +77,29 @@ public class MainRunScreenController {
                 if (rightCtrl != null && rightCtrl.getInputTableController() != null && leftCtrl != null) {
                     String program = ui.runner.SelectedProgram.get();
                     int degree = ui.runner.SelectedProgram.getSelectedDegree();
+                    List<Long> inputs = ui.runner.SelectedProgram.getInputs();
+
                     new Thread(() -> {
                         try {
-                            var inputsInfo = ApiClient.get().fetchInputsForProgram(program);
+                            String parentProgram = program;
+                            String functionName = null;
+                            boolean isFunction = false;
+                            var functions = ApiClient.get().listAllFunctions();
+                            for (var f : functions) {
+                                if (f.name.equals(program)) {
+                                    parentProgram = f.program;
+                                    functionName = f.name;
+                                    isFunction = true;
+                                    break;
+                                }
+                            }
+                            var inputsInfo = isFunction
+                                    ? ApiClient.get().fetchInputsForProgram(parentProgram, functionName)
+                                    : ApiClient.get().fetchInputsForProgram(program, null);
+
                             Platform.runLater(() -> {
                                 rightCtrl.getInputTableController().setInputs(inputsInfo);
-                                rightCtrl.getInputTableController().setInputValues(ui.runner.SelectedProgram.getInputs());
-                                // Simulate expand button press
+                                rightCtrl.getInputTableController().setInputValues(inputs);
                                 leftCtrl.expandToDegree(degree);
                             });
                         } catch (Exception e) {

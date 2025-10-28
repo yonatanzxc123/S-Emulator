@@ -212,6 +212,35 @@ public class HistoryTableController {
                         if (centerRightCtrl != null && centerRightCtrl.getArchitectureChoiceBox() != null) {
                             centerRightCtrl.getArchitectureChoiceBox().setValue(entry.arch);
                         }
+                        if (!entry.isMainProgram) {
+                            new Thread(() -> {
+                                try {
+                                    // Find parent program for the function
+                                    String parentProgram = entry.name;
+                                    String functionName = entry.name;
+                                    var functions = ui.net.ApiClient.get().listAllFunctions();
+                                    for (var f : functions) {
+                                        if (f.name.equals(entry.name)) {
+                                            parentProgram = f.program;
+                                            functionName = f.name;
+                                            break;
+                                        }
+                                    }
+                                    var inputsInfo = ui.net.ApiClient.get().fetchInputsForProgram(parentProgram, functionName);
+                                    System.out.println("entry.inputs: " + entry.inputs);
+                                    System.out.println("inputsInfo: " + inputsInfo);
+                                    Platform.runLater(() -> {
+                                        centerRightCtrl.getInputTableController().setInputs(inputsInfo);
+                                        List<Long> values = entry.inputs;
+                                        for (int i = 0; i < Math.min(inputsInfo.size(), values.size()); i++) {
+                                            centerRightCtrl.getInputTableController().setValue(inputsInfo.get(i).name, values.get(i));
+                                        }
+                                    });
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }).start();
+                        }
                     } catch (IOException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
