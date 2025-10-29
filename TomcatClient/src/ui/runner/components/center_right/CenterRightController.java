@@ -49,7 +49,8 @@ public class CenterRightController {
 
     @FXML
     private void initialize() {
-        architectureChoiceBox.getItems().setAll("Choose Arch" ,"I", "II", "III", "IV");
+        architectureChoiceBox.getItems().setAll("I", "II", "III", "IV");
+        architectureChoiceBox.setValue("Choose Arch");
         architectureChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> highlightByArch(selected));
         startBtn.setDisable(true);
         debugBtn.setDisable(true);
