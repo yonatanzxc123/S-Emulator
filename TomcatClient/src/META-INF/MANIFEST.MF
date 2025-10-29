@@ -1,0 +1,7 @@
+Manifest-Version: 1.0
+Main-Class: Main
+Class-Path: javafx-swt.jar javafx.web.jar javafx.base.jar javafx.fxml.ja
+ r javafx.media.jar javafx.swing.jar javafx.controls.jar javafx.graphics
+ .jar angus-activation.jar jaxb-core.jar jakarta.activation-api.jar jaka
+ rta.xml.bind-api.jar jaxb-impl.jar
+
