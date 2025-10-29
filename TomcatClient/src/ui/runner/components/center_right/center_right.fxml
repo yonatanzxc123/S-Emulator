@@ -26,10 +26,10 @@
                     </FlowPane.margin>
                 </Button>
                 <Button fx:id="startBtn" mnemonicParsing="false" onAction="#onStart" text="Start" />
-                <Button fx:id="debugBtn" mnemonicParsing="false" text="Debug" />
-                <Button fx:id="stopBtn" mnemonicParsing="false" text="Stop" />
-                <Button fx:id="resumeBtn" mnemonicParsing="false" text="Resume" />
-                <Button fx:id="stepOverBtn" mnemonicParsing="false" text="Step Over" />
+                <Button fx:id="debugBtn" mnemonicParsing="false" onAction="#onDebug" text="Debug" />
+                <Button fx:id="stopBtn" mnemonicParsing="false" onAction="#onStopBtn" text="Stop" />
+                <Button fx:id="resumeBtn" mnemonicParsing="false" onAction="#onResumeBtn" text="Resume" />
+                <Button fx:id="stepOverBtn" mnemonicParsing="false" onAction="#onStepOverBtn" text="Step Over" />
             </children>
             <VBox.margin>
                 <Insets top="10.0" />

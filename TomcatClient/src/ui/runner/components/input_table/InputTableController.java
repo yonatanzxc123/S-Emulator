@@ -45,6 +45,15 @@ public class InputTableController {
             items.add(new InputVar(iv.name));
         }
     }
+
+    public void setValue(String varName, Long value) {
+        for (InputVar var : items) {
+            if (var.getName().equals(varName)) {
+                var.setValue(value);
+                break;
+            }
+        }
+    }
     public List<Long> getInputValues() {
         return items.stream().map(InputVar::getValue).toList();
     }

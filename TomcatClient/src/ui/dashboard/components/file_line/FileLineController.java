@@ -63,7 +63,7 @@ public class FileLineController {
             try {
                 ApiClient.ProgramInfo p = ctx.api().uploadProgram(xml);
                 Platform.runLater(() -> {
-                    if (status != null) status.setText("Loaded " + file.getName());
+                    if (status != null) status.setText("Loaded: " + file.getAbsolutePath());
                     if (loadButton != null) loadButton.setDisable(false);
                     if (programTable != null) programTable.addProgram(p.name, p.owner, p.instrDeg0, p.maxDegree,p.timesRun,p.avgCredits);
                     if (functionTable != null && p.functions != null && !p.functions.isEmpty()) {

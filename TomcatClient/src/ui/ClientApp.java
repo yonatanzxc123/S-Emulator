@@ -98,6 +98,12 @@ public class ClientApp extends Application {
         });
         stage.setScene(new Scene(fxml.load()));
         stage.sizeToScene();
+        stage.setMinWidth(800);
+        stage.setMinHeight(600);
+        stage.setWidth(1200);
+        stage.setHeight(800);
+        stage.setResizable(true);
+        Platform.runLater(stage::centerOnScreen);
         stage.setTitle("Run Program");
     }
 

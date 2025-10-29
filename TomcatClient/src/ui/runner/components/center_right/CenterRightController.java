@@ -17,13 +17,28 @@ public class CenterRightController {
     @FXML private Button newRunBtn;
     @FXML private InputTableController inputTableController;
     @FXML private Button startBtn;
+    @FXML private Button debugBtn;
+    @FXML private Button stopBtn;
+    @FXML private Button resumeBtn;
+    @FXML private Button stepOverBtn;
     @FXML private Label cyclesLbl;
     @FXML private Button dashboardBtn;
     @FXML private VarTableController varTableController;
     @FXML private ChoiceBox<String> architectureChoiceBox;
 
+
+    private boolean newRunPressed = false;
+    private boolean archOk = false;
+
+    private String debugSessionId = null;
+    private int currentPc = -1;
+
     public InputTableController getInputTableController() {
         return inputTableController;
+    }
+
+    public ChoiceBox<String> getArchitectureChoiceBox() {
+        return architectureChoiceBox;
     }
 
     private AppContext ctx;
@@ -34,8 +49,13 @@ public class CenterRightController {
 
     @FXML
     private void initialize() {
-        architectureChoiceBox.getItems().setAll( "I", "II", "III", "IV");
+        architectureChoiceBox.getItems().setAll("Choose Arch" ,"I", "II", "III", "IV");
         architectureChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> highlightByArch(selected));
+        startBtn.setDisable(true);
+        debugBtn.setDisable(true);
+        stopBtn.setDisable(true);
+        resumeBtn.setDisable(true);
+        stepOverBtn.setDisable(true);
     }
 
     @FXML
@@ -43,38 +63,54 @@ public class CenterRightController {
         String program = SelectedProgram.get();
         boolean isMainProgram = ui.ClientApp.get().getRunScreenController().getIsMainProgram();
 
+        String parentProgram = program;
+        String functionName = null;
+
         if (!isMainProgram) {
             var functions = ApiClient.get().listAllFunctions();
             for (var f : functions) {
                 if (f.name.equals(program)) {
-                    program = f.program; // Use parent program name
+                    parentProgram = f.program; // Use parent program name
+                    functionName = f.name;     // Use function name
                     break;
                 }
             }
         }
 
-        final String inputProgram = program;
-        if (program == null || program.isBlank()) return;
+        final String inputProgram = parentProgram;
+        final String inputFunction = functionName;
+
+        if (inputProgram == null || inputProgram.isBlank()) return;
         new Thread(() -> {
             try {
-                var inputs = ApiClient.get().fetchInputsForProgram(inputProgram);
+                var inputs = ApiClient.get().fetchInputsForProgram(inputProgram, inputFunction);
                 Platform.runLater(() -> inputTableController.setInputs(inputs));
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
         }, "fetch-inputs").start();
+
+        newRunPressed = true;
+        Platform.runLater(() -> {
+            updateRunDebugButtons(); // Only enable after arch selection
+            stopBtn.setDisable(true);
+            resumeBtn.setDisable(true);
+            stepOverBtn.setDisable(true);
+        });
     }
 
     @FXML
     private void onStart() throws IOException, InterruptedException {
         String program = SelectedProgram.get();
         boolean isMainProgram = ui.ClientApp.get().getRunScreenController().getIsMainProgram();
+        String functionName = "";
 
         if (!isMainProgram) {
             var functions = ApiClient.get().listAllFunctions();
             for (var f : functions) {
                 if (f.name.equals(program)) {
-                    program = f.program; // Use parent program name
+                    functionName = f.name; // Use function name
+                    program = f.program;   // Use parent program name
                     break;
                 }
             }
@@ -83,13 +119,14 @@ public class CenterRightController {
         if (program == null || program.isBlank()) return;
         int degree = SelectedProgram.getSelectedDegree();
         List<Long> inputs = inputTableController.getInputValues();
+        String selectedArch = architectureChoiceBox.getValue();
 
         final String runProgram = program;
-        String selectedArch = architectureChoiceBox.getValue();
+        final String runFunction = functionName;
 
         new Thread(() -> {
             try {
-                ApiClient.RunResult result = ApiClient.get().runStart(runProgram, degree, inputs, isMainProgram,selectedArch);
+                ApiClient.RunResult result = ApiClient.get().runStart(runProgram, degree, inputs, isMainProgram,selectedArch,runFunction);
                 if ("insufficient_credits".equals(result.error)) {
                     Platform.runLater(this::showChargeCreditsPopup);
                     return;
@@ -153,11 +190,20 @@ public class CenterRightController {
     private void highlightByArch(String selectedArch) {
         int selectedTier = archTier(selectedArch);
 
-        // Get instruction table via CenterController -> CenterLeftController
         var centerController = ((ui.runner.MainRunScreenController)
                 ui.ClientApp.get().getRunScreenController()).getCenterController();
         var instructionTableController = centerController.getCenterLeftController().getInstructionTableController();
         var instructionTable = instructionTableController.getTable();
+
+        int highestTier = 0;
+        for (var item : instructionTable.getItems()) {
+            int itemTier = archTier(item.getLevel());
+            if (itemTier > highestTier) highestTier = itemTier;
+        }
+
+        // Update the field, not a local variable
+        archOk = selectedTier >= highestTier && selectedTier > 0;
+        updateRunDebugButtons();
 
         instructionTable.setRowFactory(tv -> new javafx.scene.control.TableRow<ui.net.ApiClient.ProgramInstruction>() {
             @Override
@@ -172,6 +218,193 @@ public class CenterRightController {
             }
         });
         instructionTable.refresh();
+    }
+
+    @FXML
+    private void onDebug() throws IOException, InterruptedException {
+        String program = SelectedProgram.get();
+        int degree = SelectedProgram.getSelectedDegree();
+        List<Long> inputs = inputTableController.getInputValues();
+        String arch = architectureChoiceBox.getValue();
+
+        boolean isMainProgram = ui.ClientApp.get().getRunScreenController().getIsMainProgram();
+        String functionName = "";
+
+        if (!isMainProgram) {
+            var functions = ApiClient.get().listAllFunctions();
+            for (var f : functions) {
+                if (f.name.equals(program)) {
+                    functionName = f.name; // Use function name
+                    program = f.program;   // Use parent program name
+                    break;
+                }
+            }
+        }
+
+        final String debugProgram = program;
+        final String debugFunction = functionName;
+
+        new Thread(() -> {
+            try {
+                ApiClient.DebugState state = ctx.api().debugStart(debugProgram, degree, arch, inputs, isMainProgram, debugFunction);
+                if ("insufficient_credits".equals(state.error)) {
+                    Platform.runLater(this::showChargeCreditsPopup);
+                    return;
+                }
+                if (!state.ok) {
+                    Platform.runLater(() -> showError("Debug start failed", state.error));
+                    return;
+                }
+                debugSessionId = state.id;
+                ApiClient.DebugState firstStep = ctx.api().debugStep(debugSessionId);
+                Platform.runLater(() -> {
+                    handleDebugResponse(firstStep);
+                    stopBtn.setDisable(false);
+                    resumeBtn.setDisable(false);
+                    stepOverBtn.setDisable(false);
+                    startBtn.setDisable(true);
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> showError("Debug start failed", e.getMessage()));
+            }
+        }).start();
+    }
+
+    @FXML
+    private void onStepOverBtn() {
+        if (debugSessionId == null) return;
+        new Thread(() -> {
+            try {
+                ApiClient.DebugState state = ctx.api().debugStep(debugSessionId);
+                handleDebugResponse(state);
+            } catch (Exception e) {
+                Platform.runLater(() -> showError("Step failed", e.getMessage()));
+            }
+        }).start();
+    }
+
+    @FXML
+    private void onResumeBtn() {
+        if (debugSessionId == null) return;
+        new Thread(() -> {
+            try {
+                ApiClient.DebugState state = ctx.api().debugResume(debugSessionId);
+                handleDebugResponse(state);
+            } catch (Exception e) {
+                Platform.runLater(() -> showError("Resume failed", e.getMessage()));
+            }
+        }).start();
+    }
+
+    @FXML
+    private void onStopBtn() {
+        if (debugSessionId == null) return;
+        new Thread(() -> {
+            try {
+                ctx.api().debugStop(debugSessionId,ui.ClientApp.get().getRunScreenController().getIsMainProgram());
+                debugSessionId = null;
+                Platform.runLater(this::endDebugMode);
+            } catch (Exception e) {
+                Platform.runLater(() -> showError("Stop failed", e.getMessage()));
+            }
+        }).start();
+    }
+
+    private void fetchDebugState() {
+        if (debugSessionId == null) return;
+        new Thread(() -> {
+            try {
+                ApiClient.DebugState state = ctx.api().debugState(debugSessionId);
+                handleDebugResponse(state);
+            } catch (Exception e) {
+                Platform.runLater(() -> showError("Fetch state failed", e.getMessage()));
+            }
+        }).start();
+    }
+
+    private void updateRunDebugButtons() {
+        startBtn.setDisable(!(archOk && newRunPressed));
+        debugBtn.setDisable(!(archOk && newRunPressed));
+    }
+
+    private void handleDebugResponse(ApiClient.DebugState state) {
+        if ("insufficient_credits".equals(state.error) || "credit_exhausted".equals(state.error)) {
+            Platform.runLater(this::showChargeCreditsPopup);
+            endDebugMode();
+            return;
+        }
+        if (!state.ok) {
+            Platform.runLater(() -> showError("Debug failed", state.error));
+            endDebugMode();
+            return;
+        }
+        currentPc = state.pc;
+        Platform.runLater(() -> {
+            highlightCurrentLine(currentPc);
+            cyclesLbl.setText("Cycles: " + state.cycles);
+            varTableController.setVars(state.vars);
+            if (ctx != null) ctx.setCredits(state.creditsLeft);
+            // If halted, treat as program end
+            if (state.halted) {
+                try {
+                    ctx.api().debugStop(debugSessionId, ui.ClientApp.get().getRunScreenController().getIsMainProgram());
+                    debugSessionId = null;
+                    Platform.runLater(() -> {
+                        addDebugRunToHistory(state);
+                        endDebugMode();
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    private void disableRunDebugButtons() {
+        startBtn.setDisable(true);
+    }
+
+
+    private void highlightCurrentLine(int pc) {
+        var centerController = ((ui.runner.MainRunScreenController)
+                ui.ClientApp.get().getRunScreenController()).getCenterController();
+        var instructionTableController = centerController.getCenterLeftController().getInstructionTableController();
+        var instructionTable = instructionTableController.getTable();
+
+        instructionTable.setRowFactory(tv -> new TableRow<ui.net.ApiClient.ProgramInstruction>() {
+            @Override
+            protected void updateItem(ui.net.ApiClient.ProgramInstruction item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setStyle("");
+                } else {
+                    setStyle(item.getIndex() == pc ? "-fx-background-color: #cceeff;" : "");
+                }
+            }
+        });
+        instructionTable.refresh();
+    }
+
+    private void endDebugMode() {
+        highlightCurrentLine(-1);
+        stopBtn.setDisable(true);
+        resumeBtn.setDisable(true);
+        stepOverBtn.setDisable(true);
+        startBtn.setDisable(false);
+        debugBtn.setDisable(false);
+    }
+
+    private void addDebugRunToHistory(ApiClient.DebugState state) {
+        new Thread(() -> {
+            try {
+                var history = ApiClient.get().fetchOwnRunHistory();
+                Platform.runLater(() -> {
+                    // Update history table UI here
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
 
     private int archTier(String arch) {

@@ -6,21 +6,20 @@
 <?import javafx.scene.layout.StackPane?>
 
 <StackPane alignment="TOP_CENTER"
-           maxHeight="1.7976931348623157E308"
-           maxWidth="1.7976931348623157E308"
-           minHeight="100.0" minWidth="-Infinity"
-           xmlns="http://javafx.com/javafx/24.0.1"
+           maxHeight="Infinity"
+           maxWidth="Infinity"
+           minHeight="0.0"
+           minWidth="0.0"
+           xmlns="http://javafx.com/javafx/25"
            xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="ui.runner.components.instruction_table.InstructionTableController">
 
     <children>
         <TableView fx:id="table"
-                   maxHeight="1.7976931348623157E308"
-                   minHeight="100.0"
-                   prefHeight="600.0"
+                   maxHeight="Infinity"
+                   minHeight="0.0"
                    StackPane.alignment="TOP_CENTER">
             <columns>
-                <!-- IDs renamed to match controller fields exactly -->
                 <TableColumn fx:id="lineCol"          prefWidth="-1.0" text="#line"/>
                 <TableColumn fx:id="bsCol"            prefWidth="-1.0" text="B\S"/>
                 <TableColumn fx:id="labelCol"         prefWidth="10.0" text="Label"/>

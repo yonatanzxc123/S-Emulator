@@ -3,18 +3,13 @@
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.AnchorPane?>
 
-<SplitPane dividerPositions="0.5" orientation="VERTICAL"
-           xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1">
+<SplitPane dividerPositions="0.5" orientation="VERTICAL" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.dashboard.components.inner_center_left.InnerCenterLeftController">
     <items>
         <AnchorPane minHeight="0.0" minWidth="0.0">
-            <fx:include fx:id="usersTable" source="../user_table/user_table.fxml"
-                        AnchorPane.topAnchor="0.0" AnchorPane.rightAnchor="0.0"
-                        AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"/>
+            <fx:include fx:id="usersTable" source="../user_table/user_table.fxml" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
         </AnchorPane>
         <AnchorPane minHeight="0.0" minWidth="0.0">
-            <fx:include fx:id="historyTable" source="../history_table/history_table.fxml"
-                        AnchorPane.topAnchor="0.0" AnchorPane.rightAnchor="0.0"
-                        AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"/>
+            <fx:include fx:id="historyTable" source="../history_table/history_table.fxml" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
         </AnchorPane>
     </items>
 </SplitPane>

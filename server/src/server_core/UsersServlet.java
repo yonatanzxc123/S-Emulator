@@ -30,7 +30,14 @@ public class UsersServlet extends BaseApiServlet {
     private void handleUserHistory(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         User u = requireUser(req, resp);
         if (u == null) return;
-        var history = u.getRunHistory();
+
+        String username = req.getParameter("username");
+        User target = (username != null && !username.isBlank()) ? USERS.get(username) : u;
+        if (target == null) {
+            json(resp, 404, "{\"error\":\"user_not_found\"}");
+            return;
+        }
+        var history = target.getRunHistory();
         StringBuilder sb = new StringBuilder("{\"ok\":true,\"history\":[");
         boolean first = true;
         for (User.RunRecord r : history) {
