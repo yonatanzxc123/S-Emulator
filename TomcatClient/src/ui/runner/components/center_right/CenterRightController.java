@@ -214,7 +214,13 @@ public class CenterRightController {
                     setStyle("");
                 } else {
                     int itemTier = archTier(item.getLevel());
-                    setStyle(itemTier > selectedTier && selectedTier > 0 ? "-fx-background-color: #ffcccc;" : "");
+                    if (itemTier > selectedTier && selectedTier > 0) {
+                        setStyle("-fx-background-color: #ffcccc;"); // red
+                    } else if (selectedTier > 0) {
+                        setStyle("-fx-background-color: #ccffcc;"); // green
+                    } else {
+                        setStyle("");
+                    }
                 }
             }
         });
